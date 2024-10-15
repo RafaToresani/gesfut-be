@@ -1,12 +1,10 @@
 package com.gesfut.models.team;
 
+
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.gesfut.models.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.util.Set;
-
 
 @Getter
 @Setter
@@ -14,21 +12,26 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "teams")
-public class Team {
+@Table(name = "players")
+public class Player {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
     private String name;
-    private String color;
+    private String lastName;
+    private Integer number;
+    private Boolean isCaptain;
+    private Boolean isSuspended;
+    private Boolean isGoalKeeper;
+
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "team_id")
     @JsonBackReference
-    private UserEntity user;
+    private Team team;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private Set<Player> players;
+
 }

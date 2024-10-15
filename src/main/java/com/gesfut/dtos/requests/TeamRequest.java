@@ -3,6 +3,8 @@ package com.gesfut.dtos.requests;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.Set;
+
 public record TeamRequest(
 
         @NotBlank(message = "Nombre es requerido")
@@ -10,6 +12,9 @@ public record TeamRequest(
         String name,
 
         @NotBlank(message = "Color es requerido")
-        String color
+        String color,
+
+        @Size(min = 1, message = "Debe tener al menos un jugador")
+        Set<PlayerRequest> players
 ) {
 }

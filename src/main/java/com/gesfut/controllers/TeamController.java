@@ -1,6 +1,7 @@
 package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.TeamRequest;
+import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.services.TeamService;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
@@ -29,5 +30,11 @@ public class TeamController {
             throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
         }
         this.teamService.createTeam(request);
+    }
+
+    @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public TeamResponse getTeamById(@PathVariable Long id) {
+       return this.teamService.getTeamById(id);
     }
 }
