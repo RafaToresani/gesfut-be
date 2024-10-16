@@ -1,13 +1,13 @@
-package com.gesfut.models.team;
+package com.gesfut.models.tournament;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.models.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.Set;
-
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -15,22 +15,20 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "teams")
-public class Team {
+@Table(name = "tournaments")
+public class Tournament {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private UUID code;
     private String name;
-    private String color;
+    private LocalDate startDate;
 
-    @ManyToOne
+    @ManyToOne()
     @JoinColumn(name = "user_id")
     @JsonBackReference
     private UserEntity user;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private Set<Player> players;
-
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private Set<TournamentParticipant> tournaments;
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private Set<TournamentParticipant> teams;
 }

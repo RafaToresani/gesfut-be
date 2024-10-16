@@ -43,7 +43,8 @@ public class TeamServiceImpl implements TeamService {
                 .name(request.name())
                 .color(request.color())
                 .user(user.get())
-                .players(new HashSet<Player>())
+                .players(new HashSet<>())
+                .tournaments(new HashSet<>())
                 .build();
 
         teamRepository.save(team);
