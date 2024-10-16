@@ -8,6 +8,10 @@ import com.gesfut.services.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Service
 public class PlayerServiceImpl implements PlayerService {
 
@@ -29,7 +33,7 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public PlayerResponse playersToResponse(Player player) {
+    public PlayerResponse playerToResponse(Player player) {
         return new PlayerResponse(
                 player.getName(),
                 player.getLastName(),
@@ -38,5 +42,10 @@ public class PlayerServiceImpl implements PlayerService {
                 player.getIsGoalKeeper(),
                 player.getIsSuspended()
         );
+    }
+
+    @Override
+    public Set<PlayerResponse> playersToResponse(Set<Player> players){
+        return players.stream().map(item -> playerToResponse(item)).collect(Collectors.toSet());
     }
 }

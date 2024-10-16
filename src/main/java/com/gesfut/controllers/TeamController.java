@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Objects;
 
 @RestController
@@ -20,8 +21,7 @@ public class TeamController {
     @Autowired
     private TeamService teamService;
 
-
-
+    // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -32,9 +32,21 @@ public class TeamController {
         this.teamService.createTeam(request);
     }
 
+    // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public TeamResponse getTeamById(@PathVariable Long id) {
        return this.teamService.getTeamById(id);
     }
+
+    @GetMapping
+    @ResponseStatus(HttpStatus.OK)
+    public List<TeamResponse> getAllTeams(){
+        return this.teamService.getAllTeams();
+    }
+
+    // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
+
+
+
 }

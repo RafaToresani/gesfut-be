@@ -14,9 +14,8 @@ import com.gesfut.services.TeamService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.gesfut.config.security.SecurityUtils.getCurrentUserEmail;
 
@@ -33,10 +32,10 @@ public class TeamServiceImpl implements TeamService {
     private UserRepository userRepository;
 
     @Override
-    public void createTeam(TeamRequest request){
+    public void createTeam(TeamRequest request) {
         String userEmail = getCurrentUserEmail();
         Optional<UserEntity> user = userRepository.findByEmail(userEmail);
-        if(user.isEmpty()) {
+        if (user.isEmpty()) {
             throw new ResourceNotFoundException("Usuario no encontrado");
         }
 
@@ -57,22 +56,25 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public TeamResponse getTeamById(Long id) {
-
         Optional<Team> team = teamRepository.findById(id);
         if (team.isEmpty()) {
             throw new ResourceNotFoundException("Equipo no encontrado");
         }
 
-        Set<PlayerResponse> players = new HashSet<>();
-        team.get().getPlayers().forEach(player -> {
-            players.add(playerService.playersToResponse(player));
-        });
+        return teamToResponse(team.get());
+    }
 
+    @Override
+    public List<TeamResponse> getAllTeams() {
+        List<Team> teams = this.teamRepository.findAll();
+        return teams.stream().map(team -> teamToResponse(team)).toList();
+    }
+
+    private TeamResponse teamToResponse(Team team){
         return new TeamResponse(
-                team.get().getId(),
-                team.get().getName(),
-                team.get().getColor(),
-                players
-        );
+                team.getId(),
+                team.getName(),
+                team.getColor(),
+                playerService.playersToResponse(team.getPlayers()));
     }
 }
