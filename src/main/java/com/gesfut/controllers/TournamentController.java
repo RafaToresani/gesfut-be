@@ -38,9 +38,17 @@ public class TournamentController {
         return this.tournamentService.findAllTournaments();
     }
 
-    @GetMapping("{code}")
+    @GetMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
     public TournamentResponse findTournamentByCode(String code){
         return this.tournamentService.findTournamentByCode(code);
+    }
+
+    // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
+    @DeleteMapping("/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public String deleteTournamentByCode(String code){
+        return this.tournamentService.deleteTournamentByCode(code);
     }
 }

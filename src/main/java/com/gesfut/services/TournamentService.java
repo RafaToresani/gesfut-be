@@ -11,4 +11,6 @@ public interface TournamentService {
     List<TournamentResponse> findAllTournaments();
 
     TournamentResponse findTournamentByCode(String code);
+
+    String deleteTournamentByCode(String code);
 }

@@ -11,6 +11,7 @@ import com.gesfut.services.TournamentService;
 import com.gesfut.services.UserEntityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -56,6 +57,15 @@ public class TournamentServiceImpl implements TournamentService {
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
 
         return tournamentToResponse(tournament.get());
+    }
+
+    @Override
+    @Transactional
+    public String deleteTournamentByCode(String code) {
+        if(!this.tournamentRepository.existsByCode(UUID.fromString(code))) return "El torneo no existe";
+
+        this.tournamentRepository.deleteByCode(UUID.fromString(code));
+        return "Torneo eliminado exitosamente";
     }
 
     public TournamentResponse tournamentToResponse(Tournament tournament){
