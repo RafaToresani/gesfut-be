@@ -13,4 +13,6 @@ public interface TournamentService {
     TournamentResponse findTournamentByCode(String code);
 
     String deleteTournamentByCode(String code);
+
+    String addTeamToTournament(Long idTeam, String code);
 }

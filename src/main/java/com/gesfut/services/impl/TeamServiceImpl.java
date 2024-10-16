@@ -69,11 +69,24 @@ public class TeamServiceImpl implements TeamService {
         return teams.stream().map(team -> teamToResponse(team)).toList();
     }
 
+    @Override
+    public Team getTeamByIdSecured(Long id) {
+        Optional<Team> team = this.teamRepository.findById(id);
+        if(team.isEmpty()) throw new ResourceNotFoundException("El equipo no existe.");
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        verifyTeamBelongsToManager(team.get(), user);
+        return team.get();
+    }
+
     private TeamResponse teamToResponse(Team team){
         return new TeamResponse(
                 team.getId(),
                 team.getName(),
                 team.getColor(),
                 playerService.playersToResponse(team.getPlayers()));
+    }
+
+    private void verifyTeamBelongsToManager(Team team, UserEntity user){
+        if(!team.getUser().equals(user)) throw new RuntimeException("El equipo no pertenece a este usuario.");
     }
 }

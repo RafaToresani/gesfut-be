@@ -4,6 +4,8 @@ import com.gesfut.models.team.Team;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @Entity
@@ -23,4 +25,8 @@ public class TournamentParticipant {
     @ManyToOne
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "statistics_id")
+    private Statistics statistics;
 }

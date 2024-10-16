@@ -30,6 +30,14 @@ public class TournamentController {
         return "Torneo creado exitosamente.";
     }
 
+    @PostMapping("/{tournament-code}/add-team")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public String addTeamToTournament(@PathVariable("tournament-code") String code,
+                                      @RequestParam(name = "idTeam") Long idTeam) {
+        return this.tournamentService.addTeamToTournament(idTeam, code);
+    }
+
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @GetMapping
     @ResponseStatus(HttpStatus.OK)

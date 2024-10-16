@@ -29,6 +29,6 @@ public class Tournament {
     @JsonBackReference
     private UserEntity user;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private Set<TournamentParticipant> teams;
 }

@@ -23,4 +23,5 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     @Modifying
     @Query("DELETE FROM Tournament t WHERE t.code = :code")
     void deleteByCode(UUID code);
+
 }
