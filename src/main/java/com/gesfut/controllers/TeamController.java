@@ -6,6 +6,7 @@ import com.gesfut.services.TeamService;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
@@ -35,6 +36,7 @@ public class TeamController {
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public TeamResponse getTeamById(@PathVariable Long id) {
        return this.teamService.getTeamById(id);
     }
@@ -45,8 +47,12 @@ public class TeamController {
         return this.teamService.getAllTeams();
     }
 
-    // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
-
-
+    // ~~~~~~~~~~~~ PATCH ~~~~~~~~~~~~
+    @PatchMapping("/change-status-team/")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public String disableTeam(@Param("team-id") Long id, @Param("status") Boolean status){
+        return this.teamService.disableTeam(id, status);
+    }
 
 }

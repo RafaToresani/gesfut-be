@@ -11,4 +11,5 @@ public interface PlayerService {
     Player createPlayer(PlayerRequest request, Team team);
     PlayerResponse playerToResponse(Player player);
     Set<PlayerResponse> playersToResponse(Set<Player> players);
+    void updateStatusPlayersByTeam(Long team, Boolean status);
 }

@@ -2,22 +2,20 @@ package com.gesfut.services.impl;
 
 import com.gesfut.config.security.SecurityUtils;
 import com.gesfut.dtos.requests.TeamRequest;
-import com.gesfut.dtos.responses.PlayerResponse;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
-import com.gesfut.models.team.Player;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.TeamRepository;
-import com.gesfut.repositories.UserRepository;
+import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.services.PlayerService;
 import com.gesfut.services.TeamService;
 import com.gesfut.services.UserEntityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.gesfut.config.security.SecurityUtils.getCurrentUserEmail;
 
@@ -33,6 +31,10 @@ public class TeamServiceImpl implements TeamService {
     @Autowired
     private UserEntityService userService;
 
+    @Autowired
+    private TournamentParticipantRepository participantRepository;
+
+
     @Override
     public void createTeam(TeamRequest request) {
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
@@ -42,24 +44,19 @@ public class TeamServiceImpl implements TeamService {
                 .user(user)
                 .players(new HashSet<>())
                 .tournaments(new HashSet<>())
+                .status(true)
                 .build();
 
         teamRepository.save(team);
-
         request.players().forEach(playerRequest -> {
             playerService.createPlayer(playerRequest, team);
-
         });
     }
 
     @Override
     public TeamResponse getTeamById(Long id) {
-        Optional<Team> team = teamRepository.findById(id);
-        if (team.isEmpty()) {
-            throw new ResourceNotFoundException("Equipo no encontrado");
-        }
-
-        return teamToResponse(team.get());
+        Team team = teamById(id);
+        return teamToResponse(team);
     }
 
     @Override
@@ -71,22 +68,42 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public Team getTeamByIdSecured(Long id) {
-        Optional<Team> team = this.teamRepository.findById(id);
-        if(team.isEmpty()) throw new ResourceNotFoundException("El equipo no existe.");
+        Team team = teamById(id);
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        verifyTeamBelongsToManager(team.get(), user);
-        return team.get();
+        verifyTeamBelongsToManager(team, user);
+        return team;
     }
+
+    @Override
+    @Transactional
+    public String disableTeam(Long id, Boolean status) {
+        Team team = teamById(id);
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        String valueStatus  = "habilitado";
+        verifyTeamBelongsToManager(team, user);
+        this.teamRepository.updateTeamStatus(id, status);
+        this.playerService.updateStatusPlayersByTeam(id, status);
+
+        if(!status) valueStatus = "deshabilitado";
+        return team.getName() + " ha sido " + valueStatus;
+    }
+
 
     private TeamResponse teamToResponse(Team team){
         return new TeamResponse(
                 team.getId(),
                 team.getName(),
                 team.getColor(),
+                team.getStatus(),
                 playerService.playersToResponse(team.getPlayers()));
     }
-
     private void verifyTeamBelongsToManager(Team team, UserEntity user){
         if(!team.getUser().equals(user)) throw new RuntimeException("El equipo no pertenece a este usuario.");
+    }
+
+    private Team teamById(Long id){
+        Optional<Team> team = this.teamRepository.findById(id);
+        if (team.isEmpty()) throw new ResourceNotFoundException("El equipo no existe.");
+        return team.get();
     }
 }

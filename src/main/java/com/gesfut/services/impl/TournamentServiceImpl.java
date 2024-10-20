@@ -7,6 +7,7 @@ import com.gesfut.dtos.responses.StatisticsResponse;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
+import com.gesfut.exceptions.TeamDisableException;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Statistics;
 import com.gesfut.models.tournament.Tournament;
@@ -88,9 +89,6 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
 
-
-
-
     @Override
     public String addTeamToTournament(Long idTeam, String code) {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
@@ -98,10 +96,9 @@ public class TournamentServiceImpl implements TournamentService {
         if(tournament.isEmpty()) return "El torneo no existe";
         verifyTournamentBelongsToManager(tournament.get(), user);
 
-
-
         Team team = teamService.getTeamByIdSecured(idTeam);
         if(this.participantRepository.existsByTournamentAndTeam(tournament.get(), team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
+        if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
         Statistics statistics = generateStatistics();
 
         TournamentParticipant participant = TournamentParticipant
@@ -109,11 +106,18 @@ public class TournamentServiceImpl implements TournamentService {
                 .tournament(tournament.get())
                 .team(team)
                 .statistics(statistics)
+                .isActive(true)
                 .build();
         statistics.setParticipant(participant);
         this.participantRepository.save(participant);
 
         return "Equipo agregado exitosamente";
+    }
+
+    @Override
+    public void disableTeamFromTournament(TournamentParticipant tournamentParticipant) {
+        tournamentParticipant.setIsActive(false);
+        this.participantRepository.save(tournamentParticipant);
     }
 
 
@@ -143,6 +147,7 @@ public class TournamentServiceImpl implements TournamentService {
         return new ParticipantResponse(
                 participant.getTeam().getId(),
                 participant.getTeam().getName(),
+                participant.getIsActive(),
                 statisticsToResponse(participant.getStatistics()));
     }
 

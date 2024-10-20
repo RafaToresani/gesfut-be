@@ -39,4 +39,10 @@ public class GlobalExceptionHandler {
     public String handleRuntimeException(RuntimeException ex) {
         return ex.getMessage();
     }
+
+    @ExceptionHandler(TeamDisableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleTeamDisableException(TeamDisableException ex) {
+        return ex.getMessage();
+    }
 }

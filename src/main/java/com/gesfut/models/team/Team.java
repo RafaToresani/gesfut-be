@@ -22,6 +22,7 @@ public class Team {
     private Long id;
     private String name;
     private String color;
+    private Boolean status;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -31,6 +32,7 @@ public class Team {
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Set<Player> players;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "team", fetch = FetchType.EAGER)
     private Set<TournamentParticipant> tournaments;
+
 }

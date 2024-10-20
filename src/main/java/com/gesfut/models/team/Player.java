@@ -14,12 +14,9 @@ import lombok.*;
 @AllArgsConstructor
 @Table(name = "players")
 public class Player {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-
     private String name;
     private String lastName;
     private Integer number;
@@ -27,11 +24,10 @@ public class Player {
     private Boolean isSuspended;
     private Boolean isGoalKeeper;
 
-
     @ManyToOne
     @JoinColumn(name = "team_id")
     @JsonBackReference
     private Team team;
 
-
+    private Boolean status;
 }

@@ -6,6 +6,7 @@ public record TeamResponse(
         Long id,
         String name,
         String color,
+        Boolean status,
         Set<PlayerResponse> players
 ) {
 }

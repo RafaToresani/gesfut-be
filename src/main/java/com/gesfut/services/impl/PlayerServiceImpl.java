@@ -8,7 +8,6 @@ import com.gesfut.services.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +27,7 @@ public class PlayerServiceImpl implements PlayerService {
                 .isCaptain(request.isCaptain())
                 .isGoalKeeper(request.isGoalKeeper())
                 .isSuspended(false)
+                .status(true)
                 .team(team)
                 .build());
     }
@@ -48,4 +48,10 @@ public class PlayerServiceImpl implements PlayerService {
     public Set<PlayerResponse> playersToResponse(Set<Player> players){
         return players.stream().map(item -> playerToResponse(item)).collect(Collectors.toSet());
     }
+
+    @Override
+    public void updateStatusPlayersByTeam(Long team, Boolean status) {
+        this.playerRepository.updatePlayerStatus(team, status);
+    }
+
 }
