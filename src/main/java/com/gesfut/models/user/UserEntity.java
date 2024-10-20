@@ -1,6 +1,7 @@
 package com.gesfut.models.user;
 
 import com.gesfut.models.team.Team;
+import com.gesfut.models.tournament.Tournament;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
@@ -28,16 +29,16 @@ public class UserEntity implements UserDetails {
     private String password;
     private ERole role;
 
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Set<Team> teams;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    private Set<Tournament> tournaments;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority((role.name())));
     }
-
 
     @Override
     public String getUsername() {
@@ -63,7 +64,5 @@ public class UserEntity implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
-
-
 
 }

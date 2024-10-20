@@ -33,4 +33,22 @@ public class GlobalExceptionHandler {
     public String handleBadCredentialsException(BadCredentialsException ex){
         return "Contraseña inválida.";
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleRuntimeException(RuntimeException ex) {
+        return ex.getMessage();
+    }
+
+    @ExceptionHandler(TeamDisableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleTeamDisableException(TeamDisableException ex) {
+        return ex.getMessage();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public String handleIllegalArgumentException(IllegalArgumentException ex){
+        return ex.getMessage();
+    }
 }
