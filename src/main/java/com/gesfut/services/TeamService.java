@@ -1,5 +1,6 @@
 package com.gesfut.services;
 
+import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.models.team.Team;
@@ -12,4 +13,5 @@ public interface TeamService  {
     List<TeamResponse> getAllTeams();
     Team getTeamByIdSecured(Long id);
     String disableTeam(Long id, Boolean status);
+    void addPlayerToTeam(Long teamId, PlayerRequest request);
 }

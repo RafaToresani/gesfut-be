@@ -45,4 +45,10 @@ public class GlobalExceptionHandler {
     public String handleTeamDisableException(TeamDisableException ex) {
         return ex.getMessage();
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public String handleIllegalArgumentException(IllegalArgumentException ex){
+        return ex.getMessage();
+    }
 }

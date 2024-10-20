@@ -11,10 +11,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PlayerRepository extends JpaRepository<Player, Long> {
     @Modifying
-    @Query("DELETE FROM Player p WHERE p.team.id = :teamId")
-    void deleteAllByTeamId(@Param("teamId") Long teamId);
-
-    @Modifying
     @Query("UPDATE Player p SET p.status = :newStatus WHERE p.team.id = :teamId")
     void updatePlayerStatus(@Param("teamId") Long teamId, @Param("newStatus") Boolean newStatus);
+
+    Boolean existsByNumberAndTeamId(Integer number, Long teamId);
+
+    Boolean existsByIsCaptainAndTeamId(Boolean isCaptain, Long id);
 }

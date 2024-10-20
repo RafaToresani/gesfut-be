@@ -1,6 +1,7 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.config.security.SecurityUtils;
+import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
@@ -37,6 +38,7 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public void createTeam(TeamRequest request) {
+        this.playerService.validatePlayers(request.players());
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
         Team team = Team.builder()
                 .name(request.name())
@@ -46,7 +48,6 @@ public class TeamServiceImpl implements TeamService {
                 .tournaments(new HashSet<>())
                 .status(true)
                 .build();
-
         teamRepository.save(team);
         request.players().forEach(playerRequest -> {
             playerService.createPlayer(playerRequest, team);
@@ -67,27 +68,31 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional
+    public String disableTeam(Long id, Boolean status) {
+        Team team = getTeamByIdSecured(id);
+        this.teamRepository.updateTeamStatus(id, status);
+        this.playerService.updateStatusPlayersByTeam(id, status);
+        String valueStatus  = "habilitado";
+        if(!status) valueStatus = "deshabilitado";
+        return team.getName() + " ha sido " + valueStatus;
+    }
+
+    @Override
+    public void addPlayerToTeam(Long teamId, PlayerRequest request) {
+        Team team = getTeamByIdSecured(teamId);
+        this.playerService.verifyPlayer(request, team);
+        this.playerService.createPlayer(request, team);
+    }
+
+
+    @Override
     public Team getTeamByIdSecured(Long id) {
         Team team = teamById(id);
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         verifyTeamBelongsToManager(team, user);
         return team;
     }
-
-    @Override
-    @Transactional
-    public String disableTeam(Long id, Boolean status) {
-        Team team = teamById(id);
-        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        String valueStatus  = "habilitado";
-        verifyTeamBelongsToManager(team, user);
-        this.teamRepository.updateTeamStatus(id, status);
-        this.playerService.updateStatusPlayersByTeam(id, status);
-
-        if(!status) valueStatus = "deshabilitado";
-        return team.getName() + " ha sido " + valueStatus;
-    }
-
 
     private TeamResponse teamToResponse(Team team){
         return new TeamResponse(
@@ -100,7 +105,6 @@ public class TeamServiceImpl implements TeamService {
     private void verifyTeamBelongsToManager(Team team, UserEntity user){
         if(!team.getUser().equals(user)) throw new RuntimeException("El equipo no pertenece a este usuario.");
     }
-
     private Team teamById(Long id){
         Optional<Team> team = this.teamRepository.findById(id);
         if (team.isEmpty()) throw new ResourceNotFoundException("El equipo no existe.");

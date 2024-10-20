@@ -1,5 +1,6 @@
 package com.gesfut.controllers;
 
+import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.services.TeamService;
@@ -31,6 +32,16 @@ public class TeamController {
             throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
         }
         this.teamService.createTeam(request);
+    }
+
+    @PostMapping("/add-player")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void addPlayerToTeam(@Valid @RequestBody PlayerRequest request, BindingResult bindingResult, @Param("team-id") Long teamId) throws BadRequestException {
+        if(bindingResult.hasErrors()) {
+            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+        }
+        this.teamService.addPlayerToTeam(teamId, request);
     }
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
