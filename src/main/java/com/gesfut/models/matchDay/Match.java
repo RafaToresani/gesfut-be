@@ -22,11 +22,11 @@ public class Match {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "home_team_id")
     private Team homeTeam;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "away_team_id")
     private Team awayTeam;
 
