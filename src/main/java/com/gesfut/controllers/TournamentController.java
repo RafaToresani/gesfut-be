@@ -48,7 +48,7 @@ public class TournamentController {
 
     @GetMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
-    public TournamentResponse findTournamentByCode(String code){
+    public TournamentResponse findTournamentByCode(@PathVariable String code){
         return this.tournamentService.findTournamentByCode(code);
     }
 
@@ -56,7 +56,10 @@ public class TournamentController {
     @DeleteMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public String deleteTournamentByCode(String code){
+    public String deleteTournamentByCode(@PathVariable String code){
         return this.tournamentService.deleteTournamentByCode(code);
     }
+
+
+
 }

@@ -15,6 +15,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.repositories.TournamentRepository;
+import com.gesfut.services.MatchDayService;
 import com.gesfut.services.TeamService;
 import com.gesfut.services.TournamentService;
 import com.gesfut.services.UserEntityService;
@@ -44,6 +45,9 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Autowired
     private TournamentParticipantRepository participantRepository;
+
+    @Autowired
+    private MatchDayService matchDayService;
 
     @Override
     public void createTournament(TournamentRequest request) {
@@ -127,7 +131,8 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getCode().toString(),
                 tournament.getStartDate(),
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
-                this.participantRepository.findAllByTournament(tournament).stream().map(this::participantToResponse).collect(Collectors.toSet())
+                this.participantRepository.findAllByTournament(tournament).stream().map(this::participantToResponse).collect(Collectors.toSet()),
+                tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
         );
     }
 

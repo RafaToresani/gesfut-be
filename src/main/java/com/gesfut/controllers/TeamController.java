@@ -52,11 +52,13 @@ public class TeamController {
        return this.teamService.getTeamById(id);
     }
 
+
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     public List<TeamResponse> getAllTeams(){
         return this.teamService.getAllTeams();
     }
+
 
     // ~~~~~~~~~~~~ PATCH ~~~~~~~~~~~~
     @PatchMapping("/change-status-team/")
@@ -65,5 +67,4 @@ public class TeamController {
     public String disableTeam(@Param("team-id") Long id, @Param("status") Boolean status){
         return this.teamService.disableTeam(id, status);
     }
-
 }
