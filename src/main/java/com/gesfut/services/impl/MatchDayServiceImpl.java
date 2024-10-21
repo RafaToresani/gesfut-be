@@ -36,46 +36,78 @@ public class MatchDayServiceImpl implements MatchDayService {
 
     @Override
     public void generateMatchDays(MatchDayRequest request) {
-        String code = request.tournamentCode();
-        Optional<Tournament> tournament = tournamentRepository.findByCode(UUID.fromString(code));
-        if (tournament.isEmpty()) {
-            throw new ResourceNotFoundException("Tournament not found");
-        }
-
-        List<Team> teamsList = teamRepository.findAllById(request.teams());
-        if (teamsList.size() != request.teams().size()) {
-            throw new ResourceNotFoundException("One or more teams not found");
-        }
-
-
-        int numberOfTeams = teamsList.size();
+        Tournament tournament = getTournament(request.tournamentCode());
+        List<Team> teams = getTeams(request.teams());
+        int numberOfTeams = teams.size();
         int numberOfMatchDays = numberOfTeams - 1;
+
+        Set<Match> allMatches = new HashSet<>();
+
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
-            MatchDay matchDay = new MatchDay();
-            matchDay.setNumberOfMatchDay(matchDayNumber + 1);
-            matchDay.setTournament(tournament.get());
-            List<Match> matches = new ArrayList<>();
+            MatchDay matchDay = matchDayRepository.save(
+                    MatchDay.builder()
+                            .numberOfMatchDay(matchDayNumber)
+                            .tournament(tournament)
+                            .matches(new HashSet<>())
+                            .build());
+            Set<Match> matches = matchDay.getMatches();
+
             for (int j = 0; j < numberOfTeams / 2; j++) {
-                Team homeTeam = teamsList.get(j);
-                Team awayTeam = teamsList.get(numberOfTeams - 1 - j);
-                if (!matchRepository.existsByHomeTeamAndAwayTeamAndMatchDay(homeTeam, awayTeam, matchDay)) {
-                    Match match = new Match();
-                    match.setHomeTeam(homeTeam);
-                    match.setAwayTeam(awayTeam);
-                    match.setMatchDay(matchDay);
-                    matches.add(match);
-                    matchRepository.save(match);
+                Team homeTeam = teams.get(j);
+                Team awayTeam = teams.get(numberOfTeams - 1 - j);
+
+                // Verifica si el partido ya existe antes de insertarlo
+                if (!matchExists(allMatches, homeTeam, awayTeam)) {
+                    Match newMatch = Match
+                            .builder()
+                            .homeTeam(homeTeam)
+                            .awayTeam(awayTeam)
+                            .matchDay(matchDay)
+                            .build();
+
+                    matches.add(matchRepository.save(newMatch));
+                    allMatches.add(newMatch);
                 }
             }
+
             matchDay.setMatches(matches);
             matchDayRepository.save(matchDay);
-            Team lastTeam = teamsList.get(teamsList.size() - 1);
-            teamsList.remove(lastTeam);
-            teamsList.add(1, lastTeam);
+
+            // Rota los equipos
+            rotateTeams(teams);
         }
     }
 
+    private boolean matchExists(Set<Match> matches, Team homeTeam, Team awayTeam) {
+        return matches.stream().anyMatch(match ->
+                (match.getHomeTeam().equals(homeTeam) && match.getAwayTeam().equals(awayTeam)) ||
+                        (match.getHomeTeam().equals(awayTeam) && match.getAwayTeam().equals(homeTeam))
+        );
+    }
 
+    private void rotateTeams(List<Team> teams) {
+        // Guarda el último equipo y rota los demás
+        Team lastTeam = teams.remove(teams.size() - 1);
+        teams.add(1, lastTeam); // Coloca el último equipo en la segunda posición
+    }
+
+
+
+    private Tournament getTournament(String code){
+        Optional<Tournament> tournament = tournamentRepository.findByCode(UUID.fromString(code));
+        if (tournament.isEmpty()) {
+            throw new ResourceNotFoundException("Torneo no encontrado.");
+        }
+        return tournament.get();
+    }
+
+    private List<Team> getTeams(List<Long> ids){
+        List<Team> teamsList = teamRepository.findAllById(ids);
+        if (teamsList.size() != ids.size()) {
+            throw new ResourceNotFoundException("Uno o más equipos no existen.");
+        }
+        return teamsList;
+    }
 
     @Override
     public MatchDayResponse matchDayToResponse(MatchDay matchDay) {
@@ -89,7 +121,10 @@ public class MatchDayServiceImpl implements MatchDayService {
     private MatchResponse matchToResponse(Match match) {
         return new MatchResponse(
                 match.getHomeTeam().getName(),
-                match.getAwayTeam().getName(),0,0,0
+                match.getAwayTeam().getName(),
+                0,
+                0,
+                0
         );
     }
 }

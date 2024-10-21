@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.List;
+import java.util.Set;
 
 
 @Getter
@@ -27,5 +28,5 @@ public class MatchDay {
     private Tournament tournament;
 
     @OneToMany(mappedBy = "matchDay", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-    private List<Match> matches;
+    private Set<Match> matches;
 }
