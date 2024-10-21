@@ -40,8 +40,62 @@ public class MatchDayServiceImpl implements MatchDayService {
         List<Team> teams = getTeams(request.teams());
         int numberOfTeams = teams.size();
         int numberOfMatchDays = numberOfTeams - 1;
-
         Set<Match> allMatches = new HashSet<>();
+
+        if (numberOfTeams % 2 == 0) {
+            generateEvenMatchDays(tournament, teams, numberOfTeams, numberOfMatchDays, allMatches);
+        } else {
+            Team dummyTeam = Team.builder().name("FREE").players(new HashSet<>()).build();
+            dummyTeam = teamRepository.save(dummyTeam);  // Guardá el equipo "FREE"
+            teams.add(dummyTeam);  // Agregalo a la lista
+            numberOfTeams++;  // Aumenta el número de equipos
+            numberOfMatchDays = numberOfTeams - 1;  // Ajusta el número de jornadas
+            generateOddMatchDays(tournament, teams, numberOfTeams, numberOfMatchDays, allMatches);
+        }
+    }
+
+    void generateOddMatchDays(Tournament tournament, List<Team> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {
+        for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
+            MatchDay matchDay = matchDayRepository.save(
+                    MatchDay.builder()
+                            .numberOfMatchDay(matchDayNumber)
+                            .tournament(tournament)
+                            .matches(new HashSet<>())
+                            .build());
+            Set<Match> matches = matchDay.getMatches();
+
+            System.out.printf("MatchDay %d:\n", matchDayNumber);  // Imprime el número de la jornada
+
+            for (int j = 0; j < numberOfTeams / 2; j++) {
+                Team homeTeam = teams.get(j);
+                Team awayTeam = teams.get(numberOfTeams - 1 - j);
+
+                // Imprime el cruce de equipos
+                System.out.printf("Home: %s vs Away: %s\n", homeTeam.getName(), awayTeam.getName());
+
+                // Verifica si el partido ya existe antes de insertarlo
+                if (!matchExists(allMatches, homeTeam, awayTeam)) {
+                    Match newMatch = Match
+                            .builder()
+                            .homeTeam(homeTeam)
+                            .awayTeam(awayTeam)
+                            .matchDay(matchDay)
+                            .build();
+
+                    matches.add(matchRepository.save(newMatch));
+                    allMatches.add(newMatch);
+                }
+            }
+
+            matchDay.setMatches(matches);
+            matchDayRepository.save(matchDay);
+
+            // Rota los equipos
+            rotateTeams(teams);
+        }
+    }
+
+    void generateEvenMatchDays(Tournament tournament, List<Team> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {
 
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
             MatchDay matchDay = matchDayRepository.save(
@@ -78,6 +132,8 @@ public class MatchDayServiceImpl implements MatchDayService {
         }
     }
 
+
+
     private boolean matchExists(Set<Match> matches, Team homeTeam, Team awayTeam) {
         return matches.stream().anyMatch(match ->
                 (match.getHomeTeam().equals(homeTeam) && match.getAwayTeam().equals(awayTeam)) ||
@@ -90,8 +146,6 @@ public class MatchDayServiceImpl implements MatchDayService {
         Team lastTeam = teams.remove(teams.size() - 1);
         teams.add(1, lastTeam); // Coloca el último equipo en la segunda posición
     }
-
-
 
     private Tournament getTournament(String code){
         Optional<Tournament> tournament = tournamentRepository.findByCode(UUID.fromString(code));
@@ -122,9 +176,8 @@ public class MatchDayServiceImpl implements MatchDayService {
         return new MatchResponse(
                 match.getHomeTeam().getName(),
                 match.getAwayTeam().getName(),
-                0,
-                0,
-                0
+                match.getMatchDay().getNumberOfMatchDay(),
+                0,0
         );
     }
 }
