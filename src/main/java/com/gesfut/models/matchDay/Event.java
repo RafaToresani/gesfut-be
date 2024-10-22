@@ -17,7 +17,7 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String type;
+    private EEventType type;
     private Integer quantity;
 
     @ManyToOne

@@ -131,6 +131,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
     private MatchResponse matchToResponse(Match match) {
         return new MatchResponse(
+                match.getId(),
                 match.getHomeTeam().getName(),
                 match.getAwayTeam().getName(),
                 match.getMatchDay().getNumberOfMatchDay(),

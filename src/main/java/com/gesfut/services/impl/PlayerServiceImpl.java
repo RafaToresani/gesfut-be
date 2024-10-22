@@ -40,6 +40,7 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public PlayerResponse playerToResponse(Player player) {
         return new PlayerResponse(
+                player.getId(),
                 player.getName(),
                 player.getLastName(),
                 player.getNumber(),
