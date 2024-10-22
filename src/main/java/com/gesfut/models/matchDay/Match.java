@@ -33,5 +33,9 @@ public class Match {
     @ManyToOne
     @JoinColumn(name = "match_day_id")
     private MatchDay matchDay;
+    
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Event> events;
+
 
 }
