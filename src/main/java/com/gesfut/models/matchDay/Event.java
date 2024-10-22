@@ -27,6 +27,4 @@ public class Event {
     @ManyToOne
     @JoinColumn(name = "match_id")
     private Match match;
-
-
 }

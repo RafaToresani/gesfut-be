@@ -3,6 +3,7 @@ package com.gesfut.services.impl;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.responses.MatchDayResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
@@ -37,6 +38,7 @@ public class MatchDayServiceImpl implements MatchDayService {
     @Override
     public void generateMatchDays(MatchDayRequest request) {
         Tournament tournament = getTournament(request.tournamentCode());
+        if(!tournament.getMatchDays().isEmpty()) throw new ResourceAlreadyExistsException("El torneo ya cuenta con fechas.");
         List<Team> teams = getTeams(request.teams());
         int numberOfTeams = teams.size();
         int numberOfMatchDays = numberOfTeams - 1;
