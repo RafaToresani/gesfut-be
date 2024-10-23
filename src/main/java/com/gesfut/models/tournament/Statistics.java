@@ -22,6 +22,8 @@ public class Statistics {
     Integer losses;
     Integer goalsFor;
     Integer goalsAgainst;
+    Integer redCards;
+    Integer yellowCards;
 
     @OneToOne(mappedBy = "statistics")
     private TournamentParticipant participant;

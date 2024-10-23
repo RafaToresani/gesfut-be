@@ -57,7 +57,6 @@ public class MatchDayServiceImpl implements MatchDayService {
     }
 
     void generate(Tournament tournament, List<Team> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {
-
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
             MatchDay matchDay = matchDayRepository.save(
                     MatchDay.builder()

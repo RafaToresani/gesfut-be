@@ -1,5 +1,6 @@
 package com.gesfut.services;
 
+import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.models.team.Team;
@@ -17,7 +18,11 @@ public interface TournamentService {
 
     String deleteTournamentByCode(String code);
 
-    String addTeamToTournament(Long idTeam, String code);
+    void initializeTournament(MatchDayRequest request);
+
+    void addTeamToTournament(Long idTeam, Tournament tournament);
 
     void disableTeamFromTournament(TournamentParticipant tournamentParticipant);
+
+    void addTeamsToTournament(String code, List<Long> teams);
 }

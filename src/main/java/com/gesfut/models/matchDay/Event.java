@@ -1,6 +1,7 @@
 package com.gesfut.models.matchDay;
 
 import com.gesfut.models.team.Player;
+import com.gesfut.models.tournament.PlayerParticipant;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,8 +22,8 @@ public class Event {
     private Integer quantity;
 
     @ManyToOne
-    @JoinColumn(name = "player_id")
-    private Player player;
+    @JoinColumn(name = "playerParticipant_id")
+    private PlayerParticipant playerParticipant;
 
     @ManyToOne
     @JoinColumn(name = "match_id")

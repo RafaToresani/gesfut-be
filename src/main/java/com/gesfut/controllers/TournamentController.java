@@ -1,7 +1,9 @@
 package com.gesfut.controllers;
 
+import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.models.tournament.Tournament;
 import com.gesfut.services.TournamentService;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
@@ -30,12 +32,24 @@ public class TournamentController {
         return "Torneo creado exitosamente.";
     }
 
+
+    @PostMapping("/initialize")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void initializeTournament(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
+        if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.tournamentService.initializeTournament(request);
+    }
+
+
+
+
     @PostMapping("/{tournament-code}/add-team")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public String addTeamToTournament(@PathVariable("tournament-code") String code,
+    public void addTeamToTournament(@PathVariable("tournament-code") Tournament tournament,
                                       @RequestParam(name = "idTeam") Long idTeam) {
-        return this.tournamentService.addTeamToTournament(idTeam, code);
+        this.tournamentService.addTeamToTournament(idTeam, tournament);
     }
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~

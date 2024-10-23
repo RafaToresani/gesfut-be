@@ -6,8 +6,10 @@ import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.Event;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.team.Player;
+import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.repositories.EventRepository;
 import com.gesfut.repositories.MatchRepository;
+import com.gesfut.repositories.PlayerParticipantRepository;
 import com.gesfut.repositories.PlayerRepository;
 import com.gesfut.services.EventService;
 import com.gesfut.services.MatchService;
@@ -28,6 +30,8 @@ public class MatchServiceImpl implements MatchService {
     @Autowired
     private PlayerRepository playerRepository;
 
+    @Autowired
+    private PlayerParticipantRepository playerParticipantRepository;
 
     @Override
     public String loadMatchResult(MatchRequest request) {
@@ -50,13 +54,13 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private Event createEvent(EventRequest eventRequest, Match match){
-        Optional<Player> player = this.playerRepository.findById(eventRequest.playerId());
-        if(player.isEmpty()) throw new ResourceNotFoundException("El jugador asociado al evento no existe.");
+        Optional<PlayerParticipant> playerParticipant = this.playerParticipantRepository.findById(eventRequest.playerParticipantId());
+        if(playerParticipant.isEmpty()) throw new ResourceNotFoundException("El jugador asociado al evento no existe.");
         return Event
                 .builder()
                 .match(match)
                 .type(eventRequest.type())
-                .player(player.get())
+                .playerParticipant(playerParticipant.get())
                 .quantity(eventRequest.quantity())
                 .build();
     }

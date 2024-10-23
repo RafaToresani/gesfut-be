@@ -1,6 +1,7 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.config.security.SecurityUtils;
+import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.ParticipantResponse;
 import com.gesfut.dtos.responses.StatisticsResponse;
@@ -9,10 +10,12 @@ import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
 import com.gesfut.models.team.Team;
+import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.Statistics;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.models.user.UserEntity;
+import com.gesfut.repositories.PlayerParticipantRepository;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.repositories.TournamentRepository;
 import com.gesfut.services.MatchDayService;
@@ -24,10 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -48,6 +48,9 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Autowired
     private MatchDayService matchDayService;
+
+    @Autowired
+    private PlayerParticipantRepository playerParticipantRepository;
 
     @Override
     public void createTournament(TournamentRequest request) {
@@ -92,31 +95,67 @@ public class TournamentServiceImpl implements TournamentService {
         return "Torneo eliminado exitosamente";
     }
 
-
     @Override
-    public String addTeamToTournament(Long idTeam, String code) {
+    public void addTeamsToTournament(String code, List<Long> teams){
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        if(tournament.isEmpty()) return "El torneo no existe";
+        if(tournament.isEmpty())  throw new ResourceNotFoundException("El torneo no existe" );
         verifyTournamentBelongsToManager(tournament.get(), user);
+        teams.forEach(team -> {
+            addTeamToTournament(team, tournament.get());
+        });
+    }
+
+    @Override
+    public void initializeTournament(MatchDayRequest request){
+        addTeamsToTournament(request.tournamentCode(), request.teams());
+        matchDayService.generateMatchDays(request);
+    }
+
+    @Override
+    public void addTeamToTournament(Long idTeam, Tournament tournament) {
 
         Team team = teamService.getTeamByIdSecured(idTeam);
-        if(this.participantRepository.existsByTournamentAndTeam(tournament.get(), team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
+        if(this.participantRepository.existsByTournamentAndTeam(tournament, team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
         Statistics statistics = generateStatistics();
+        HashSet <PlayerParticipant> playerParticipants = new HashSet<>();
 
         TournamentParticipant participant = TournamentParticipant
                 .builder()
-                .tournament(tournament.get())
+                .tournament(tournament)
                 .team(team)
                 .statistics(statistics)
                 .isActive(true)
+                .playerParticipants(new HashSet<>())
                 .build();
-        statistics.setParticipant(participant);
-        this.participantRepository.save(participant);
 
-        return "Equipo agregado exitosamente";
+        statistics.setParticipant(participant);
+        participant = this.participantRepository.save(participant);
+
+        createPlayerParticipants(team, participant);
     }
+
+    public HashSet<PlayerParticipant> createPlayerParticipants(Team team, TournamentParticipant participant){
+        HashSet<PlayerParticipant> playerParticipants = new HashSet<>();
+        team.getPlayers().forEach(player -> {
+            playerParticipants.add(
+                    PlayerParticipant
+                            .builder()
+                            .player(player)
+                            .playerParticipant(participant)
+                            .events(new ArrayList<>())
+                            .goals(0)
+                            .isSuspended(false)
+                            .redCards(0)
+                            .yellowCards(0)
+                            .build()
+            );
+        });
+        this.playerParticipantRepository.saveAll(playerParticipants);
+        return playerParticipants;
+    }
+
 
     @Override
     public void disableTeamFromTournament(TournamentParticipant tournamentParticipant) {

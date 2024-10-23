@@ -6,8 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 
 public record EventRequest(
         @NotBlank(message = "El evento debe tener un jugador")
-        Long playerId,
+        Long playerParticipantId,
+
         EEventType type,
+
         @Min(value = 0, message = "La cantidad no puede ser negativa")
         Integer quantity
 ) {
