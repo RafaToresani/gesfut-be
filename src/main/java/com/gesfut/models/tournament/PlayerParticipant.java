@@ -25,6 +25,7 @@ public class PlayerParticipant {
     private Integer goals;
     private Integer redCards;
     private Integer yellowCards;
+    private Integer isMvp;
 
     @ManyToOne
     @JoinColumn(name = "player_id")
@@ -32,7 +33,7 @@ public class PlayerParticipant {
 
     @ManyToOne
     @JoinColumn(name = "tournament_participant_id")
-    private TournamentParticipant playerParticipant;
+    private TournamentParticipant tournamentParticipant;
 
     @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Event> events;

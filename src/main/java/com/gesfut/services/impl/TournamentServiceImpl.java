@@ -96,7 +96,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
-    public void addTeamsToTournament(String code, List<Long> teams){
+    public HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams){
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         if(tournament.isEmpty())  throw new ResourceNotFoundException("El torneo no existe" );
@@ -104,12 +104,14 @@ public class TournamentServiceImpl implements TournamentService {
         teams.forEach(team -> {
             addTeamToTournament(team, tournament.get());
         });
+
+        return (HashSet<TournamentParticipant>) this.participantRepository.findAllByTournament(tournament.get());
     }
 
     @Override
     public void initializeTournament(MatchDayRequest request){
-        addTeamsToTournament(request.tournamentCode(), request.teams());
-        matchDayService.generateMatchDays(request);
+        HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
+        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
     }
 
     @Override
@@ -143,7 +145,7 @@ public class TournamentServiceImpl implements TournamentService {
                     PlayerParticipant
                             .builder()
                             .player(player)
-                            .playerParticipant(participant)
+                            .tournamentParticipant(participant)
                             .events(new ArrayList<>())
                             .goals(0)
                             .isSuspended(false)
@@ -217,6 +219,8 @@ public class TournamentServiceImpl implements TournamentService {
                 .losses(0)
                 .goalsFor(0)
                 .goalsAgainst(0)
+                .redCards(0)
+                .yellowCards(0)
                 .build();
     }
 }

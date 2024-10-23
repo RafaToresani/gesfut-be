@@ -7,6 +7,7 @@ import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
 
+import java.util.HashSet;
 import java.util.List;
 
 public interface TournamentService {
@@ -24,5 +25,5 @@ public interface TournamentService {
 
     void disableTeamFromTournament(TournamentParticipant tournamentParticipant);
 
-    void addTeamsToTournament(String code, List<Long> teams);
+    HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams);
 }

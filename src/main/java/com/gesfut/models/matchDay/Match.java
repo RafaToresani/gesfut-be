@@ -3,6 +3,7 @@ package com.gesfut.models.matchDay;
 
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
+import com.gesfut.models.tournament.TournamentParticipant;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,11 +25,15 @@ public class Match {
 
     @ManyToOne
     @JoinColumn(name = "home_team_id")
-    private Team homeTeam;
+    private TournamentParticipant homeTeam;
 
     @ManyToOne
     @JoinColumn(name = "away_team_id")
-    private Team awayTeam;
+    private TournamentParticipant awayTeam;
+
+    private Integer goalsHomeTeam;
+    private Integer goalsAwayTeam;
+    private Boolean isFinished;
 
     @ManyToOne
     @JoinColumn(name = "match_day_id")

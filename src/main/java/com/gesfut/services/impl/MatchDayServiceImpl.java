@@ -10,10 +10,8 @@ import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.team.Player;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
-import com.gesfut.repositories.MatchDayRepository;
-import com.gesfut.repositories.MatchRepository;
-import com.gesfut.repositories.TeamRepository;
-import com.gesfut.repositories.TournamentRepository;
+import com.gesfut.models.tournament.TournamentParticipant;
+import com.gesfut.repositories.*;
 import com.gesfut.services.MatchDayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,28 +33,54 @@ public class MatchDayServiceImpl implements MatchDayService {
     @Autowired
     private MatchRepository matchRepository;
 
+    @Autowired
+    private TournamentParticipantRepository TournamentParticipantRepository;
+
     @Override
-    public void generateMatchDays(MatchDayRequest request) {
-        Tournament tournament = getTournament(request.tournamentCode());
+    public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode) {
+        Tournament tournament = getTournament(tournamentCode);
         if(!tournament.getMatchDays().isEmpty()) throw new ResourceAlreadyExistsException("El torneo ya cuenta con fechas.");
-        List<Team> teams = getTeams(request.teams());
-        int numberOfTeams = teams.size();
+        int numberOfTeams = tournamentParticipants.size();
         int numberOfMatchDays = numberOfTeams - 1;
         Set<Match> allMatches = new HashSet<>();
 
         if (numberOfTeams % 2 == 0) {
-            generate(tournament, teams, numberOfTeams, numberOfMatchDays, allMatches);
+            List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
+            generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
         } else {
-            Team dummyTeam = Team.builder().name("FREE").players(new HashSet<>()).build();
+
+            //CREAR EQUIPO
+            Team dummyTeam = Team
+                    .builder()
+                    .name("FREE")
+                    .players(new HashSet<>())
+                    .build();
             dummyTeam = teamRepository.save(dummyTeam);
-            teams.add(dummyTeam);
+
+            //REALACIONAR A LA TABLA EQUIPOSXTORNEOS ES DECIR TOURANMENTPARTICIPANT
+            TournamentParticipant tournamentParticipant = TournamentParticipant
+                    .builder()
+                    .team(dummyTeam)
+                    .tournament(tournament)
+                    .build();
+
+            //GUARDAR EN LA TABLA EQUIPOSXTORNEOS
+            tournamentParticipant = TournamentParticipantRepository.save(tournamentParticipant);
+
+            //GUARDAR EN la lista de equipos del torneo
+            tournamentParticipants.add(tournamentParticipant);
+
+            //necsito pasar tournamentParticipantes que es un hashset a una arraylist!!! aca aca aca
+            List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
+
+
             numberOfTeams++;
             numberOfMatchDays = numberOfTeams - 1;
-            generate(tournament, teams, numberOfTeams, numberOfMatchDays, allMatches);
+            generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
         }
     }
 
-    void generate(Tournament tournament, List<Team> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {
+    void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
             MatchDay matchDay = matchDayRepository.save(
                     MatchDay.builder()
@@ -67,13 +91,16 @@ public class MatchDayServiceImpl implements MatchDayService {
             Set<Match> matches = matchDay.getMatches();
 
             for (int j = 0; j < numberOfTeams / 2; j++) {
-                Team homeTeam = teams.get(j);
-                Team awayTeam = teams.get(numberOfTeams - 1 - j);
+                TournamentParticipant homeTeam = teams.get(j);
+                TournamentParticipant awayTeam = teams.get(numberOfTeams - 1 - j);
                 if (!matchExists(allMatches, homeTeam, awayTeam)) {
                     Match newMatch = Match
                             .builder()
-                            .homeTeam(homeTeam)
-                            .awayTeam(awayTeam)
+                            .homeTeam(homeTeam) // ?
+                            .awayTeam(awayTeam) // ?
+                            .isFinished(false)
+                            .goalsHomeTeam(0)
+                            .goalsAwayTeam(0)
                             .matchDay(matchDay)
                             .build();
 
@@ -90,16 +117,16 @@ public class MatchDayServiceImpl implements MatchDayService {
 
 
 
-    private boolean matchExists(Set<Match> matches, Team homeTeam, Team awayTeam) {
+    private boolean matchExists(Set<Match> matches, TournamentParticipant homeTeam, TournamentParticipant awayTeam) {
         return matches.stream().anyMatch(match ->
                 (match.getHomeTeam().equals(homeTeam) && match.getAwayTeam().equals(awayTeam)) ||
                         (match.getHomeTeam().equals(awayTeam) && match.getAwayTeam().equals(homeTeam))
         );
     }
 
-    private void rotateTeams(List<Team> teams) {
+    private void rotateTeams(List<TournamentParticipant> teams) {
         // Guarda el último equipo y rota los demás
-        Team lastTeam = teams.remove(teams.size() - 1);
+        TournamentParticipant lastTeam = teams.remove(teams.size() - 1);
         teams.add(1, lastTeam); // Coloca el último equipo en la segunda posición
     }
 
@@ -131,10 +158,11 @@ public class MatchDayServiceImpl implements MatchDayService {
     private MatchResponse matchToResponse(Match match) {
         return new MatchResponse(
                 match.getId(),
-                match.getHomeTeam().getName(),
-                match.getAwayTeam().getName(),
+                match.getHomeTeam().getTeam().getName(),
+                match.getAwayTeam().getTeam().getName(),
                 match.getMatchDay().getNumberOfMatchDay(),
-                0,0
+                match.getGoalsHomeTeam(),
+                match.getGoalsAwayTeam()
         );
     }
 }

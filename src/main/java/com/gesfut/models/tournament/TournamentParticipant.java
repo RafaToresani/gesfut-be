@@ -32,6 +32,6 @@ public class TournamentParticipant {
     @JoinColumn(name = "statistics_id")
     private Statistics statistics;
 
-    @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "tournamentParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PlayerParticipant> playerParticipants;
 }

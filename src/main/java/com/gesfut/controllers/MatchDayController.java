@@ -23,16 +23,16 @@ public class MatchDayController {
     private MatchDayService matchDayService;
 
 
-    @PostMapping("/initialize-tournament")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void generateMatchDay(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult)
-            throws BadRequestException {
-        if (bindingResult.hasErrors()){
-            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
-        }
-        this.matchDayService.generateMatchDays(request);
-    }
+//    @PostMapping("/initialize-tournament")
+//    @ResponseStatus(HttpStatus.CREATED)
+//    @PreAuthorize("hasAnyAuthority('MANAGER')")
+//    public void generateMatchDay(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult)
+//            throws BadRequestException {
+//        if (bindingResult.hasErrors()){
+//            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+//        }
+//        this.matchDayService.generateMatchDays(request);
+//    }
 
 
 
