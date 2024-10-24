@@ -11,9 +11,7 @@ import java.util.Optional;
 
 public interface TeamService  {
     void createTeam(TeamRequest request);
-
     void createDummyTeam(TeamRequest request, UserEntity user);
-
     TeamResponse getTeamById(Long id);
     List<TeamResponse> getAllTeams();
     Team getTeamByIdSecured(Long id);

@@ -56,7 +56,7 @@ public class MatchServiceImpl implements MatchService {
     public MatchResponse getMatchById(Long id) {
         Optional<Match> match = this.matchRepository.findById(id);
         if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
-        return null;
+        return matchToResponse(match.get());
     }
 
     private void modifyPlayerStats(Event event) {
