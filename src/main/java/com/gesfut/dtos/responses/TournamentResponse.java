@@ -9,6 +9,7 @@ public record TournamentResponse(
         String code,
         LocalDate startDate,
         String manager,
+        Boolean isFinished,
         Set<ParticipantResponse> participants,
         List<MatchDayResponse> matchDays
 ) {

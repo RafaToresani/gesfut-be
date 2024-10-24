@@ -17,7 +17,7 @@ public interface TournamentService {
 
     TournamentResponse findTournamentByCode(String code);
 
-    String deleteTournamentByCode(String code);
+    String changeStatusTournamentByCode(String code, Boolean status);
 
     void initializeTournament(MatchDayRequest request);
 

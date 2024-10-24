@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
@@ -75,11 +76,11 @@ public class TournamentController {
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo. Recordatorio: Rehacer lógica.")
-    @DeleteMapping("/{code}")
+    @PatchMapping("/change-status-tournament")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public String deleteTournamentByCode(@PathVariable String code){
-        return this.tournamentService.deleteTournamentByCode(code);
+    public String deleteTournamentByCode(@Param(value = "tournament-code") String code, @Param(value = "status") Boolean status){
+        return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
 
 }

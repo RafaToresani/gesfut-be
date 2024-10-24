@@ -24,6 +24,7 @@ public class Tournament {
     private UUID code;
     private String name;
     private LocalDate startDate;
+    private Boolean isFinished;
 
     @ManyToOne()
     @JoinColumn(name = "user_id")

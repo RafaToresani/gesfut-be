@@ -62,6 +62,7 @@ public class TournamentServiceImpl implements TournamentService {
                     .teams(new HashSet<>())
                     .name(request.name())
                     .user(user)
+                    .isFinished(false)
                     .startDate(LocalDate.now())
                     .build()
         );
@@ -83,16 +84,21 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     @Transactional
-    public String deleteTournamentByCode(String code) {
+    public String changeStatusTournamentByCode(String code, Boolean status) {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         if (tournament.isEmpty()) return "El torneo no existe";
         verifyTournamentBelongsToManager(tournament.get(), user);
+        tournament.get().setIsFinished(status);
+        this.tournamentRepository.save(tournament.get());
+        String response;
 
-        participantRepository.deleteByTournamentId(tournament.get().getId());
+        if(status)
+            response= "habilitado";
+        else
+            response= "deshabilitado";
 
-        this.tournamentRepository.deleteByCode(UUID.fromString(code));
-        return "Torneo eliminado exitosamente";
+        return "Torneo " + response + " exitosamente.";
     }
 
     @Override
@@ -172,6 +178,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getCode().toString(),
                 tournament.getStartDate(),
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
+                tournament.getIsFinished(),
                 this.participantRepository.findAllByTournament(tournament).stream().map(this::participantToResponse).collect(Collectors.toSet()),
                 tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
         );
