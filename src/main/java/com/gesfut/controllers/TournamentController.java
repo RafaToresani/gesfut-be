@@ -5,6 +5,7 @@ import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.services.TournamentService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ public class TournamentController {
     private TournamentService tournamentService;
 
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
+    @Operation(summary = "Permite crear un torneo", description = "Permite crear un torneo al usuario logueado.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -33,6 +35,10 @@ public class TournamentController {
     }
 
 
+    @Operation(summary = "Permite inicializar el torneo",
+            description = "Recibe el código del torneo y un listado de los ids de los equipos que ya han sido cargados previamente. " +
+                    "Este endpoint se encarga de generar la participación de los equipos en el torneo, la participación de los jugadores de cada equipo y las estadísticas de ambos. " +
+                    "Además, crea las jornadas y los partidos. Si el número de equipos es impar, cada fecha uno de los equipos descansará.")
     @PostMapping("/initialize")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -41,9 +47,7 @@ public class TournamentController {
         this.tournamentService.initializeTournament(request);
     }
 
-
-
-
+    @Operation(summary = "Recordatorio: rehacer endpoint entero.")
     @PostMapping("/{tournament-code}/add-team")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -52,7 +56,9 @@ public class TournamentController {
         this.tournamentService.addTeamToTournament(idTeam, tournament);
     }
 
+
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
+    @Operation(summary = "Retorna el listado torneos del usuario logueado.")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -60,6 +66,7 @@ public class TournamentController {
         return this.tournamentService.findAllTournaments();
     }
 
+    @Operation(summary = "Retorna un torneo en base a su código. Accesible para todos.")
     @GetMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
     public TournamentResponse findTournamentByCode(@PathVariable String code){
@@ -67,13 +74,12 @@ public class TournamentController {
     }
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
+    @Operation(summary = "Permite deshabilitar un torneo. Recordatorio: Rehacer lógica.")
     @DeleteMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public String deleteTournamentByCode(@PathVariable String code){
         return this.tournamentService.deleteTournamentByCode(code);
     }
-
-
 
 }

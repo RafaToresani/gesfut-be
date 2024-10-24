@@ -2,6 +2,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.services.MatchService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,10 @@ public class MatchController {
     @Autowired
     private MatchService matchService;
 
-
+    @Operation(summary = "Permite cargar los resultados de un partido",
+                description = "Solicita el id del partido, y un listado de eventos." +
+                        "Cada evento está asociado a un jugador. El endpoint se encarga de guardar el listado de eventos, " +
+                        "y asociarlos a las estadísticas del jugador. Además, modifica las estadísticas del equipo y determina quien ganó el partido")
     @PostMapping("/load-result")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
