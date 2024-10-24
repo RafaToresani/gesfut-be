@@ -1,10 +1,12 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
+import com.gesfut.dtos.responses.EventResponse;
 import com.gesfut.dtos.responses.MatchDayResponse;
 import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
+import com.gesfut.models.matchDay.Event;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.team.Player;
@@ -164,7 +166,17 @@ public class MatchDayServiceImpl implements MatchDayService {
                 match.getAwayTeam().getTeam().getName(),
                 match.getMatchDay().getNumberOfMatchDay(),
                 match.getGoalsHomeTeam(),
-                match.getGoalsAwayTeam()
+                match.getGoalsAwayTeam(),
+                match.getEvents().stream().map(this::eventToResponse).toList()
         );
+    }
+
+    private EventResponse eventToResponse(Event event){
+        return new EventResponse(
+                event.getId(),
+                event.getQuantity(),
+                event.getType(),
+                event.getPlayerParticipant().getPlayer().getName() + " " +
+                event.getPlayerParticipant().getPlayer().getLastName());
     }
 }

@@ -2,6 +2,7 @@ package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.EventRequest;
 import com.gesfut.dtos.requests.MatchRequest;
+import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
 import com.gesfut.models.matchDay.Event;
@@ -49,6 +50,13 @@ public class MatchServiceImpl implements MatchService {
         });
         closeMatch(events,match);
         return "Partido cargado";
+    }
+
+    @Override
+    public MatchResponse getMatchById(Long id) {
+        Optional<Match> match = this.matchRepository.findById(id);
+        if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
+        return null;
     }
 
     private void modifyPlayerStats(Event event) {
