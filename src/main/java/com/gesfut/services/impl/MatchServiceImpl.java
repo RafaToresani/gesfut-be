@@ -82,7 +82,6 @@ public class MatchServiceImpl implements MatchService {
             statisticsBad = homeTeam.getStatistics();
         }
 
-        // Modificar las estadísticas basadas en el tipo de evento
         switch (event.getType()) {
             case GOAL -> {
                 statisticsGood.setGoalsFor(statisticsGood.getGoalsFor() + event.getQuantity());
@@ -92,10 +91,8 @@ public class MatchServiceImpl implements MatchService {
             case YELLOW_CARD -> statisticsGood.setYellowCards(statisticsGood.getYellowCards() + event.getQuantity());
         }
 
-        // Guardar los cambios en el repositorio de estadísticas
         this.statisticsRepository.save(statisticsGood);
         this.statisticsRepository.save(statisticsBad);
-
     }
 
     private void closeMatch(List<Event> events, Match match) {
@@ -147,19 +144,13 @@ public class MatchServiceImpl implements MatchService {
     }
 
     public Event createEvent(EventRequest eventRequest, Match match) {
-        // Obtener los equipos que están participando en el partido (local y visitante)
         List<TournamentParticipant> teams = List.of(match.getHomeTeam(), match.getAwayTeam());
+        Optional<PlayerParticipant> playerParticipant = playerParticipantRepository.findByPlayerIdAndTournamentParticipantIn(eventRequest.playerParticipantId(), teams);
 
-        // Buscar el jugador en los equipos usando el query method
-        Optional<PlayerParticipant> playerParticipant = playerParticipantRepository
-                .findByPlayerIdAndTournamentParticipantIn(eventRequest.playerParticipantId(), teams);
-
-        // Si no se encuentra el jugador, lanzar una excepción
         if (playerParticipant.isEmpty()) {
-            throw new ResourceNotFoundException("Uno de los jugadores asociados no existe en ningun equipo del partido.");
+            throw new ResourceNotFoundException("Uno de los jugadores asociados no existe en ningún equipo del partido.");
         }
 
-        // Crear y retornar el evento
         return Event
                 .builder()
                 .match(match)

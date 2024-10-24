@@ -44,7 +44,7 @@ public class MatchDayServiceImpl implements MatchDayService {
         int numberOfMatchDays = numberOfTeams - 1;
         Set<Match> allMatches = new HashSet<>();
 
-        if (numberOfTeams % 2 == 0) {
+        /*if (numberOfTeams % 2 == 0) {
             List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
             generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
         } else {
@@ -73,11 +73,13 @@ public class MatchDayServiceImpl implements MatchDayService {
             //necsito pasar tournamentParticipantes que es un hashset a una arraylist!!! aca aca aca
             List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
 
-
             numberOfTeams++;
             numberOfMatchDays = numberOfTeams - 1;
             generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
-        }
+        }*/
+
+        List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
+        generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
     }
 
     void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays, Set<Match> allMatches) {

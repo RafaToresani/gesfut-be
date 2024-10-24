@@ -74,7 +74,7 @@ public class TournamentController {
     }
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
-    @Operation(summary = "Permite deshabilitar un torneo. Recordatorio: Rehacer lógica.")
+    @Operation(summary = "Permite deshabilitar un torneo.")
     @PatchMapping("/change-status-tournament")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")

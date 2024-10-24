@@ -4,24 +4,31 @@ import com.gesfut.config.security.dtos.AuthResponse;
 import com.gesfut.config.security.dtos.LoginRequest;
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.config.security.jwt.JwtService;
+import com.gesfut.dtos.requests.PlayerRequest;
+import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.user.ERole;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.AuthService;
+import com.gesfut.services.TeamService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class AuthServiceImpl implements AuthService {
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private TeamService teamService;
     @Autowired
     private JwtService jwtService;
     @Autowired
@@ -54,8 +61,10 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
 
-        this.userRepository.save(user);
-
+        user = this.userRepository.save(user);
+        Set<PlayerRequest> players = new HashSet<>();
+        players.add(new PlayerRequest("Free", "Free", true, true, 10));
+        this.teamService.createDummyTeam(new TeamRequest("Free", "#FFF", players), user);
         return new AuthResponse(
                 user.getName(),
                 user.getLastname(),

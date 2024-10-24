@@ -103,6 +103,18 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    public void initializeTournament(MatchDayRequest request){
+        if(request.teams().size()%2 != 0) request.teams().add(getIdDummyParticipant());
+        HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
+        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
+    }
+
+    private Long getIdDummyParticipant() {
+        Team team = this.teamService.getTeamByName("Free");
+        return team.getId();
+    }
+
+    @Override
     public HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams){
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
@@ -113,12 +125,6 @@ public class TournamentServiceImpl implements TournamentService {
         });
 
         return (HashSet<TournamentParticipant>) this.participantRepository.findAllByTournament(tournament.get());
-    }
-
-    @Override
-    public void initializeTournament(MatchDayRequest request){
-        HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
-        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
     }
 
     @Override
