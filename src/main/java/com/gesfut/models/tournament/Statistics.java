@@ -1,6 +1,5 @@
 package com.gesfut.models.tournament;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
