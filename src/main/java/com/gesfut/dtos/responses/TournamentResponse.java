@@ -10,7 +10,7 @@ public record TournamentResponse(
         LocalDate startDate,
         String manager,
         Boolean isFinished,
-        Set<ParticipantResponse> participants,
+        List<ParticipantResponse> participants,
         List<MatchDayResponse> matchDays
 ) {
 }

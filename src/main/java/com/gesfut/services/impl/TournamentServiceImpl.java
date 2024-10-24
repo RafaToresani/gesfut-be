@@ -18,10 +18,7 @@ import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.PlayerParticipantRepository;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.repositories.TournamentRepository;
-import com.gesfut.services.MatchDayService;
-import com.gesfut.services.TeamService;
-import com.gesfut.services.TournamentService;
-import com.gesfut.services.UserEntityService;
+import com.gesfut.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +48,8 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Autowired
     private PlayerParticipantRepository playerParticipantRepository;
+    @Autowired
+    private TournamentParticipantService participantService;
 
     @Override
     public String createTournament(TournamentRequest request) {
@@ -186,7 +185,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getStartDate(),
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
                 tournament.getIsFinished(),
-                this.participantRepository.findAllByTournament(tournament).stream().map(this::participantToResponse).collect(Collectors.toSet()),
+                this.participantService.participantsToResponse(tournament.getTeams()),
                 tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
         );
     }
@@ -203,25 +202,6 @@ public class TournamentServiceImpl implements TournamentService {
         if(!tournament.getUser().equals(user)) throw new RuntimeException("El torneo no pertenece a este usuario.");
     }
 
-    private ParticipantResponse participantToResponse(TournamentParticipant participant){
-        return new ParticipantResponse(
-                participant.getTeam().getId(),
-                participant.getTeam().getName(),
-                participant.getIsActive(),
-                statisticsToResponse(participant.getStatistics()));
-    }
-
-    private StatisticsResponse statisticsToResponse(Statistics statistics) {
-        return new StatisticsResponse(
-                statistics.getPoints(),
-                statistics.getMatchesPlayed(),
-                statistics.getWins(),
-                statistics.getDraws(),
-                statistics.getLosses(),
-                statistics.getGoalsFor(),
-                statistics.getGoalsAgainst()
-        );
-    }
 
     private Statistics generateStatistics(){
         return Statistics

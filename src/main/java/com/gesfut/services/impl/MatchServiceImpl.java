@@ -7,7 +7,7 @@ import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
 import com.gesfut.models.matchDay.Event;
 import com.gesfut.models.matchDay.Match;
-import com.gesfut.models.team.Player;
+import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.Statistics;
 import com.gesfut.models.tournament.TournamentParticipant;
@@ -17,9 +17,7 @@ import com.gesfut.services.MatchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class MatchServiceImpl implements MatchService {
@@ -32,18 +30,20 @@ public class MatchServiceImpl implements MatchService {
     private PlayerRepository playerRepository;
     @Autowired
     private PlayerParticipantRepository playerParticipantRepository;
-
     @Autowired
     private StatisticsRepository statisticsRepository;
+    @Autowired
+    private EventService eventService;
 
     @Override
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
         Match match = this.getMatch(request.matchId());
-        if (match.getIsFinished()){throw new ResourceNotFoundException("El partido ya está cerrado");}
+        if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
+        if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
         request.events().forEach(eventRequest -> {
             // TODO hacer validaicones por si surgen errores
-            Event event = this.eventRepository.save(createEvent(eventRequest,match));
+            Event event = this.eventService.createEvent(eventRequest,match);
             modifyPlayerStats(event);
             modifyTournamentParticipantStats(event);
             events.add(event);
@@ -60,7 +60,6 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private void modifyPlayerStats(Event event) {
-        //AGREGAR VALIDACION PARA QUE NO SE GUARDE SI HAY ERROR EN EL EVENTO
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
         switch (event.getType()) {
             case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
@@ -71,13 +70,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private void modifyTournamentParticipantStats (Event event){
-        //EVENT TIENE : MATCH, PLAYERPARTICIPANT, TYPE, QUANTITY
-        //MATCH TIENE: HOMETEAM, AWAYTEAM QUE SON TOURAMENTPARTICIPANT
-        //TOURNAMENTPARTICPANT TIENE: STATISTICS Y PLAYERPARTICIPANT
-
         Match match = event.getMatch();
         TournamentParticipant homeTeam = match.getHomeTeam();
-        Boolean isHomeTeam = homeTeam.getPlayerParticipants().contains(event.getPlayerParticipant());
+        boolean isHomeTeam = homeTeam.getPlayerParticipants().contains(event.getPlayerParticipant());
 
         Statistics statisticsGood = new Statistics();
         Statistics statisticsBad = new Statistics();
@@ -144,6 +139,25 @@ public class MatchServiceImpl implements MatchService {
     }
 
 
+    @Override
+    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams){
+        Set<Match> matches = new HashSet<>();
+        for (int j = 0; j < numberOfTeams / 2; j++) {
+            TournamentParticipant homeTeam = teams.get(j);
+            TournamentParticipant awayTeam = teams.get(numberOfTeams - 1 - j);
+            Match newMatch = Match
+                .builder()
+                .homeTeam(homeTeam) // ?
+                .awayTeam(awayTeam) // ?
+                .isFinished(false)
+                .goalsHomeTeam(0)
+                .goalsAwayTeam(0)
+                .matchDay(matchDay)
+                .build();
+            matchRepository.save(newMatch);
+            matches.add(newMatch);
+        }
+    }
 
     private Match getMatch(Long matchId){
         Optional<Match> match = this.matchRepository.findById(matchId);
@@ -151,21 +165,18 @@ public class MatchServiceImpl implements MatchService {
         return match.get();
     }
 
-    public Event createEvent(EventRequest eventRequest, Match match) {
-        List<TournamentParticipant> teams = List.of(match.getHomeTeam(), match.getAwayTeam());
-        Optional<PlayerParticipant> playerParticipant = playerParticipantRepository.findByPlayerIdAndTournamentParticipantIn(eventRequest.playerParticipantId(), teams);
-
-        if (playerParticipant.isEmpty()) {
-            throw new ResourceNotFoundException("Uno de los jugadores asociados no existe en ningún equipo del partido.");
-        }
-
-        return Event
-                .builder()
-                .match(match)
-                .type(eventRequest.type())
-                .playerParticipant(playerParticipant.get())
-                .quantity(eventRequest.quantity())
-                .build();
+    @Override
+    public MatchResponse matchToResponse(Match match) {
+        return new MatchResponse(
+                match.getId(),
+                match.getHomeTeam().getTeam().getName(),
+                match.getAwayTeam().getTeam().getName(),
+                match.getMatchDay().getNumberOfMatchDay(),
+                match.getGoalsHomeTeam(),
+                match.getGoalsAwayTeam(),
+                match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList()
+        );
     }
+
 
 }
