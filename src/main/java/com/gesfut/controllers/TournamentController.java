@@ -31,8 +31,7 @@ public class TournamentController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public String createTournament(@Valid @RequestBody TournamentRequest request, BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-        this.tournamentService.createTournament(request);
-        return "Torneo creado exitosamente.";
+        return this.tournamentService.createTournament(request);
     }
 
 

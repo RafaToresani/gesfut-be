@@ -11,7 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 
 public interface TournamentService {
-    void createTournament(TournamentRequest request);
+    String createTournament(TournamentRequest request);
 
     List<TournamentResponse> findAllTournaments();
 

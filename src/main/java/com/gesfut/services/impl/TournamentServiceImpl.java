@@ -53,9 +53,9 @@ public class TournamentServiceImpl implements TournamentService {
     private PlayerParticipantRepository playerParticipantRepository;
 
     @Override
-    public void createTournament(TournamentRequest request) {
+    public String createTournament(TournamentRequest request) {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        tournamentRepository.save(
+        Tournament tournament = tournamentRepository.save(
             Tournament
                     .builder()
                     .code(getRandomUUID())
@@ -66,6 +66,7 @@ public class TournamentServiceImpl implements TournamentService {
                     .startDate(LocalDate.now())
                     .build()
         );
+        return tournament.getCode().toString();
     }
 
     @Override
