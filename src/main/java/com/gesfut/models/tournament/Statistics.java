@@ -1,6 +1,5 @@
 package com.gesfut.models.tournament;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +21,8 @@ public class Statistics {
     Integer losses;
     Integer goalsFor;
     Integer goalsAgainst;
+    Integer redCards;
+    Integer yellowCards;
 
     @OneToOne(mappedBy = "statistics")
     private TournamentParticipant participant;

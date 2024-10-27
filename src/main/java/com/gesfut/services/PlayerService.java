@@ -12,8 +12,6 @@ public interface PlayerService {
     PlayerResponse playerToResponse(Player player);
     Set<PlayerResponse> playersToResponse(Set<Player> players);
     void updateStatusPlayersByTeam(Long team, Boolean status);
-
     void verifyPlayer(PlayerRequest playerRequest, Team team);
-
     void validatePlayers(Set<PlayerRequest> players);
 }

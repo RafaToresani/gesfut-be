@@ -31,4 +31,7 @@ public class TournamentParticipant {
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "statistics_id")
     private Statistics statistics;
+
+    @OneToMany(mappedBy = "tournamentParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PlayerParticipant> playerParticipants;
 }

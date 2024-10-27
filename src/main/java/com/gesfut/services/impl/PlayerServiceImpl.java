@@ -29,9 +29,9 @@ public class PlayerServiceImpl implements PlayerService {
                 .number(request.number())
                 .isCaptain(request.isCaptain())
                 .isGoalKeeper(request.isGoalKeeper())
-                .isSuspended(false)
                 .status(true)
                 .team(team)
+                .playerParticipants(new HashSet<>())
                 .build());
     }
 
@@ -40,12 +40,12 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public PlayerResponse playerToResponse(Player player) {
         return new PlayerResponse(
+                player.getId(),
                 player.getName(),
                 player.getLastName(),
                 player.getNumber(),
                 player.getIsCaptain(),
-                player.getIsGoalKeeper(),
-                player.getIsSuspended()
+                player.getIsGoalKeeper()
         );
     }
 

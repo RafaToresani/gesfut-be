@@ -1,6 +1,7 @@
 package com.gesfut.models.tournament;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,6 +24,7 @@ public class Tournament {
     private UUID code;
     private String name;
     private LocalDate startDate;
+    private Boolean isFinished;
 
     @ManyToOne()
     @JoinColumn(name = "user_id")
@@ -31,4 +33,9 @@ public class Tournament {
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private Set<TournamentParticipant> teams;
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    private Set<MatchDay> matchDays;
 }
+
+

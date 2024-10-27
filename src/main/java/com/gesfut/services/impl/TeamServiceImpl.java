@@ -55,6 +55,23 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    public void createDummyTeam(TeamRequest request, UserEntity user){
+        this.playerService.validatePlayers(request.players());
+        Team team = Team.builder()
+                .name(request.name())
+                .color(request.color())
+                .user(user)
+                .players(new HashSet<>())
+                .tournaments(new HashSet<>())
+                .status(true)
+                .build();
+        teamRepository.save(team);
+        request.players().forEach(playerRequest -> {
+            playerService.createPlayer(playerRequest, team);
+        });
+    }
+
+    @Override
     public TeamResponse getTeamById(Long id) {
         Team team = teamById(id);
         return teamToResponse(team);
@@ -85,6 +102,12 @@ public class TeamServiceImpl implements TeamService {
         this.playerService.createPlayer(request, team);
     }
 
+    @Override
+    public Team getTeamByName(String free) {
+        Optional<Team> team = this.teamRepository.findByTeamNameAndPlayerName(free, free);
+        if(team.isEmpty()) throw new ResourceNotFoundException("Equipo free no existe.");
+        return team.get();
+    }
 
     @Override
     public Team getTeamByIdSecured(Long id) {
