@@ -38,4 +38,13 @@ public class MatchController {
     public MatchResponse getMatchById(@PathVariable Long id){
         return this.matchService.getMatchById(id);
     }
+
+    @PutMapping("/update-result")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void updateMatchResult(@Valid @RequestBody MatchRequest request, BindingResult bindingResult) throws BadRequestException {
+        if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+
+        this.matchService.updateMatchResult(request);
+    }
 }

@@ -5,6 +5,7 @@ import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.TournamentParticipant;
+import org.apache.coyote.BadRequestException;
 
 import java.util.List;
 import java.util.Set;
@@ -18,4 +19,6 @@ public interface MatchService {
     void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams);
 
     MatchResponse matchToResponse(Match match);
+
+    void updateMatchResult(MatchRequest request) throws BadRequestException;
 }

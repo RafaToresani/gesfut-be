@@ -14,6 +14,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.*;
 import com.gesfut.services.EventService;
 import com.gesfut.services.MatchService;
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -44,8 +45,8 @@ public class MatchServiceImpl implements MatchService {
         request.events().forEach(eventRequest -> {
             // TODO hacer validaicones por si surgen errores
             Event event = this.eventService.createEvent(eventRequest,match);
-            modifyPlayerStats(event);
-            modifyTournamentParticipantStats(event);
+            increasePlayerStats(event);
+            increaseTournamentParticipantStats(event);
             events.add(event);
         });
         closeMatch(events,match);
@@ -59,7 +60,7 @@ public class MatchServiceImpl implements MatchService {
         return matchToResponse(match.get());
     }
 
-    private void modifyPlayerStats(Event event) {
+    private void increasePlayerStats(Event event) {
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
         switch (event.getType()) {
             case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
@@ -69,7 +70,7 @@ public class MatchServiceImpl implements MatchService {
         this.playerParticipantRepository.save(playerParticipant);
     }
 
-    private void modifyTournamentParticipantStats (Event event){
+    private void increaseTournamentParticipantStats (Event event){
         Match match = event.getMatch();
         TournamentParticipant homeTeam = match.getHomeTeam();
         boolean isHomeTeam = homeTeam.getPlayerParticipants().contains(event.getPlayerParticipant());
@@ -159,6 +160,97 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
+    @Override
+    public void updateMatchResult(MatchRequest request) throws BadRequestException {
+        Match match = getMatch(request.matchId());
+
+        if(!match.getIsFinished()) throw new BadRequestException("Error: el partido no terminó");
+        if(match.getMatchDay().getIsFinished()) throw new BadRequestException("Error: La jornada ya cerró.");
+
+        /*Eliminar todos los eventos asociados a este partido
+        * Actualizar las statistics de los equipos
+        * Actualizar las tabla jugadoresxequipoxtorneo*/
+
+        deleteAllRelationsFromMatch(match);
+        loadMatchResult(request);
+    }
+
+    private void deleteAllRelationsFromMatch(Match match) {
+        List<Event> events = this.eventRepository.findAllByMatchId(match.getId());
+        resetStatisticsMatch(match);
+        events.forEach(event -> {
+            decreasePlayerStats(event);
+            decreaseTournamentParticipantStats(event);
+            this.eventRepository.delete(event);
+        });
+        match.setGoalsHomeTeam(0);
+        match.setGoalsAwayTeam(0);
+        match.getEvents().clear();
+
+    }
+
+    private void decreasePlayerStats(Event event) {
+        PlayerParticipant playerParticipant = event.getPlayerParticipant();
+        switch (event.getType()) {
+            case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() - event.getQuantity());
+            case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() - event.getQuantity());
+            case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() - event.getQuantity());
+        }
+        this.playerParticipantRepository.save(playerParticipant);
+    }
+
+    private void decreaseTournamentParticipantStats (Event event){
+        Match match = event.getMatch();
+        TournamentParticipant homeTeam = match.getHomeTeam();
+        boolean isHomeTeam = homeTeam.getPlayerParticipants().contains(event.getPlayerParticipant());
+
+        Statistics statisticsGood = new Statistics();
+        Statistics statisticsBad = new Statistics();
+
+        if (isHomeTeam) {
+            statisticsGood = homeTeam.getStatistics();
+            statisticsBad = match.getAwayTeam().getStatistics();
+        } else {
+            statisticsGood = match.getAwayTeam().getStatistics();
+            statisticsBad = homeTeam.getStatistics();
+        }
+
+        switch (event.getType()) {
+            case GOAL -> {
+                statisticsGood.setGoalsFor(statisticsGood.getGoalsFor() - event.getQuantity());
+                statisticsBad.setGoalsAgainst(statisticsBad.getGoalsAgainst() - event.getQuantity());
+            }
+            case RED_CARD -> statisticsGood.setRedCards(statisticsGood.getRedCards() - event.getQuantity());
+            case YELLOW_CARD -> statisticsGood.setYellowCards(statisticsGood.getYellowCards() - event.getQuantity());
+        }
+
+        this.statisticsRepository.save(statisticsGood);
+        this.statisticsRepository.save(statisticsBad);
+    }
+
+    private void resetStatisticsMatch (Match match) {
+        match.getHomeTeam().getStatistics().setMatchesPlayed(match.getHomeTeam().getStatistics().getMatchesPlayed() - 1);
+        match.getAwayTeam().getStatistics().setMatchesPlayed(match.getAwayTeam().getStatistics().getMatchesPlayed() - 1);
+
+        if (match.getGoalsHomeTeam() > match.getGoalsAwayTeam()) {
+            match.getHomeTeam().getStatistics().setWins(match.getHomeTeam().getStatistics().getWins() - 1);
+            match.getAwayTeam().getStatistics().setLosses(match.getAwayTeam().getStatistics().getLosses() - 1);
+            match.getHomeTeam().getStatistics().setPoints(match.getHomeTeam().getStatistics().getPoints() - 3);
+
+        }else if (match.getGoalsAwayTeam() > match.getGoalsHomeTeam()) {
+            match.getAwayTeam().getStatistics().setWins(match.getAwayTeam().getStatistics().getWins() - 1);
+            match.getHomeTeam().getStatistics().setLosses(match.getHomeTeam().getStatistics().getLosses() - 1);
+            match.getAwayTeam().getStatistics().setPoints(match.getAwayTeam().getStatistics().getPoints() - 3);
+
+        }else {
+            match.getHomeTeam().getStatistics().setDraws(match.getHomeTeam().getStatistics().getDraws() - 1);
+            match.getAwayTeam().getStatistics().setDraws(match.getAwayTeam().getStatistics().getDraws() - 1);
+            match.getHomeTeam().getStatistics().setPoints(match.getHomeTeam().getStatistics().getPoints() - 1);
+            match.getAwayTeam().getStatistics().setPoints(match.getAwayTeam().getStatistics().getPoints() - 1);
+        }
+        match.setIsFinished(false);
+    }
+
     private Match getMatch(Long matchId){
         Optional<Match> match = this.matchRepository.findById(matchId);
         if(match.isEmpty()) throw new ResourceNotFoundException("El id del partido no existe");
@@ -177,6 +269,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList()
         );
     }
+
+
 
 
 }
