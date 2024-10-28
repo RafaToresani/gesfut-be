@@ -10,4 +10,5 @@ public interface MatchDayService {
     void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants , String tournamentCode);
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
 
+    void updateStatusMatchDay(Long id, Boolean status);
 }

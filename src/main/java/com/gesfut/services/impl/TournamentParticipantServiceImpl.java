@@ -33,6 +33,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     @Override
     public ParticipantResponse participantToResponse(TournamentParticipant participant) {
         return new ParticipantResponse(
+                participant.getId(),
                 participant.getTeam().getId(),
                 participant.getTeam().getName(),
                 participant.getIsActive(),

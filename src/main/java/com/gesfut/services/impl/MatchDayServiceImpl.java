@@ -60,6 +60,7 @@ public class MatchDayServiceImpl implements MatchDayService {
                     MatchDay.builder()
                             .numberOfMatchDay(matchDayNumber)
                             .tournament(tournament)
+                            .isFinished(false)
                             .matches(new HashSet<>())
                             .build());
             this.matchService.generateMatches(matchDay, teams, numberOfTeams);
@@ -88,7 +89,29 @@ public class MatchDayServiceImpl implements MatchDayService {
         for (Match match : matchDay.getMatches()) {
             matches.add(this.matchService.matchToResponse(match));
         }
-        return new MatchDayResponse(matchDay.getNumberOfMatchDay(), matches);
+        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
+    }
+
+    @Override
+    public void updateStatusMatchDay(Long id, Boolean status) {
+        Optional<MatchDay> matchDayOpt = this.matchDayRepository.findById(id);
+
+        if(matchDayOpt.isEmpty()) throw new ResourceNotFoundException("El id de la jornada no existe.");
+
+        MatchDay matchDay = matchDayOpt.get();
+
+        matchDay.getMatches().forEach(match -> {
+            if(!match.getIsFinished()){
+                if(match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")){
+                    match.setIsFinished(true);
+                }else{
+                throw new IllegalArgumentException("El partido " + match.getHomeTeam().getTeam().getName() + " vs " + match.getAwayTeam().getTeam().getName() + " no fue cargado");
+                }
+            }
+        });
+
+        matchDay.setIsFinished(status);
+        this.matchDayRepository.save(matchDay);
     }
 
 

@@ -8,6 +8,7 @@ import com.gesfut.services.TeamService;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
@@ -23,16 +24,12 @@ public class MatchDayController {
     private MatchDayService matchDayService;
 
 
-//    @PostMapping("/initialize-tournament")
-//    @ResponseStatus(HttpStatus.CREATED)
-//    @PreAuthorize("hasAnyAuthority('MANAGER')")
-//    public void generateMatchDay(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult)
-//            throws BadRequestException {
-//        if (bindingResult.hasErrors()){
-//            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
-//        }
-//        this.matchDayService.generateMatchDays(request);
-//    }
+    @PutMapping("/close")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void generateMatchDay(@Param("matchDayId") Long id, @Param("status") Boolean status){
+        this.matchDayService.updateStatusMatchDay(id, status);
+    }
 
 
 }

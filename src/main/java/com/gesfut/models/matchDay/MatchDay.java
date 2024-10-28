@@ -22,6 +22,7 @@ public class MatchDay {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Integer numberOfMatchDay;
+    private Boolean isFinished;
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")
