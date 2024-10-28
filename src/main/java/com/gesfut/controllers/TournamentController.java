@@ -51,11 +51,10 @@ public class TournamentController {
     @PostMapping("/{tournament-code}/add-team")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void addTeamToTournament(@PathVariable("tournament-code") Tournament tournament,
-                                      @RequestParam(name = "idTeam") Long idTeam) {
-        this.tournamentService.addTeamToTournament(idTeam, tournament);
+    public void addTeamToTournament(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
+        if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.tournamentService.updateTournamentParticipants(request);
     }
-
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @Operation(summary = "Retorna el listado torneos del usuario logueado.")
