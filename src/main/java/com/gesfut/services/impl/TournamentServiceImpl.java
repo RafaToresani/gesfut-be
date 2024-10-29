@@ -108,6 +108,7 @@ public class TournamentServiceImpl implements TournamentService {
         matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
     }
 
+
     private Long getIdDummyParticipant() {
         Team team = this.teamService.getTeamByName("Free");
         return team.getId();
