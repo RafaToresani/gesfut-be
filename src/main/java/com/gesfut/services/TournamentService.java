@@ -26,4 +26,6 @@ public interface TournamentService {
     void disableTeamFromTournament(TournamentParticipant tournamentParticipant);
 
     HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams);
+
+    void updateTournamentParticipants(MatchDayRequest request);
 }

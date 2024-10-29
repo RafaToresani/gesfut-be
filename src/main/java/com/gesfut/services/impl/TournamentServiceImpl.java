@@ -128,6 +128,53 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    public void updateTournamentParticipants(MatchDayRequest request) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(request.tournamentCode()));
+        if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TournamentParticipant> tournamentParticipants = tournament.get().getTeams().stream().toList();
+
+        boolean isOdd = tournamentParticipants.stream()
+                .anyMatch(particpant -> particpant.getTeam().getName().equals("Free"));
+
+        if (isOdd){
+            Long id =  replaceFreeParticipant(request.teams().get(0),tournamentParticipants);
+            request.teams().remove(id);
+        }
+
+        addTeamsToTournament(request.tournamentCode(), request.teams());
+        tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
+
+        if (tournamentParticipants.size()%2 != 0) {
+            addTeamToTournament(getIdDummyParticipant(), tournament.get());
+            tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
+        }
+
+        matchDayService.reGenerateMatchDays(tournamentParticipants, request.tournamentCode());
+    }
+
+    private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
+        Team team = teamService.getTeamByIdSecured(id);
+        if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
+        if(this.participantRepository.existsByTournamentAndTeam(tournamentParticipants.getFirst().getTournament(), team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
+        TournamentParticipant newTeam = tournamentParticipants.stream()
+                .filter(part -> part.getTeam().getName().equals("Free"))
+                .findFirst()
+                .get();
+
+        newTeam.setTeam(team);
+        newTeam.setIsActive(true);
+        newTeam.setStatistics(generateStatistics());
+
+        this.playerParticipantRepository.deleteAll(newTeam.getPlayerParticipants());
+        newTeam.getPlayerParticipants().clear();
+        createPlayerParticipants(team, newTeam);
+
+        this.participantRepository.save(newTeam);
+
+        return team.getId();
+    }
+
+    @Override
     public void addTeamToTournament(Long idTeam, Tournament tournament) {
 
         Team team = teamService.getTeamByIdSecured(idTeam);
@@ -147,7 +194,6 @@ public class TournamentServiceImpl implements TournamentService {
 
         statistics.setParticipant(participant);
         participant = this.participantRepository.save(participant);
-
         createPlayerParticipants(team, participant);
     }
 
