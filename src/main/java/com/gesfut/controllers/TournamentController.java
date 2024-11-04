@@ -3,6 +3,7 @@ package com.gesfut.controllers;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,7 +58,7 @@ public class TournamentController {
     }
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
-    @Operation(summary = "Retorna el listado torneos del usuario logueado.")
+    @Operation(summary = "Retorna el listado torneos del usuario logueado Respuesta full.")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -72,6 +73,14 @@ public class TournamentController {
         return this.tournamentService.findTournamentByCode(code);
     }
 
+    @Operation(summary = "Retorna el listado torneos del usuario logueado codigo y nombre.")
+    @GetMapping("/short")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public List<TournamentShortResponse> findAllTournamentsShort(){
+        return this.tournamentService.findAllTournamentsShort();
+    }
+
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo.")
     @PatchMapping("/change-status-tournament")
@@ -80,5 +89,10 @@ public class TournamentController {
     public String deleteTournamentByCode(@Param(value = "tournament-code") String code, @Param(value = "status") Boolean status){
         return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
+
+
+
+
+
 
 }

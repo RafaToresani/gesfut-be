@@ -6,6 +6,7 @@ import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.ParticipantResponse;
 import com.gesfut.dtos.responses.StatisticsResponse;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
@@ -72,6 +73,11 @@ public class TournamentServiceImpl implements TournamentService {
     public List<TournamentResponse> findAllTournaments() {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponse(tournament)).toList();
+    }
+    @Override
+    public List<TournamentShortResponse> findAllTournamentsShort() {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponseShort(tournament)).toList();
     }
 
     @Override
@@ -237,6 +243,17 @@ public class TournamentServiceImpl implements TournamentService {
         );
     }
 
+
+    public TournamentShortResponse tournamentToResponseShort(Tournament tournament){
+        return new TournamentShortResponse(
+                tournament.getName(),
+                tournament.getCode().toString()
+        );
+    }
+
+
+
+
     private UUID getRandomUUID(){
        UUID code;
         do{
@@ -264,4 +281,6 @@ public class TournamentServiceImpl implements TournamentService {
                 .yellowCards(0)
                 .build();
     }
+
+
 }
