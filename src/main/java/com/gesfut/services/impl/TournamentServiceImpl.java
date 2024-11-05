@@ -116,7 +116,7 @@ public class TournamentServiceImpl implements TournamentService {
 
 
     private Long getIdDummyParticipant() {
-        Team team = this.teamService.getTeamByName("Free");
+        Team team = this.teamService.getTeamByName();
         return team.getId();
     }
 
