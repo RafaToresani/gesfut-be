@@ -158,6 +158,11 @@ public class TournamentServiceImpl implements TournamentService {
         matchDayService.reGenerateMatchDays(tournamentParticipants, request.tournamentCode());
     }
 
+    @Override
+    public Boolean existsByCode(String tournamentCode) {
+        return this.tournamentRepository.existsByCode(UUID.fromString(tournamentCode));
+    }
+
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");

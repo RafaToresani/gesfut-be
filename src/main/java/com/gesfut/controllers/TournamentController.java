@@ -81,6 +81,14 @@ public class TournamentController {
         return this.tournamentService.findAllTournamentsShort();
     }
 
+    @Operation(summary = "Verifica si el equipo existe o no.")
+    @GetMapping("/exist/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean findAllTournamentsShort(@PathVariable String code){
+        return this.tournamentService.existsByCode(code);
+    }
+
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo.")
     @PatchMapping("/change-status-tournament")
@@ -89,10 +97,5 @@ public class TournamentController {
     public String deleteTournamentByCode(@Param(value = "tournament-code") String code, @Param(value = "status") Boolean status){
         return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
-
-
-
-
-
 
 }

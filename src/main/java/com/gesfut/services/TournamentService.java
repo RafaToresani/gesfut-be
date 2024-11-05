@@ -31,4 +31,6 @@ public interface TournamentService {
     HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams);
 
     void updateTournamentParticipants(MatchDayRequest request);
+
+    Boolean existsByCode(String tournamentCode);
 }
