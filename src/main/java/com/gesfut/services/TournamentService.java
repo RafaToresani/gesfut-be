@@ -16,7 +16,9 @@ public interface TournamentService {
 
     List<TournamentResponse> findAllTournaments();
 
-    List<TournamentShortResponse> findAllTournamentsShort();
+    List<TournamentShortResponse> findAllTournamentsShortAll();
+
+    TournamentShortResponse findAllTournamentsShort(String tournamentCode);
 
     TournamentResponse findTournamentByCode(String code);
 

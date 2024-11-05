@@ -1,5 +1,7 @@
 package com.gesfut.repositories;
 
+import aj.org.objectweb.asm.commons.Remapper;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.user.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,4 +26,5 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     @Query("DELETE FROM Tournament t WHERE t.code = :code")
     void deleteByCode(UUID code);
 
+    Optional<Tournament> findByCodeAndUser(UUID uuid, UserEntity user);
 }

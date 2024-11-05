@@ -1,7 +1,12 @@
 package com.gesfut.dtos.responses;
 
+import java.time.LocalDate;
+
 public record TournamentShortResponse(
         String name,
-        String code
+        String code,
+        LocalDate startDate,
+        Boolean isFinished,
+        Boolean haveParticipants
 ) {
 }
