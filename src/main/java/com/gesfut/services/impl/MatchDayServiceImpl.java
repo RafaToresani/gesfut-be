@@ -1,21 +1,17 @@
 package com.gesfut.services.impl;
 
-import com.gesfut.dtos.requests.MatchDayRequest;
-import com.gesfut.dtos.responses.EventResponse;
 import com.gesfut.dtos.responses.MatchDayResponse;
 import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
-import com.gesfut.models.matchDay.Event;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
-import com.gesfut.models.team.Player;
-import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.*;
 import com.gesfut.services.MatchDayService;
 import com.gesfut.services.MatchService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +37,89 @@ public class MatchDayServiceImpl implements MatchDayService {
     @Autowired
     private MatchService matchService;
 
+
+
+    @Transactional
+    @Override
+    public void reGenerateMatchDays(List<TournamentParticipant> tournamentParticipants, String tournamentCode) {
+        Tournament tournament = getTournament(tournamentCode);
+
+        // 1. Obtener jornadas ya jugadas y conservarlas
+        List<MatchDay> finishedMatchDays = tournament.getMatchDays().stream()
+                .filter(MatchDay::getIsFinished)  // Filtrar solo las jornadas finalizadas
+                .toList();
+
+        // 2. Eliminar jornadas no finalizadas de la base de datos
+        this.matchDayRepository.deleteAllByTournamentCodeAndIsFinished(UUID.fromString(tournamentCode), false);
+
+        // 3. Obtener el número de la siguiente jornada a partir de las finalizadas
+        int nextMatchDayNumber = finishedMatchDays.size();
+
+        // 4. Llamar a `reGenerate` a partir de la siguiente jornada disponible
+        reGenerate(finishedMatchDays, tournament, tournamentParticipants, tournamentParticipants.size(), nextMatchDayNumber);
+    }
+
+    @Transactional
+    private void reGenerate(List<MatchDay> matchDays, Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int startingMatchDay) {
+        Set<Match> playedMatches = new HashSet<>();
+
+        // Conservar partidos ya jugados en jornadas finalizadas
+        for (MatchDay matchDay : matchDays) {
+            if (matchDay.getIsFinished()) {
+                playedMatches.addAll(matchDay.getMatches());
+            }
+        }
+
+        // Generar solo las jornadas que faltan, evitando duplicados de partidos
+        for (int matchDayNumber = startingMatchDay; matchDayNumber < numberOfTeams - 1; matchDayNumber++) {
+            MatchDay matchDay = matchDayRepository.save(
+                    MatchDay.builder()
+                            .numberOfMatchDay(matchDayNumber)
+                            .tournament(tournament)
+                            .isFinished(false)
+                            .matches(new HashSet<>())
+                            .build());
+
+            // Generar partidos para la nueva jornada
+            List<Match> newMatches = generateUniqueMatches(matchDay, teams, playedMatches);
+            matchDay.getMatches().addAll(newMatches);
+            matchDayRepository.save(matchDay);
+
+            rotateTeams(teams); // Rota equipos para la siguiente jornada
+        }
+    }
+
+
+
+    private List<Match> generateUniqueMatches(MatchDay matchDay, List<TournamentParticipant> teams, Set<Match> playedMatches) {
+        List<Match> newMatches = new ArrayList<>();
+        int numTeams = teams.size();
+
+        for (int i = 0; i < numTeams / 2; i++) {
+            TournamentParticipant team1 = teams.get(i);
+            TournamentParticipant team2 = teams.get(numTeams - 1 - i);
+
+            Match match = Match.builder()
+                    .matchDay(matchDay)
+                    .homeTeam(team1)
+                    .awayTeam(team2)
+                    .isFinished(false)
+                    .build();
+
+
+            // Solo agrega el partido si no se jugó en jornadas cerradas
+            if (!playedMatches.contains(match)) {
+                newMatches.add(match);
+                playedMatches.add(match); // Agregar a jugados para evitar duplicados en futuras jornadas
+            }
+        }
+        return newMatches;
+    }
+
+
+
+
+
     @Override
     public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode) {
         Tournament tournament = getTournament(tournamentCode);
@@ -60,6 +139,7 @@ public class MatchDayServiceImpl implements MatchDayService {
                     MatchDay.builder()
                             .numberOfMatchDay(matchDayNumber)
                             .tournament(tournament)
+                            .isFinished(false)
                             .matches(new HashSet<>())
                             .build());
             this.matchService.generateMatches(matchDay, teams, numberOfTeams);
@@ -88,7 +168,30 @@ public class MatchDayServiceImpl implements MatchDayService {
         for (Match match : matchDay.getMatches()) {
             matches.add(this.matchService.matchToResponse(match));
         }
-        return new MatchDayResponse(matchDay.getNumberOfMatchDay(), matches);
+        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
+    }
+
+
+    @Override
+    public void updateStatusMatchDay(Long id, Boolean status) {
+        Optional<MatchDay> matchDayOpt = this.matchDayRepository.findById(id);
+
+        if(matchDayOpt.isEmpty()) throw new ResourceNotFoundException("El id de la jornada no existe.");
+
+        MatchDay matchDay = matchDayOpt.get();
+
+        matchDay.getMatches().forEach(match -> {
+            if(!match.getIsFinished()){
+                if(match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")){
+                    match.setIsFinished(true);
+                }else{
+                throw new IllegalArgumentException("El partido " + match.getHomeTeam().getTeam().getName() + " vs " + match.getAwayTeam().getTeam().getName() + " no fue cargado");
+                }
+            }
+        });
+
+        matchDay.setIsFinished(status);
+        this.matchDayRepository.save(matchDay);
     }
 
 

@@ -9,5 +9,6 @@ public record MatchResponse(
         Integer numberOfMatchDay,
         Integer homeGoals,
         Integer awayGoals,
-        List<EventResponse> events
+        List<EventResponse> events,
+        Boolean isFinished
 ) { }

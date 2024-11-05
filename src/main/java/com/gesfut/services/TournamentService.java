@@ -3,6 +3,7 @@ package com.gesfut.services;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
@@ -15,6 +16,8 @@ public interface TournamentService {
 
     List<TournamentResponse> findAllTournaments();
 
+    List<TournamentShortResponse> findAllTournamentsShort();
+
     TournamentResponse findTournamentByCode(String code);
 
     String changeStatusTournamentByCode(String code, Boolean status);
@@ -26,4 +29,8 @@ public interface TournamentService {
     void disableTeamFromTournament(TournamentParticipant tournamentParticipant);
 
     HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams);
+
+    void updateTournamentParticipants(MatchDayRequest request);
+
+    Boolean existsByCode(String tournamentCode);
 }

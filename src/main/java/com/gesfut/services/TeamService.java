@@ -17,5 +17,5 @@ public interface TeamService  {
     Team getTeamByIdSecured(Long id);
     String disableTeam(Long id, Boolean status);
     void addPlayerToTeam(Long teamId, PlayerRequest request);
-    Team getTeamByName(String free);
+    Team getTeamByName();
 }

@@ -103,8 +103,9 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public Team getTeamByName(String free) {
-        Optional<Team> team = this.teamRepository.findByTeamNameAndPlayerName(free, free);
+    public Team getTeamByName() {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        Optional<Team> team = this.teamRepository.findByNameAndUserId("free", user.getId());
         if(team.isEmpty()) throw new ResourceNotFoundException("Equipo free no existe.");
         return team.get();
     }

@@ -3,6 +3,7 @@ package com.gesfut.controllers;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,14 +52,13 @@ public class TournamentController {
     @PostMapping("/{tournament-code}/add-team")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void addTeamToTournament(@PathVariable("tournament-code") Tournament tournament,
-                                      @RequestParam(name = "idTeam") Long idTeam) {
-        this.tournamentService.addTeamToTournament(idTeam, tournament);
+    public void addTeamToTournament(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
+        if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.tournamentService.updateTournamentParticipants(request);
     }
 
-
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
-    @Operation(summary = "Retorna el listado torneos del usuario logueado.")
+    @Operation(summary = "Retorna el listado torneos del usuario logueado Respuesta full.")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
@@ -71,6 +71,22 @@ public class TournamentController {
     @ResponseStatus(HttpStatus.OK)
     public TournamentResponse findTournamentByCode(@PathVariable String code){
         return this.tournamentService.findTournamentByCode(code);
+    }
+
+    @Operation(summary = "Retorna el listado torneos del usuario logueado codigo y nombre.")
+    @GetMapping("/short")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public List<TournamentShortResponse> findAllTournamentsShort(){
+        return this.tournamentService.findAllTournamentsShort();
+    }
+
+    @Operation(summary = "Verifica si el equipo existe o no.")
+    @GetMapping("/exist/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean findAllTournamentsShort(@PathVariable String code){
+        return this.tournamentService.existsByCode(code);
     }
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~

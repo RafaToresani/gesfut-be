@@ -6,6 +6,7 @@ import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.ParticipantResponse;
 import com.gesfut.dtos.responses.StatisticsResponse;
 import com.gesfut.dtos.responses.TournamentResponse;
+import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
@@ -73,6 +74,11 @@ public class TournamentServiceImpl implements TournamentService {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponse(tournament)).toList();
     }
+    @Override
+    public List<TournamentShortResponse> findAllTournamentsShort() {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponseShort(tournament)).toList();
+    }
 
     @Override
     public TournamentResponse findTournamentByCode(String code) {
@@ -108,8 +114,9 @@ public class TournamentServiceImpl implements TournamentService {
         matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
     }
 
+
     private Long getIdDummyParticipant() {
-        Team team = this.teamService.getTeamByName("Free");
+        Team team = this.teamService.getTeamByName();
         return team.getId();
     }
 
@@ -124,6 +131,58 @@ public class TournamentServiceImpl implements TournamentService {
         });
 
         return (HashSet<TournamentParticipant>) this.participantRepository.findAllByTournament(tournament.get());
+    }
+
+    @Override
+    public void updateTournamentParticipants(MatchDayRequest request) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(request.tournamentCode()));
+        if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TournamentParticipant> tournamentParticipants = tournament.get().getTeams().stream().toList();
+
+        boolean isOdd = tournamentParticipants.stream()
+                .anyMatch(particpant -> particpant.getTeam().getName().equals("Free"));
+
+        if (isOdd){
+            Long id =  replaceFreeParticipant(request.teams().get(0),tournamentParticipants);
+            request.teams().remove(id);
+        }
+
+        addTeamsToTournament(request.tournamentCode(), request.teams());
+        tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
+
+        if (tournamentParticipants.size()%2 != 0) {
+            addTeamToTournament(getIdDummyParticipant(), tournament.get());
+            tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
+        }
+
+        matchDayService.reGenerateMatchDays(tournamentParticipants, request.tournamentCode());
+    }
+
+    @Override
+    public Boolean existsByCode(String tournamentCode) {
+        return this.tournamentRepository.existsByCode(UUID.fromString(tournamentCode));
+    }
+
+    private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
+        Team team = teamService.getTeamByIdSecured(id);
+        if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
+        if(this.participantRepository.existsByTournamentAndTeam(tournamentParticipants.getFirst().getTournament(), team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
+        TournamentParticipant newTeam = tournamentParticipants.stream()
+                .filter(part -> part.getTeam().getName().equals("Free"))
+                .findFirst()
+                .get();
+
+        newTeam.setTeam(team);
+        newTeam.setIsActive(true);
+        newTeam.setStatistics(generateStatistics());
+
+        this.playerParticipantRepository.deleteAll(newTeam.getPlayerParticipants());
+        newTeam.getPlayerParticipants().clear();
+        createPlayerParticipants(team, newTeam);
+
+        this.participantRepository.save(newTeam);
+
+        return team.getId();
     }
 
     @Override
@@ -146,7 +205,6 @@ public class TournamentServiceImpl implements TournamentService {
 
         statistics.setParticipant(participant);
         participant = this.participantRepository.save(participant);
-
         createPlayerParticipants(team, participant);
     }
 
@@ -190,6 +248,17 @@ public class TournamentServiceImpl implements TournamentService {
         );
     }
 
+
+    public TournamentShortResponse tournamentToResponseShort(Tournament tournament){
+        return new TournamentShortResponse(
+                tournament.getName(),
+                tournament.getCode().toString()
+        );
+    }
+
+
+
+
     private UUID getRandomUUID(){
        UUID code;
         do{
@@ -217,4 +286,6 @@ public class TournamentServiceImpl implements TournamentService {
                 .yellowCards(0)
                 .build();
     }
+
+
 }
