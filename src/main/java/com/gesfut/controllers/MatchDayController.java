@@ -2,6 +2,7 @@ package com.gesfut.controllers;
 
 
 import com.gesfut.dtos.requests.MatchDayRequest;
+import com.gesfut.dtos.responses.MatchDayResponse;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.services.MatchDayService;
 import com.gesfut.services.TeamService;
@@ -14,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Objects;
 
 @RestController
@@ -23,6 +25,11 @@ public class MatchDayController {
     @Autowired
     private MatchDayService matchDayService;
 
+    @GetMapping("/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<MatchDayResponse> getMatchDaysByTournamentCode(@PathVariable String code){
+        return this.matchDayService.getMatchDaysByCode(code);
+    }
 
     @PutMapping("/close")
     @ResponseStatus(HttpStatus.OK)
@@ -30,6 +37,5 @@ public class MatchDayController {
     public void generateMatchDay(@Param("matchDayId") Long id, @Param("status") Boolean status){
         this.matchDayService.updateStatusMatchDay(id, status);
     }
-
 
 }

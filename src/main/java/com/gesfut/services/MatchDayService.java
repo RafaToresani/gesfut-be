@@ -9,11 +9,8 @@ import java.util.List;
 
 public interface MatchDayService {
     void reGenerateMatchDays(List<TournamentParticipant> tournamentParticipants, String tournamentCode);
-
     void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants , String tournamentCode);
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
-
     void updateStatusMatchDay(Long id, Boolean status);
-
-
+    List<MatchDayResponse> getMatchDaysByCode(String code);
 }
