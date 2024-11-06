@@ -4,8 +4,8 @@ import java.util.List;
 
 public record MatchResponse(
         Long id,
-        String homeTeam,
-        String awayTeam,
+        ParticipantResponse homeTeam,
+        ParticipantResponse awayTeam,
         Integer numberOfMatchDay,
         Integer homeGoals,
         Integer awayGoals,

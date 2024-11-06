@@ -1,8 +1,11 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.responses.ParticipantResponse;
+import com.gesfut.dtos.responses.PlayerParticipantResponse;
+import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.TournamentParticipantRepository;
+import com.gesfut.services.PlayerService;
 import com.gesfut.services.StatisticsService;
 import com.gesfut.services.TournamentParticipantService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +24,8 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     @Autowired
     private StatisticsService statisticsService;
 
+    @Autowired
+    private PlayerService playerService;
     @Override
     public List<ParticipantResponse> participantsToResponse(Set<TournamentParticipant> tournamentsParticipant){
         List<ParticipantResponse> list = new ArrayList<>();
@@ -37,7 +42,19 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                 participant.getTeam().getId(),
                 participant.getTeam().getName(),
                 participant.getIsActive(),
-                this.statisticsService.statisticsToResponse(participant.getStatistics()));
+                this.statisticsService.statisticsToResponse(participant.getStatistics()),
+                participant.getPlayerParticipants().stream().map(this::playerParticipantToResponse).toList());
     }
 
+    public PlayerParticipantResponse playerParticipantToResponse(PlayerParticipant playerParticipant){
+        return new PlayerParticipantResponse(
+                playerParticipant.getId(),
+                this.playerService.playerToResponse(playerParticipant.getPlayer()),
+                playerParticipant.getIsSuspended(),
+                playerParticipant.getGoals(),
+                playerParticipant.getYellowCards(),
+                playerParticipant.getRedCards(),
+                playerParticipant.getIsMvp()
+        );
+    }
 }

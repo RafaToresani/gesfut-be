@@ -14,6 +14,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.*;
 import com.gesfut.services.EventService;
 import com.gesfut.services.MatchService;
+import com.gesfut.services.TournamentParticipantService;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,8 @@ public class MatchServiceImpl implements MatchService {
     private PlayerParticipantRepository playerParticipantRepository;
     @Autowired
     private StatisticsRepository statisticsRepository;
+    @Autowired
+    private TournamentParticipantService tournamentParticipantService;
     @Autowired
     private EventService eventService;
 
@@ -261,8 +264,8 @@ public class MatchServiceImpl implements MatchService {
     public MatchResponse matchToResponse(Match match) {
         return new MatchResponse(
                 match.getId(),
-                match.getHomeTeam().getTeam().getName(),
-                match.getAwayTeam().getTeam().getName(),
+                this.tournamentParticipantService.participantToResponse(match.getHomeTeam()),
+                this.tournamentParticipantService.participantToResponse(match.getAwayTeam()),
                 match.getMatchDay().getNumberOfMatchDay(),
                 match.getGoalsHomeTeam(),
                 match.getGoalsAwayTeam(),
