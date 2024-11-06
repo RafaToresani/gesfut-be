@@ -71,8 +71,17 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     }
 
     @Override
-    public List<ParticipantResponse> getParticipants(UUID code) {
-        return participantsToResponse(this.participantRepository.findAllByTournamentCode(code));
+    public ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant){
+        ParticipantShortResponse participantShortResponse = new ParticipantShortResponse(
+                tournamentsParticipant.getId(),
+                tournamentsParticipant.getTeam().getName()
+        );
+        return participantShortResponse;
+    }
+
+    @Override
+    public List<ParticipantResponse> getParticipants(String code) {
+        return participantsToResponse(this.participantRepository.findAllByTournamentCode(UUID.fromString(code)));
     }
 
     @Override
@@ -81,8 +90,9 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     }
 
     @Override
-    public List<ParticipantShortResponse> getParticipantsShort(UUID code) {
-        return participantsToResponseShort(this.participantRepository.findAllByTournamentCode(code));
+    public List<ParticipantShortResponse> getParticipantsShort(String code) {
+        List<TournamentParticipant> participants = new ArrayList<>(this.participantRepository.findAllByTournamentCode(UUID.fromString(code)));
+        return participants.stream().map(this::participantsToResponseShortOne).collect(Collectors.toList());
     }
 
 }

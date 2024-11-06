@@ -18,8 +18,7 @@ public interface TournamentParticipantRepository extends JpaRepository<Tournamen
 
     boolean existsByTournamentAndTeam(Tournament tournament, Team team);
 
-    Set<TournamentParticipant> findAllByTournamentCode(UUID tournamentCode);
-
+    Set<TournamentParticipant>findAllByTournamentCode(UUID tournamentCode);
 
     @Modifying
     @Query("DELETE FROM TournamentParticipant tp WHERE tp.tournament.id = :tournamentId")

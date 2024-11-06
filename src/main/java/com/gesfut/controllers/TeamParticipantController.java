@@ -22,7 +22,7 @@ public class TeamParticipantController {
     @GetMapping("/{code}/teams")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public List<ParticipantResponse> getAllTeamsParticpants(@PathVariable UUID code) {
+    public List<ParticipantResponse> getAllTeamsParticpants(@PathVariable String code) {
         return this.tournamentParticipantService.getParticipants(code);
     }
 
@@ -36,7 +36,7 @@ public class TeamParticipantController {
     @GetMapping("/{code}/teams-short")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public List<ParticipantShortResponse> getAllTeamsParticpantsShort(@PathVariable UUID code) {
+    public List<ParticipantShortResponse> getAllTeamsParticpantsShort(@PathVariable String code) {
         return this.tournamentParticipantService.getParticipantsShort(code);
     }
 
