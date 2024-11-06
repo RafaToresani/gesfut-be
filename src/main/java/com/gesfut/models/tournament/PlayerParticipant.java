@@ -26,6 +26,7 @@ public class PlayerParticipant {
     private Integer redCards;
     private Integer yellowCards;
     private Integer isMvp;
+    private Integer matchesPlayed;
 
     @ManyToOne
     @JoinColumn(name = "player_id")
