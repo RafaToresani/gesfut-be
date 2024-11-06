@@ -1,6 +1,7 @@
 package com.gesfut.services;
 
 import com.gesfut.dtos.responses.ParticipantResponse;
+import com.gesfut.dtos.responses.ParticipantShortResponse;
 import com.gesfut.models.tournament.TournamentParticipant;
 
 import java.util.List;
@@ -10,4 +11,6 @@ public interface TournamentParticipantService {
     List<ParticipantResponse> participantsToResponse(Set<TournamentParticipant> tournamentsParticipant);
 
     ParticipantResponse participantToResponse(TournamentParticipant item);
+
+    ParticipantShortResponse participantToShortResponse(TournamentParticipant homeTeam);
 }

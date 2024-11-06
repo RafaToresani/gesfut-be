@@ -1,8 +1,8 @@
 package com.gesfut.services.impl;
 
-import com.gesfut.dtos.requests.EventRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.MatchShortResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
 import com.gesfut.models.matchDay.Event;
@@ -61,6 +61,24 @@ public class MatchServiceImpl implements MatchService {
         Optional<Match> match = this.matchRepository.findById(id);
         if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
         return matchToResponse(match.get());
+    }
+
+    @Override
+    public MatchShortResponse getMatchShortById(Long id){
+        Optional<Match> match = this.matchRepository.findById(id);
+        if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
+        return matchToShortResponse(match.get());
+    }
+
+    @Override
+    public MatchShortResponse matchToShortResponse(Match match) {
+        return new MatchShortResponse(
+                match.getId(),
+                this.tournamentParticipantService.participantToShortResponse(match.getHomeTeam()),
+                this.tournamentParticipantService.participantToShortResponse(match.getAwayTeam()),
+                match.getMatchDay().getNumberOfMatchDay(),
+                match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList()
+        );
     }
 
     private void increasePlayerStats(Event event) {
@@ -259,6 +277,7 @@ public class MatchServiceImpl implements MatchService {
         if(match.isEmpty()) throw new ResourceNotFoundException("El id del partido no existe");
         return match.get();
     }
+
 
     @Override
     public MatchResponse matchToResponse(Match match) {

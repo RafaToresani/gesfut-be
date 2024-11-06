@@ -3,6 +3,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.MatchDayShortResponse;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.services.MatchDayService;
 import com.gesfut.services.TeamService;
@@ -29,6 +30,12 @@ public class MatchDayController {
     @ResponseStatus(HttpStatus.OK)
     public List<MatchDayResponse> getMatchDaysByTournamentCode(@PathVariable String code){
         return this.matchDayService.getMatchDaysByCode(code);
+    }
+
+    @GetMapping("/short/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<MatchDayShortResponse> getMatchDaysShortByTournamentCode(@PathVariable String code){
+        return this.matchDayService.getMatchDaysShortByCode(code);
     }
 
     @PutMapping("/close")

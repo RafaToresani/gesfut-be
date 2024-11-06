@@ -1,7 +1,9 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.MatchDayShortResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.MatchShortResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.Match;
@@ -162,15 +164,6 @@ public class MatchDayServiceImpl implements MatchDayService {
         return tournament.get();
     }
 
-    @Override
-    public MatchDayResponse matchDayToResponse(MatchDay matchDay) {
-        List<MatchResponse> matches = new ArrayList<>();
-        for (Match match : matchDay.getMatches()) {
-            matches.add(this.matchService.matchToResponse(match));
-        }
-        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
-    }
-
 
     @Override
     public void updateStatusMatchDay(Long id, Boolean status) {
@@ -199,5 +192,29 @@ public class MatchDayServiceImpl implements MatchDayService {
         List<MatchDay> list = this.matchDayRepository.findAllByTournamentCode(UUID.fromString(code));
 
         return list.stream().map(matchDay -> matchDayToResponse(matchDay)).toList();
+    }
+
+    @Override
+    public List<MatchDayShortResponse> getMatchDaysShortByCode(String code) {
+        List<MatchDay> list = this.matchDayRepository.findAllByTournamentCode(UUID.fromString(code));
+
+        return list.stream().map(matchDay -> matchDayShortToResponse(matchDay)).toList();
+    }
+
+    @Override
+    public MatchDayResponse matchDayToResponse(MatchDay matchDay) {
+        List<MatchResponse> matches = new ArrayList<>();
+        for (Match match : matchDay.getMatches()) {
+            matches.add(this.matchService.matchToResponse(match));
+        }
+        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
+    }
+
+    private MatchDayShortResponse matchDayShortToResponse(MatchDay matchDay) {
+        List<MatchShortResponse> matches = new ArrayList<>();
+        for (Match match : matchDay.getMatches()) {
+            matches.add(this.matchService.matchToShortResponse(match));
+        }
+        return new MatchDayShortResponse(matchDay.getId(), matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
     }
 }

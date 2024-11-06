@@ -2,6 +2,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.MatchShortResponse;
 import com.gesfut.services.MatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -37,6 +38,13 @@ public class MatchController {
     @ResponseStatus(HttpStatus.OK)
     public MatchResponse getMatchById(@PathVariable Long id){
         return this.matchService.getMatchById(id);
+    }
+
+    @GetMapping("/short/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public MatchShortResponse getMatchShortById(@PathVariable Long id){
+
+        return this.matchService.getMatchShortById(id);
     }
 
     @PutMapping("/update-result")

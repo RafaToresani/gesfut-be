@@ -1,7 +1,9 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.responses.ParticipantResponse;
+import com.gesfut.dtos.responses.ParticipantShortResponse;
 import com.gesfut.dtos.responses.PlayerParticipantResponse;
+import com.gesfut.dtos.responses.PlayerParticipantShortResponse;
 import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.TournamentParticipantRepository;
@@ -44,6 +46,23 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                 participant.getIsActive(),
                 this.statisticsService.statisticsToResponse(participant.getStatistics()),
                 participant.getPlayerParticipants().stream().map(this::playerParticipantToResponse).toList());
+    }
+
+    @Override
+    public ParticipantShortResponse participantToShortResponse(TournamentParticipant participant) {
+        return new ParticipantShortResponse(
+                participant.getId(),
+                participant.getTeam().getId(),
+                participant.getTeam().getName(),
+                participant.getPlayerParticipants().stream().map(this::playerParticipantToShortResponse).toList());
+    }
+
+    private PlayerParticipantShortResponse playerParticipantToShortResponse(PlayerParticipant playerParticipant) {
+        return new PlayerParticipantShortResponse(
+                playerParticipant.getId(),
+                playerParticipant.getPlayer().getName(),
+                playerParticipant.getPlayer().getLastName()
+        );
     }
 
     public PlayerParticipantResponse playerParticipantToResponse(PlayerParticipant playerParticipant){

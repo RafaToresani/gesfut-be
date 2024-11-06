@@ -1,6 +1,7 @@
 package com.gesfut.services;
 
 import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.MatchDayShortResponse;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.TournamentParticipant;
 
@@ -13,4 +14,6 @@ public interface MatchDayService {
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
     void updateStatusMatchDay(Long id, Boolean status);
     List<MatchDayResponse> getMatchDaysByCode(String code);
+
+    List<MatchDayShortResponse> getMatchDaysShortByCode(String code);
 }
