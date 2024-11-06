@@ -194,5 +194,10 @@ public class MatchDayServiceImpl implements MatchDayService {
         this.matchDayRepository.save(matchDay);
     }
 
+    @Override
+    public List<MatchDayResponse> getMatchDaysByCode(String code) {
+        List<MatchDay> list = this.matchDayRepository.findAllByTournamentCode(UUID.fromString(code));
 
+        return list.stream().map(matchDay -> matchDayToResponse(matchDay)).toList();
+    }
 }
