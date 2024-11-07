@@ -252,6 +252,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getStartDate(),
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
                 tournament.getIsFinished(),
+                !tournament.getTeams().isEmpty(),
                 this.participantService.participantsToResponse(tournament.getTeams()),
                 tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
         );
