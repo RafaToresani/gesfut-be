@@ -2,6 +2,7 @@ package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.EventRequest;
 import com.gesfut.dtos.requests.MatchRequest;
+import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
@@ -14,6 +15,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.*;
 import com.gesfut.services.EventService;
 import com.gesfut.services.MatchService;
+import com.gesfut.services.TournamentParticipantService;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,8 @@ public class MatchServiceImpl implements MatchService {
     private StatisticsRepository statisticsRepository;
     @Autowired
     private EventService eventService;
+    @Autowired
+    private TournamentParticipantService tournamentParticipantService;
 
     @Override
     public String loadMatchResult(MatchRequest request) {
@@ -173,6 +177,25 @@ public class MatchServiceImpl implements MatchService {
 
         deleteAllRelationsFromMatch(match);
         loadMatchResult(request);
+    }
+
+    @Override
+    public MatchDetailedResponse getDetailedMatchById(Long id) {
+        Match match = this.getMatch(id);
+        return this.matchDetailedToResponse(match);
+    }
+
+    private MatchDetailedResponse matchDetailedToResponse(Match match) {
+        return new MatchDetailedResponse(
+                match.getId(),
+                tournamentParticipantService.participantToResponse(match.getHomeTeam()),
+                tournamentParticipantService.participantToResponse(match.getAwayTeam()),
+                match.getMatchDay().getNumberOfMatchDay(),
+                match.getGoalsHomeTeam(),
+                match.getGoalsAwayTeam(),
+                match.getEvents().stream().map(event -> eventService.eventToResponse(event)).toList(),
+                match.getIsFinished()
+        );
     }
 
     private void deleteAllRelationsFromMatch(Match match) {
