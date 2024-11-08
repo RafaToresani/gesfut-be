@@ -5,12 +5,15 @@ import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
+import com.gesfut.models.team.Player;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.user.UserEntity;
+import com.gesfut.repositories.PlayerRepository;
 import com.gesfut.repositories.TeamRepository;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.services.PlayerService;
 import com.gesfut.services.TeamService;
+import com.gesfut.services.TournamentParticipantService;
 import com.gesfut.services.UserEntityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,13 +31,16 @@ public class TeamServiceImpl implements TeamService {
 
     @Autowired
     private PlayerService playerService;
+    @Autowired
+    private TournamentParticipantService tournamentParticipantService;
+    @Autowired
+    private PlayerRepository playerRepository;
 
     @Autowired
     private UserEntityService userService;
 
     @Autowired
     private TournamentParticipantRepository participantRepository;
-
 
     @Override
     public void createTeam(TeamRequest request) {
@@ -108,6 +114,17 @@ public class TeamServiceImpl implements TeamService {
         Optional<Team> team = this.teamRepository.findByNameAndUserId("free", user.getId());
         if(team.isEmpty()) throw new ResourceNotFoundException("Equipo free no existe.");
         return team.get();
+    }
+
+    @Override
+    public void changeStatusPlayer(Long idPlayer, Boolean status) {
+        Optional<Player> optPlayer = this.playerRepository.findById(idPlayer);
+        if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El jugador no existe.");
+
+        optPlayer.get().getPlayerParticipants().forEach(player -> {
+            this.tournamentParticipantService.changeStatusPlayerParticipant(player.getTournamentParticipant().getTournament().getCode().toString(), player.getId(), status);
+        });
+        this.playerRepository.updatePlayerStatusById(idPlayer, status);
     }
 
     @Override

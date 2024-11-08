@@ -41,7 +41,10 @@ public class TeamParticipantController {
     }
 
 
-
-
-
+    @PutMapping("/change-status/{code}/{idParticipant}/{status}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void changeStatusPlayerParticipant(@PathVariable String code, @PathVariable Long idParticipant, @PathVariable Boolean status){
+        this.tournamentParticipantService.changeStatusPlayerParticipant(code, idParticipant, status);
+    }
 }

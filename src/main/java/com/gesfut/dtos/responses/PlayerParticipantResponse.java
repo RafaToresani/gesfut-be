@@ -11,5 +11,5 @@ public record PlayerParticipantResponse(
         Long playerId,
         String playerName,
         String playerLastName,
-        Integer matchesPlayed
+        Boolean isActive
 ) {}

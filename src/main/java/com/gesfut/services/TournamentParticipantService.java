@@ -17,4 +17,5 @@ public interface TournamentParticipantService {
     List<ParticipantShortResponse> participantsToResponseShort(Set<TournamentParticipant> tournamentsParticipant);
     ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant);
 
-    }
+    void changeStatusPlayerParticipant(String code, Long idParticipant, Boolean status);
+}

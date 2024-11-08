@@ -230,6 +230,8 @@ public class TournamentServiceImpl implements TournamentService {
                             .isSuspended(false)
                             .redCards(0)
                             .yellowCards(0)
+                            .isActive(true)
+                            .isMvp(0)
                             .build()
             );
         });

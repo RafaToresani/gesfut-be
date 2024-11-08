@@ -73,6 +73,13 @@ public class TeamController {
         return this.teamService.getAllTeams();
     }
 
+    // ~~~~~~~~~~~~ PUT ~~~~~~~~~~~~
+    @PutMapping("/change-status-player/{idPlayer}/{status}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void changeStatusPlayer(@PathVariable Long idPlayer, @PathVariable Boolean status){
+        this.teamService.changeStatusPlayer(idPlayer, status);
+    }
 
     // ~~~~~~~~~~~~ PATCH ~~~~~~~~~~~~
     @Operation(summary = "Cambia el estado de un equipo",

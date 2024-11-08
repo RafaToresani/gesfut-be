@@ -18,4 +18,5 @@ public interface TeamService  {
     String disableTeam(Long id, Boolean status);
     void addPlayerToTeam(Long teamId, PlayerRequest request);
     Team getTeamByName();
+    void changeStatusPlayer(Long idPlayer, Boolean status);
 }
