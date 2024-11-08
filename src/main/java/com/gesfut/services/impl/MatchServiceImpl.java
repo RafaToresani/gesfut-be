@@ -44,10 +44,14 @@ public class MatchServiceImpl implements MatchService {
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
         Match match = this.getMatch(request.matchId());
+        long mvpCount = request.events().stream()
+                .filter(EventRequest::isMvp)
+                .count();
+        if (mvpCount > 1) throw new IllegalArgumentException("Solo puede haber un MVP en el partido.");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
+
         request.events().forEach(eventRequest -> {
-            // TODO hacer validaicones por si surgen errores
             Event event = this.eventService.createEvent(eventRequest,match);
             increasePlayerStats(event);
             increaseTournamentParticipantStats(event);
@@ -167,7 +171,10 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public void updateMatchResult(MatchRequest request) throws BadRequestException {
         Match match = getMatch(request.matchId());
-
+        long mvpCount = request.events().stream()
+                .filter(EventRequest::isMvp)
+                .count();
+        if (mvpCount > 1) throw new IllegalArgumentException("Solo puede haber un MVP en el partido.");
         if(!match.getIsFinished()) throw new BadRequestException("Error: el partido no terminó");
         if(match.getMatchDay().getIsFinished()) throw new BadRequestException("Error: La jornada ya cerró.");
 
