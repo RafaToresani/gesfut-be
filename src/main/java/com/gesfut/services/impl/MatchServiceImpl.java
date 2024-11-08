@@ -112,7 +112,7 @@ public class MatchServiceImpl implements MatchService {
                 } else if(match.getAwayTeam().getPlayerParticipants().contains(event.getPlayerParticipant())) {
                     match.setGoalsAwayTeam(match.getGoalsAwayTeam() + event.getQuantity());
                 }else{
-                    throw new ResourceNotFoundException("El jugador no pertenece a ningun equipo del partido");
+                    throw new ResourceNotFoundException("Uno de los jugadores no pertenece a ninguno de los dos equipos. ");
                 }
             }
         });

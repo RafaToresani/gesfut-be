@@ -27,7 +27,7 @@ public class EventServiceImpl implements EventService {
     @Override
     public Event createEvent(EventRequest eventRequest, Match match) {
         List<TournamentParticipant> teams = List.of(match.getHomeTeam(), match.getAwayTeam());
-        Optional<PlayerParticipant> playerParticipant = playerParticipantRepository.findByPlayerIdAndTournamentParticipantIn(eventRequest.playerParticipantId(), teams);
+        Optional<PlayerParticipant> playerParticipant = playerParticipantRepository.findByIdAndTournamentParticipantIn(eventRequest.playerParticipantId(), teams);
 
         if (playerParticipant.isEmpty()) {
             throw new ResourceNotFoundException("Uno de los jugadores asociados no existe en ningún equipo del partido.");
