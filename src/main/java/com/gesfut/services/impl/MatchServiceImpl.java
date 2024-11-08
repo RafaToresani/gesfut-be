@@ -44,10 +44,11 @@ public class MatchServiceImpl implements MatchService {
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
         Match match = this.getMatch(request.matchId());
+
         long mvpCount = request.events().stream()
-                .filter(EventRequest::isMvp)
+                .filter(event -> event.type() == EEventType.MVP)
                 .count();
-        if (mvpCount > 1) throw new IllegalArgumentException("Solo puede haber un MVP en el partido.");
+        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
 
@@ -74,6 +75,7 @@ public class MatchServiceImpl implements MatchService {
             case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
             case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
             case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
+            case MVP -> playerParticipant.setIsMvp(playerParticipant.getIsMvp()+event.getQuantity());
         }
         this.playerParticipantRepository.save(playerParticipant);
     }
@@ -172,9 +174,10 @@ public class MatchServiceImpl implements MatchService {
     public void updateMatchResult(MatchRequest request) throws BadRequestException {
         Match match = getMatch(request.matchId());
         long mvpCount = request.events().stream()
-                .filter(EventRequest::isMvp)
+                .filter(event -> event.type() == EEventType.MVP)
                 .count();
-        if (mvpCount > 1) throw new IllegalArgumentException("Solo puede haber un MVP en el partido.");
+        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
+
         if(!match.getIsFinished()) throw new BadRequestException("Error: el partido no terminó");
         if(match.getMatchDay().getIsFinished()) throw new BadRequestException("Error: La jornada ya cerró.");
 

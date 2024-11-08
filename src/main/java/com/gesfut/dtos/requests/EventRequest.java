@@ -9,7 +9,6 @@ public record EventRequest(
         Long playerParticipantId, //tabla jugadorportonreo_id  der
         EEventType type,
         @Min(value = 0, message = "La cantidad no puede ser negativa")
-        Integer quantity,
-        Boolean isMvp
+        Integer quantity
 ) {
 }
