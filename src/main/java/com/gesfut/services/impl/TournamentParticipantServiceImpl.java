@@ -45,6 +45,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                 participant.getPlayerParticipants().stream()
                         .map(playerParticipant -> new PlayerParticipantResponse(
                                 playerParticipant.getId(),
+                                playerParticipant.getPlayer().getNumber(),
                                 playerParticipant.getIsSuspended(),
                                 playerParticipant.getGoals(),
                                 playerParticipant.getRedCards(),
@@ -52,6 +53,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                                 playerParticipant.getIsMvp() != null ? playerParticipant.getIsMvp() : 0,  // Valor predeterminado
                                 playerParticipant.getPlayer().getId(),
                                 playerParticipant.getPlayer().getName(),
+                                playerParticipant.getPlayer().getLastName(),
                                 playerParticipant.getMatchesPlayed() != null ? playerParticipant.getMatchesPlayed() : 0  // Valor predeterminado
                         ))
                         .collect(Collectors.toSet())

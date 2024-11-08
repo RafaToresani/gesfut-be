@@ -20,6 +20,8 @@ public interface TournamentParticipantRepository extends JpaRepository<Tournamen
 
     Set<TournamentParticipant>findAllByTournamentCode(UUID tournamentCode);
 
+
+
     @Modifying
     @Query("DELETE FROM TournamentParticipant tp WHERE tp.tournament.id = :tournamentId")
     void deleteByTournamentId(Long tournamentId);
