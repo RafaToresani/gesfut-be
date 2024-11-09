@@ -4,7 +4,6 @@ import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.dtos.responses.TournamentShortResponse;
-import com.gesfut.models.tournament.Tournament;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -77,15 +76,23 @@ public class TournamentController {
     @GetMapping("/short")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public List<TournamentShortResponse> findAllTournamentsShort(){
-        return this.tournamentService.findAllTournamentsShort();
+    public List<TournamentShortResponse> findAllTournamentsShortAll(){
+        return this.tournamentService.findAllTournamentsShortAll();
+    }
+
+    @Operation(summary = "Retorna el listado torneos del usuario logueado codigo y nombre.")
+    @GetMapping("/short/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public TournamentShortResponse findTournamentsShort(@PathVariable String code){
+        return this.tournamentService.findAllTournamentsShort(code);
     }
 
     @Operation(summary = "Verifica si el equipo existe o no.")
     @GetMapping("/exist/{code}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public Boolean findAllTournamentsShort(@PathVariable String code){
+    public Boolean existTournament(@PathVariable String code){
         return this.tournamentService.existsByCode(code);
     }
 

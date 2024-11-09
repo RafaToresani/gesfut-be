@@ -4,6 +4,7 @@ import com.gesfut.models.team.Team;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Map;
 import java.util.Set;
 
 @Getter
@@ -17,7 +18,6 @@ public class TournamentParticipant {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private Boolean isActive;
 
     @ManyToOne
@@ -32,6 +32,8 @@ public class TournamentParticipant {
     @JoinColumn(name = "statistics_id")
     private Statistics statistics;
 
-    @OneToMany(mappedBy = "tournamentParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "tournamentParticipant", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<PlayerParticipant> playerParticipants;
+
+
 }

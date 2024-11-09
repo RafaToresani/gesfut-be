@@ -1,6 +1,7 @@
 package com.gesfut.services;
 
 import com.gesfut.dtos.requests.MatchRequest;
+import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
@@ -21,4 +22,6 @@ public interface MatchService {
     MatchResponse matchToResponse(Match match);
 
     void updateMatchResult(MatchRequest request) throws BadRequestException;
+
+    MatchDetailedResponse getDetailedMatchById(Long id);
 }

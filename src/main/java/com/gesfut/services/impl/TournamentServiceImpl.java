@@ -75,10 +75,19 @@ public class TournamentServiceImpl implements TournamentService {
         return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponse(tournament)).toList();
     }
     @Override
-    public List<TournamentShortResponse> findAllTournamentsShort() {
+    public List<TournamentShortResponse> findAllTournamentsShortAll() {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponseShort(tournament)).toList();
     }
+
+    @Override
+    public TournamentShortResponse findAllTournamentsShort(String tournamentCode) {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        return this.tournamentRepository.findByCodeAndUser(UUID.fromString(tournamentCode), user)
+                .map(this::tournamentToResponseShort)
+                .orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
+    }
+
 
     @Override
     public TournamentResponse findTournamentByCode(String code) {
@@ -221,6 +230,8 @@ public class TournamentServiceImpl implements TournamentService {
                             .isSuspended(false)
                             .redCards(0)
                             .yellowCards(0)
+                            .isActive(true)
+                            .isMvp(0)
                             .build()
             );
         });
@@ -243,6 +254,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getStartDate(),
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
                 tournament.getIsFinished(),
+                !tournament.getTeams().isEmpty(),
                 this.participantService.participantsToResponse(tournament.getTeams()),
                 tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
         );
@@ -252,7 +264,10 @@ public class TournamentServiceImpl implements TournamentService {
     public TournamentShortResponse tournamentToResponseShort(Tournament tournament){
         return new TournamentShortResponse(
                 tournament.getName(),
-                tournament.getCode().toString()
+                tournament.getCode().toString(),
+                tournament.getStartDate(),
+                tournament.getIsFinished(),
+                !tournament.getTeams().isEmpty()
         );
     }
 

@@ -2,6 +2,7 @@ package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.EventRequest;
 import com.gesfut.dtos.requests.MatchRequest;
+import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
@@ -14,6 +15,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.repositories.*;
 import com.gesfut.services.EventService;
 import com.gesfut.services.MatchService;
+import com.gesfut.services.TournamentParticipantService;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,15 +37,22 @@ public class MatchServiceImpl implements MatchService {
     private StatisticsRepository statisticsRepository;
     @Autowired
     private EventService eventService;
+    @Autowired
+    private TournamentParticipantService tournamentParticipantService;
 
     @Override
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
         Match match = this.getMatch(request.matchId());
+
+        long mvpCount = request.events().stream()
+                .filter(event -> event.type() == EEventType.MVP)
+                .count();
+        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
+
         request.events().forEach(eventRequest -> {
-            // TODO hacer validaicones por si surgen errores
             Event event = this.eventService.createEvent(eventRequest,match);
             increasePlayerStats(event);
             increaseTournamentParticipantStats(event);
@@ -66,6 +75,7 @@ public class MatchServiceImpl implements MatchService {
             case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
             case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
             case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
+            case MVP -> playerParticipant.setIsMvp(playerParticipant.getIsMvp()+event.getQuantity());
         }
         this.playerParticipantRepository.save(playerParticipant);
     }
@@ -108,7 +118,7 @@ public class MatchServiceImpl implements MatchService {
                 } else if(match.getAwayTeam().getPlayerParticipants().contains(event.getPlayerParticipant())) {
                     match.setGoalsAwayTeam(match.getGoalsAwayTeam() + event.getQuantity());
                 }else{
-                    throw new ResourceNotFoundException("El jugador no pertenece a ningun equipo del partido");
+                    throw new ResourceNotFoundException("Uno de los jugadores no pertenece a ninguno de los dos equipos. ");
                 }
             }
         });
@@ -163,6 +173,10 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public void updateMatchResult(MatchRequest request) throws BadRequestException {
         Match match = getMatch(request.matchId());
+        long mvpCount = request.events().stream()
+                .filter(event -> event.type() == EEventType.MVP)
+                .count();
+        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
 
         if(!match.getIsFinished()) throw new BadRequestException("Error: el partido no terminó");
         if(match.getMatchDay().getIsFinished()) throw new BadRequestException("Error: La jornada ya cerró.");
@@ -173,6 +187,25 @@ public class MatchServiceImpl implements MatchService {
 
         deleteAllRelationsFromMatch(match);
         loadMatchResult(request);
+    }
+
+    @Override
+    public MatchDetailedResponse getDetailedMatchById(Long id) {
+        Match match = this.getMatch(id);
+        return this.matchDetailedToResponse(match);
+    }
+
+    private MatchDetailedResponse matchDetailedToResponse(Match match) {
+        return new MatchDetailedResponse(
+                match.getId(),
+                tournamentParticipantService.participantToResponse(match.getHomeTeam()),
+                tournamentParticipantService.participantToResponse(match.getAwayTeam()),
+                match.getMatchDay().getNumberOfMatchDay(),
+                match.getGoalsHomeTeam(),
+                match.getGoalsAwayTeam(),
+                match.getEvents().stream().map(event -> eventService.eventToResponse(event)).toList(),
+                match.getIsFinished()
+        );
     }
 
     private void deleteAllRelationsFromMatch(Match match) {

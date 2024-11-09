@@ -37,5 +37,4 @@ public class Player {
     private Set<PlayerParticipant> playerParticipants;
 
     private Boolean status;
-
 }

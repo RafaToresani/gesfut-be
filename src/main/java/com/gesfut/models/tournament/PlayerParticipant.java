@@ -26,6 +26,7 @@ public class PlayerParticipant {
     private Integer redCards;
     private Integer yellowCards;
     private Integer isMvp;
+    private Boolean isActive;
 
     @ManyToOne
     @JoinColumn(name = "player_id")
@@ -37,6 +38,5 @@ public class PlayerParticipant {
 
     @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Event> events;
-
 
 }
