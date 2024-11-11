@@ -220,6 +220,7 @@ public class MatchServiceImpl implements MatchService {
         match.setGoalsAwayTeam(0);
         match.getEvents().clear();
 
+
     }
 
     private void decreasePlayerStats(Event event) {
@@ -228,6 +229,7 @@ public class MatchServiceImpl implements MatchService {
             case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() - event.getQuantity());
             case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() - event.getQuantity());
             case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() - event.getQuantity());
+            case MVP -> playerParticipant.setIsMvp(playerParticipant.getIsMvp()-event.getQuantity());
         }
         this.playerParticipantRepository.save(playerParticipant);
     }

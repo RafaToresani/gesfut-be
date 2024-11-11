@@ -59,29 +59,34 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                                 playerParticipant.getPlayer().getId(),
                                 playerParticipant.getPlayer().getName(),
                                 playerParticipant.getPlayer().getLastName(),
-                                playerParticipant.getIsActive()
+                                playerParticipant.getIsActive(),
+                                playerParticipant.getPlayer().getIsCaptain(),
+                                playerParticipant.getPlayer().getIsGoalKeeper()
                         ))
                         .collect(Collectors.toSet())
         );
     }
 
     @Override
-    public List<ParticipantShortResponse> participantsToResponseShort(Set<TournamentParticipant> tournamentsParticipant){
-        List<ParticipantShortResponse> list = new ArrayList<>();
-        tournamentsParticipant.forEach(item -> {
-            list.add(new ParticipantShortResponse(
-                    item.getId(),
-                    item.getTeam().getName()
-            ));
-        });
-        return list;
-    }
-
-    @Override
     public ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant){
         ParticipantShortResponse participantShortResponse = new ParticipantShortResponse(
-                tournamentsParticipant.getId(),
-                tournamentsParticipant.getTeam().getName()
+                tournamentsParticipant.getTournament().getName(),
+                tournamentsParticipant.getPlayerParticipants().stream().map(playerParticipant -> new PlayerParticipantResponse(
+                        playerParticipant.getId(),
+                        playerParticipant.getPlayer().getNumber(),
+                        playerParticipant.getIsSuspended(),
+                        playerParticipant.getGoals(),
+                        playerParticipant.getRedCards(),
+                        playerParticipant.getYellowCards(),
+                        playerParticipant.getIsMvp(),
+                        playerParticipant.getPlayer().getId(),
+                        playerParticipant.getPlayer().getName(),
+                        playerParticipant.getPlayer().getLastName(),
+                        playerParticipant.getIsActive(),
+                        playerParticipant.getPlayer().getIsCaptain(),
+                        playerParticipant.getPlayer().getIsGoalKeeper()
+                )).collect(Collectors.toSet()),
+                tournamentsParticipant.getIsActive()
         );
         return participantShortResponse;
     }
@@ -98,6 +103,12 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     }
 
     @Override
+    public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
+        List<TournamentParticipant> participants = new ArrayList<>(this.participantRepository.findAllByTeamId(id));
+        return participants.stream().map(this::participantsToResponseShortOne).collect(Collectors.toList());
+    }
+
+    @Override
     public List<ParticipantResponse> getParticipants(String code) {
         return participantsToResponse(this.participantRepository.findAllByTournamentCode(UUID.fromString(code)));
     }
@@ -107,10 +118,6 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         return participantToResponse(this.participantRepository.findById(teamId).orElse(null));
     }
 
-    @Override
-    public List<ParticipantShortResponse> getParticipantsShort(String code) {
-        List<TournamentParticipant> participants = new ArrayList<>(this.participantRepository.findAllByTournamentCode(UUID.fromString(code)));
-        return participants.stream().map(this::participantsToResponseShortOne).collect(Collectors.toList());
-    }
+
 
 }

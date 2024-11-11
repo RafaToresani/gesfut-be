@@ -3,6 +3,7 @@ package com.gesfut.services.impl;
 import com.gesfut.config.security.SecurityUtils;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
+import com.gesfut.dtos.responses.ParticipantShortResponse;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.team.Player;
@@ -94,6 +95,7 @@ public class TeamServiceImpl implements TeamService {
     @Transactional
     public String disableTeam(Long id, Boolean status) {
         Team team = getTeamByIdSecured(id);
+        System.out.println("team: " + team);
         this.teamRepository.updateTeamStatus(id, status);
         this.playerService.updateStatusPlayersByTeam(id, status);
         String valueStatus  = "habilitado";
@@ -128,6 +130,11 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
+        return this.tournamentParticipantService.getTeamTournamentsParticipations(id);
+    }
+
+    @Override
     public Team getTeamByIdSecured(Long id) {
         Team team = teamById(id);
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
@@ -142,6 +149,7 @@ public class TeamServiceImpl implements TeamService {
                 team.getColor(),
                 team.getStatus(),
                 playerService.playersToResponse(team.getPlayers()));
+
     }
     private void verifyTeamBelongsToManager(Team team, UserEntity user){
         if(!team.getUser().equals(user)) throw new RuntimeException("El equipo no pertenece a este usuario.");
