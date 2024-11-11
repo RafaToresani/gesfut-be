@@ -11,5 +11,7 @@ public record PlayerParticipantResponse(
         Long playerId,
         String playerName,
         String playerLastName,
-        Boolean isActive
+        Boolean isActive,
+        Boolean isCaptain,
+        Boolean isGoalKeeper
 ) {}

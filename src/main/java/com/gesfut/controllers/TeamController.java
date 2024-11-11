@@ -2,6 +2,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
+import com.gesfut.dtos.responses.ParticipantShortResponse;
 import com.gesfut.dtos.responses.TeamResponse;
 import com.gesfut.services.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,11 +11,14 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @RestController
@@ -64,6 +68,14 @@ public class TeamController {
        return this.teamService.getTeamById(id);
     }
 
+    @Operation(summary = "Retorna todas las participaciones de un equipo en torneos.")
+    @GetMapping("/{idTeam}/tournaments")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ParticipantShortResponse> getTeamTournaments(@PathVariable Long idTeam){
+        return this.teamService.getTeamTournamentsParticipations(idTeam);
+    }
+
+
 
     @Operation(summary = "Retorna el listado de equipos.", description = "Los equipos deben pertenecer al usuario logueado.")
     @GetMapping
@@ -81,13 +93,12 @@ public class TeamController {
         this.teamService.changeStatusPlayer(idPlayer, status);
     }
 
-    // ~~~~~~~~~~~~ PATCH ~~~~~~~~~~~~
-    @Operation(summary = "Cambia el estado de un equipo",
-            description = "Habilita o deshabilita al equipo para jugar próximos torneos, no lo desafecta de los torneos que ya esté jugando.")
-    @PatchMapping("/change-status-team/")
-    @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public String disableTeam(@Param("team-id") Long id, @Param("status") Boolean status){
-        return this.teamService.disableTeam(id, status);
+    @PutMapping("/change-status-team/{teamId}/{status}")
+    public ResponseEntity<Map<String, String>> disableTeam(@PathVariable("teamId") Long teamId, @PathVariable("status") Boolean status) {
+        this.teamService.disableTeam(teamId, status);
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Estado cambiado correctamente");
+        return ResponseEntity.ok(response);
     }
+
 }
