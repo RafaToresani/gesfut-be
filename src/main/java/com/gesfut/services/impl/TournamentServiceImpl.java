@@ -63,6 +63,7 @@ public class TournamentServiceImpl implements TournamentService {
                     .name(request.name())
                     .user(user)
                     .isFinished(false)
+                    .isActive(true)
                     .startDate(LocalDate.now())
                     .build()
         );
@@ -172,6 +173,29 @@ public class TournamentServiceImpl implements TournamentService {
         return this.tournamentRepository.existsByCode(UUID.fromString(tournamentCode));
     }
 
+    @Override
+    public Boolean changeNameTournamentByCode(String code, String name) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if (tournament.isEmpty()) return false;
+        verifyTournamentBelongsToManager(tournament.get(), user);
+        tournament.get().setName(name);
+        this.tournamentRepository.save(tournament.get());
+        return true;
+    }
+
+    @Override
+    public Boolean changeIsActive(String code, Boolean isActive) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        verifyTournamentBelongsToManager(tournament.get(), user);
+        tournament.get().setIsActive(isActive);
+        tournament.get().setIsFinished(true);
+        this.tournamentRepository.save(tournament.get());
+        return true;
+    }
+
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
@@ -267,6 +291,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getCode().toString(),
                 tournament.getStartDate(),
                 tournament.getIsFinished(),
+                tournament.getIsActive(),
                 !tournament.getTeams().isEmpty()
         );
     }

@@ -105,4 +105,19 @@ public class TournamentController {
         return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
 
+    // ~~~~~~~~~~~~ PUT ~~~~~~~~~~~~
+    @PutMapping("/change-name-tournament/{tournament-code}/{name}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean changeNameTournament(@PathVariable("tournament-code") String code, @PathVariable("name") String name) {
+        return this.tournamentService.changeNameTournamentByCode(code, name);
+    }
+
+    @PutMapping("/change-isActive/{tournament-code}/{isActive}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean changeIsActive(@PathVariable("tournament-code") String code, @PathVariable("isActive") Boolean isActive) {
+        return this.tournamentService.changeIsActive(code, isActive);
+    }
+
 }

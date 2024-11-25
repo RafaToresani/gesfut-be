@@ -35,4 +35,10 @@ public interface TournamentService {
     void updateTournamentParticipants(MatchDayRequest request);
 
     Boolean existsByCode(String tournamentCode);
+
+    Boolean changeNameTournamentByCode(String code, String name);
+
+    Boolean changeIsActive(String code, Boolean isActive);
+
+
 }

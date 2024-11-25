@@ -25,6 +25,7 @@ public class Tournament {
     private String name;
     private LocalDate startDate;
     private Boolean isFinished;
+    private Boolean isActive;
 
     @ManyToOne()
     @JoinColumn(name = "user_id")
