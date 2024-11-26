@@ -252,6 +252,7 @@ public class TournamentServiceImpl implements TournamentService {
                             .events(new ArrayList<>())
                             .goals(0)
                             .isSuspended(false)
+                            .consecutiveCards(0)
                             .redCards(0)
                             .yellowCards(0)
                             .isActive(true)

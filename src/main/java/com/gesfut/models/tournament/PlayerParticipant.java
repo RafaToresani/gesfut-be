@@ -27,6 +27,7 @@ public class PlayerParticipant {
     private Integer yellowCards;
     private Integer isMvp;
     private Boolean isActive;
+    private Integer consecutiveCards;
 
     @ManyToOne
     @JoinColumn(name = "player_id")

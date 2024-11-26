@@ -52,6 +52,8 @@ public class MatchServiceImpl implements MatchService {
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
 
+        this.clearPlayerSuspensions(match);
+
         request.events().forEach(eventRequest -> {
             Event event = this.eventService.createEvent(eventRequest,match);
             increasePlayerStats(event);
@@ -62,6 +64,21 @@ public class MatchServiceImpl implements MatchService {
         return "Partido cargado";
     }
 
+    private void clearPlayerSuspensions(Match match) {
+        match.getHomeTeam().getPlayerParticipants().forEach(player -> {
+            if (player.getIsSuspended()) {
+                this.playerParticipantRepository.changeIsSuspended(player.getId(), false);
+            }
+        });
+
+        match.getAwayTeam().getPlayerParticipants().forEach(player -> {
+            if (player.getIsSuspended()) {
+                this.playerParticipantRepository.changeIsSuspended(player.getId(), false);
+            }
+        });
+    }
+
+
     @Override
     public MatchResponse getMatchById(Long id) {
         Optional<Match> match = this.matchRepository.findById(id);
@@ -71,14 +88,39 @@ public class MatchServiceImpl implements MatchService {
 
     private void increasePlayerStats(Event event) {
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
+
         switch (event.getType()) {
-            case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
-            case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
-            case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
-            case MVP -> playerParticipant.setIsMvp(playerParticipant.getIsMvp()+event.getQuantity());
+            case GOAL ->
+                    playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
+
+            case RED_CARD -> {
+                playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
+                playerParticipant.setConsecutiveCards(0);
+                playerParticipant.setIsSuspended(true);
+            }
+
+            case YELLOW_CARD -> {
+                playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
+                int consecutiveYellows = playerParticipant.getConsecutiveCards() != null
+                        ? playerParticipant.getConsecutiveCards()
+                        : 0;
+
+                consecutiveYellows += event.getQuantity();
+                playerParticipant.setConsecutiveCards(consecutiveYellows);
+
+                if (consecutiveYellows >= 2) {
+                    playerParticipant.setIsSuspended(true);
+                    playerParticipant.setConsecutiveCards(0);
+                }
+            }
+
+            case MVP ->
+                    playerParticipant.setIsMvp(playerParticipant.getIsMvp() + event.getQuantity());
         }
+
         this.playerParticipantRepository.save(playerParticipant);
     }
+
 
     private void increaseTournamentParticipantStats (Event event){
         Match match = event.getMatch();
@@ -219,8 +261,6 @@ public class MatchServiceImpl implements MatchService {
         match.setGoalsHomeTeam(0);
         match.setGoalsAwayTeam(0);
         match.getEvents().clear();
-
-
     }
 
     private void decreasePlayerStats(Event event) {

@@ -16,7 +16,6 @@ public interface MatchService {
 
     MatchResponse getMatchById(Long id);
 
-
     void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams);
 
     MatchResponse matchToResponse(Match match);

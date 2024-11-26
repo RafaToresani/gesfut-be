@@ -51,7 +51,6 @@ public class MatchController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void updateMatchResult(@Valid @RequestBody MatchRequest request, BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-
         this.matchService.updateMatchResult(request);
     }
 }

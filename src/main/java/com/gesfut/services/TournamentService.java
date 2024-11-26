@@ -40,5 +40,4 @@ public interface TournamentService {
 
     Boolean changeIsActive(String code, Boolean isActive);
 
-
 }
