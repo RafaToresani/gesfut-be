@@ -3,10 +3,7 @@ package com.gesfut.services.impl;
 import com.gesfut.config.security.SecurityUtils;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
-import com.gesfut.dtos.responses.ParticipantResponse;
-import com.gesfut.dtos.responses.StatisticsResponse;
-import com.gesfut.dtos.responses.TournamentResponse;
-import com.gesfut.dtos.responses.TournamentShortResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
@@ -194,6 +191,37 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.get().setIsFinished(true);
         this.tournamentRepository.save(tournament.get());
         return true;
+    }
+
+    @Override
+    public List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant){
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        TournamentParticipant participant = this.participantRepository.findById(idParticipant).orElseThrow(() -> new ResourceNotFoundException("Participante no encontrado."));
+        if(!participant.getTournament().equals(tournament.get())) throw new ResourceNotFoundException("Participante no encontrado en el torneo.");
+        List<MatchResponse> matches = new ArrayList<>();
+        tournament.get().getMatchDays().forEach(matchDay -> {
+            matchDay.getMatches().forEach(match -> {
+                if(match.getHomeTeam().equals(participant) || match.getAwayTeam().equals(participant)){
+                    matches.add(new MatchResponse(
+                            match.getId(),
+                            match.getHomeTeam().getTeam().getName(),
+                            match.getAwayTeam().getTeam().getName(),
+                            matchDay.getNumberOfMatchDay(),
+                            match.getGoalsHomeTeam(),
+                            match.getGoalsAwayTeam(),
+                            match.getEvents().stream().map(event -> new EventResponse(
+                                    event.getId(),
+                                    event.getQuantity(),
+                                    event.getType(),
+                                    event.getPlayerParticipant().getPlayer().getName()
+                                    )).toList(),
+                            match.getIsFinished(
+                    )));
+                }
+            });
+        });
+        return matches;
     }
 
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){

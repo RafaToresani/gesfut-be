@@ -71,6 +71,8 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     public ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant){
         ParticipantShortResponse participantShortResponse = new ParticipantShortResponse(
                 tournamentsParticipant.getTournament().getName(),
+                tournamentsParticipant.getTournament().getCode().toString(),
+                tournamentsParticipant.getId(),
                 tournamentsParticipant.getPlayerParticipants().stream().map(playerParticipant -> new PlayerParticipantResponse(
                         playerParticipant.getId(),
                         playerParticipant.getPlayer().getNumber(),

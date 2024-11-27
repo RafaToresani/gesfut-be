@@ -2,6 +2,8 @@ package com.gesfut.services;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
+import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.models.team.Team;
@@ -40,4 +42,5 @@ public interface TournamentService {
 
     Boolean changeIsActive(String code, Boolean isActive);
 
+    List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant);
 }

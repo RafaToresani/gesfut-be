@@ -2,6 +2,8 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
+import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.MatchResponse;
 import com.gesfut.dtos.responses.TournamentResponse;
 import com.gesfut.dtos.responses.TournamentShortResponse;
 import com.gesfut.services.TournamentService;
@@ -96,6 +98,14 @@ public class TournamentController {
         return this.tournamentService.existsByCode(code);
     }
 
+    @Operation(summary = "Retorna el listado de partidos de un torneo de un equipo en especifico.")
+    @GetMapping("/{code}/matches/{idParticipant}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<MatchResponse> findMatchesByTournamentAndParticipant(@PathVariable String code, @PathVariable Long idParticipant){
+        return this.tournamentService.findMatchesByTournamentAndParticipant(code, idParticipant);
+    }
+
+
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo.")
     @PatchMapping("/change-status-tournament")
@@ -119,5 +129,8 @@ public class TournamentController {
     public Boolean changeIsActive(@PathVariable("tournament-code") String code, @PathVariable("isActive") Boolean isActive) {
         return this.tournamentService.changeIsActive(code, isActive);
     }
+
+
+
 
 }
