@@ -1,7 +1,11 @@
 package com.gesfut.services;
 
+import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.responses.ParticipantResponse;
 import com.gesfut.dtos.responses.ParticipantShortResponse;
+import com.gesfut.dtos.responses.PlayerResponse;
+import com.gesfut.models.team.Player;
+import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.TournamentParticipant;
 
 import java.util.List;
@@ -16,4 +20,5 @@ public interface TournamentParticipantService {
     ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant);
     void changeStatusPlayerParticipant(String code, Long idParticipant, Boolean status);
     List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id);
+    ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player);
 }

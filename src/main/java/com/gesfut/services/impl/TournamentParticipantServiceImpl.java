@@ -1,9 +1,13 @@
 package com.gesfut.services.impl;
 
+import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.responses.ParticipantResponse;
 import com.gesfut.dtos.responses.ParticipantShortResponse;
 import com.gesfut.dtos.responses.PlayerParticipantResponse;
+import com.gesfut.dtos.responses.PlayerResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
+import com.gesfut.models.team.Player;
+import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
@@ -11,6 +15,7 @@ import com.gesfut.repositories.PlayerParticipantRepository;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.repositories.TournamentRepository;
 import com.gesfut.services.StatisticsService;
+import com.gesfut.services.TeamService;
 import com.gesfut.services.TournamentParticipantService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -108,6 +113,27 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
         List<TournamentParticipant> participants = new ArrayList<>(this.participantRepository.findAllByTeamId(id));
         return participants.stream().map(this::participantsToResponseShortOne).collect(Collectors.toList());
+    }
+
+    @Override
+    public ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player) {
+        Optional<Tournament> optTournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(optTournament.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+
+        Optional<TournamentParticipant> optParticipant = this.participantRepository.findById(teamIdParticipant);
+        if(optParticipant.isEmpty()) throw new ResourceNotFoundException("El participante no existe.");
+        optParticipant.get().getPlayerParticipants().add(
+                PlayerParticipant.builder()
+                .player(player)
+                .tournamentParticipant(optParticipant.get())
+                .goals(0)
+                .redCards(0)
+                .yellowCards(0)
+                .isMvp(0)
+                .isSuspended(false)
+                .isActive(true)
+                .build());
+        return participantToResponse(this.participantRepository.save(optParticipant.get()));
     }
 
     @Override

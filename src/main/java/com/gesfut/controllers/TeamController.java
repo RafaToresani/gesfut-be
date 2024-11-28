@@ -44,20 +44,7 @@ public class TeamController {
         this.teamService.createTeam(request);
     }
 
-    @Operation(
-            summary = "Permite agregar un jugador a un equipo ya creado.",
-            description = "Solicita el id del equipo al que pertenecerá el jugador. " +
-                    "El jugador debe tener un dorsal único, no puede ser capitán, porque el equipo ya contiene un capitán." +
-                    "Recordatorio: crear el jugadorxtorneo así puede participar en el torneo jaja")
-    @PostMapping("/add-player")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void addPlayerToTeam(@Valid @RequestBody PlayerRequest request, BindingResult bindingResult, @Param("team-id") Long teamId) throws BadRequestException {
-        if(bindingResult.hasErrors()) {
-            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
-        }
-        this.teamService.addPlayerToTeam(teamId, request);
-    }
+
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @Operation(summary = "Retorna un equipo en base a su id..")
@@ -100,5 +87,25 @@ public class TeamController {
         response.put("message", "Estado cambiado correctamente");
         return ResponseEntity.ok(response);
     }
+
+
+    @Operation(summary = "Permite agregar un jugador a un equipo ya creado.")
+    @PutMapping("/add-player/{teamId}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void addPlayerToTeam(
+            @PathVariable("teamId") Long teamId,
+            @Valid @RequestBody PlayerRequest playerRequest, // Objeto recibido en el cuerpo
+            BindingResult bindingResult) throws BadRequestException {
+
+        if (bindingResult.hasErrors()) {
+            throw new BadRequestException(
+                    Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage()
+            );
+        }
+
+        teamService.addPlayerToTeam(teamId, playerRequest);
+    }
+
 
 }

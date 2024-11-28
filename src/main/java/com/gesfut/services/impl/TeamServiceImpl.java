@@ -104,10 +104,10 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public void addPlayerToTeam(Long teamId, PlayerRequest request) {
+    public Player addPlayerToTeam(Long teamId, PlayerRequest request) {
         Team team = getTeamByIdSecured(teamId);
         this.playerService.verifyPlayer(request, team);
-        this.playerService.createPlayer(request, team);
+       return this.playerService.createPlayer(request, team);
     }
 
     @Override
@@ -132,6 +132,11 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
         return this.tournamentParticipantService.getTeamTournamentsParticipations(id);
+    }
+
+    @Override
+    public Player getPlayerNumber(Integer number, Long teamId) {
+        return this.playerRepository.findByNumberAndTeamId(number, teamId);
     }
 
     @Override

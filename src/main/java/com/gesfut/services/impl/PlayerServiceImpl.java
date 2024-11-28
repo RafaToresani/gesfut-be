@@ -21,9 +21,9 @@ public class PlayerServiceImpl implements PlayerService {
     private PlayerRepository playerRepository;
 
     @Override
-    public void createPlayer(PlayerRequest request, Team team)
+    public Player createPlayer(PlayerRequest request, Team team)
     {
-        playerRepository.save(Player.builder()
+      return playerRepository.save(Player.builder()
                 .name(request.name())
                 .lastName(request.lastName())
                 .number(request.number())
@@ -64,7 +64,7 @@ public class PlayerServiceImpl implements PlayerService {
         Boolean checkNumber = this.playerRepository.existsByNumberAndTeamId(playerRequest.number(), team.getId());
         if(checkNumber) throw new ResourceAlreadyExistsException("El equipo " + team.getName() + " ya cuenta con el dorsal " + playerRequest.number());
         Boolean checkCaptain = this.playerRepository.existsByIsCaptainAndTeamId(playerRequest.isCaptain(), team.getId());
-        if(checkCaptain) throw  new ResourceNotFoundException("El equipo ya cuenta con capitan.");
+        if(checkCaptain && playerRequest.isCaptain()) throw  new ResourceNotFoundException("El equipo ya cuenta con capitan.");
     }
 
     @Override
