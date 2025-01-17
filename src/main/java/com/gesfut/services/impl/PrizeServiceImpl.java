@@ -14,6 +14,7 @@ import com.gesfut.services.PrizeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,9 +33,11 @@ public class PrizeServiceImpl implements PrizeService {
 
         if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
 
+        List<Prize> prizes = new ArrayList<>();
         request.prizes().forEach(prize -> {
-            this.prizeRepository.save(createPrize(prize, opt.get()));
+            prizes.add(createPrize(prize, opt.get()));
         });
+        prizes.forEach(prize -> this.prizeRepository.save(prize));
     }
 
     private Prize createPrize(PrizeRequest request, Tournament tournament) {
