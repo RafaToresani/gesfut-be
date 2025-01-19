@@ -92,12 +92,21 @@ public class PrizeServiceImpl implements PrizeService {
         prizeRepository.flush();
 
         Optional<Prize> checkPrize = this.prizeRepository.findById(optionalPrize.get().getId());
-        if (checkPrize.isPresent()) {
-            System.out.println("⚠️ El premio sigue existiendo después de eliminarlo.");
-        } else {
-            System.out.println("✅ Premio eliminado correctamente.");
-        }
 
+    }
+
+    @Override
+    public void partiallyUpdatePrize(String code, PrizeRequest request) {
+        if (request.type() == null || !isValidEnumValue(request.type()))
+            throw new IllegalArgumentException("El tipo de premio no es válido: " + request.type());
+        Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+
+        Optional<Prize> optionalPrize = this.prizeRepository.findByTournamentIdAndTypeAndPosition(opt.get().getId(), request.type(), request.position());
+        if(optionalPrize.isEmpty()) throw new ResourceNotFoundException("El premio no existe.");
+
+        optionalPrize.get().setDescription(request.description());
+        this.prizeRepository.save(optionalPrize.get());
     }
 
     private PrizeResponse prizeToResponse(Prize prize){

@@ -45,4 +45,12 @@ public class PrizeController {
     public void deletePrize(@PathVariable String code, @PathVariable String category, @PathVariable Integer position){
         this.prizeService.deletePrizeByCodeAndCategoryAndPosition(code, category, position);
     }
+
+    @PatchMapping("/{code}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void partiallyUpdatePrize(@PathVariable String code, @Valid @RequestBody PrizeRequest request, BindingResult bindingResult) throws BadRequestException {
+        if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.prizeService.partiallyUpdatePrize(code, request);
+    }
 }
