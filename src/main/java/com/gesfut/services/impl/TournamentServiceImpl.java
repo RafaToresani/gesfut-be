@@ -62,6 +62,7 @@ public class TournamentServiceImpl implements TournamentService {
                     .isFinished(false)
                     .isActive(true)
                     .startDate(LocalDate.now())
+                    .prizes(new HashSet<>())
                     .build()
         );
         return tournament.getCode().toString();
