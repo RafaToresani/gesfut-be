@@ -13,7 +13,9 @@ import com.gesfut.repositories.TournamentRepository;
 import com.gesfut.services.PrizeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,9 +34,11 @@ public class PrizeServiceImpl implements PrizeService {
 
         if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
 
+        List<Prize> prizes = new ArrayList<>();
         request.prizes().forEach(prize -> {
-            this.prizeRepository.save(createPrize(prize, opt.get()));
+            prizes.add(createPrize(prize, opt.get()));
         });
+        prizes.forEach(prize -> this.prizeRepository.save(prize));
     }
 
     private Prize createPrize(PrizeRequest request, Tournament tournament) {
@@ -59,11 +63,55 @@ public class PrizeServiceImpl implements PrizeService {
         return prizes.stream().map(this::prizeToResponse).toList();
     }
 
+    @Override
+    public List<PrizeResponse> findAllPrizesByCategory(String code, String category) {
+        if (category == null || !isValidEnumValue(EPrizeType.valueOf(category)))
+            throw new IllegalArgumentException("El tipo de premio no es válido: " + category);
+        Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+
+        List<Prize> prizes = this.prizeRepository.findAllByTournamentIdAndType(opt.get().getId(),EPrizeType.valueOf(category));
+        return prizes.stream().map(this::prizeToResponse).toList();
+    }
+
+    @Override
+    @Transactional
+    public void deletePrizeByCodeAndCategoryAndPosition(String code, String category, Integer position) {
+        if (category == null || !isValidEnumValue(EPrizeType.valueOf(category)))
+            throw new IllegalArgumentException("El tipo de premio no es válido: " + category);
+        Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+
+        Optional<Prize> optionalPrize = this.prizeRepository.findByTournamentIdAndTypeAndPosition(opt.get().getId(), EPrizeType.valueOf(category), position);
+        if(optionalPrize.isEmpty()) throw new ResourceNotFoundException("El premio no existe.");
+
+        Tournament tournament = optionalPrize.get().getTournament();
+        tournament.getPrizes().remove(optionalPrize.get());
+        tournamentRepository.save(tournament);
+        prizeRepository.deletePrizeById(optionalPrize.get().getId());
+        prizeRepository.flush();
+
+        Optional<Prize> checkPrize = this.prizeRepository.findById(optionalPrize.get().getId());
+
+    }
+
+    @Override
+    public void partiallyUpdatePrize(String code, PrizeRequest request) {
+        if (request.type() == null || !isValidEnumValue(request.type()))
+            throw new IllegalArgumentException("El tipo de premio no es válido: " + request.type());
+        Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+
+        Optional<Prize> optionalPrize = this.prizeRepository.findByTournamentIdAndTypeAndPosition(opt.get().getId(), request.type(), request.position());
+        if(optionalPrize.isEmpty()) throw new ResourceNotFoundException("El premio no existe.");
+
+        optionalPrize.get().setDescription(request.description());
+        this.prizeRepository.save(optionalPrize.get());
+    }
+
     private PrizeResponse prizeToResponse(Prize prize){
         return new PrizeResponse(prize.getPosition(),prize.getType().toString(), prize.getDescription());
     }
-
-
 
     private boolean isValidEnumValue(EPrizeType type) {
         for (EPrizeType value : EPrizeType.values()) {

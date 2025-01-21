@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +22,35 @@ public class PrizeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void createPrizes(@Valid @RequestBody PrizesRequest request, BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         this.prizeService.createPrizes(request);
     }
     @GetMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)
-    public List<PrizeResponse> findAllPrizes(String code){
+    public List<PrizeResponse> findAllPrizes(@PathVariable String code){
         return this.prizeService.findAllPrizes(code);
+    }
+
+    @GetMapping("/{code}/{category}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<PrizeResponse> findAllPrizesByCategory(@PathVariable String code, @PathVariable String category){
+        return this.prizeService.findAllPrizesByCategory(code, category);
+    }
+
+    @DeleteMapping("/{code}/{category}/{position}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void deletePrize(@PathVariable String code, @PathVariable String category, @PathVariable Integer position){
+        this.prizeService.deletePrizeByCodeAndCategoryAndPosition(code, category, position);
+    }
+
+    @PatchMapping("/{code}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void partiallyUpdatePrize(@PathVariable String code, @Valid @RequestBody PrizeRequest request, BindingResult bindingResult) throws BadRequestException {
+        if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.prizeService.partiallyUpdatePrize(code, request);
     }
 }
