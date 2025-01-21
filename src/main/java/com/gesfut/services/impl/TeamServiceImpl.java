@@ -47,6 +47,7 @@ public class TeamServiceImpl implements TeamService {
     public void createTeam(TeamRequest request) {
         this.playerService.validatePlayers(request.players());
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
+        
         Team team = Team.builder()
                 .name(request.name())
                 .color(request.color())

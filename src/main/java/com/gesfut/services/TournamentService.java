@@ -43,4 +43,6 @@ public interface TournamentService {
     Boolean changeIsActive(String code, Boolean isActive);
 
     List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant);
+
+    boolean isMyTournament(String code);
 }

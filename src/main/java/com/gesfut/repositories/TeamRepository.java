@@ -27,4 +27,5 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     Optional<Team> findByTeamNameAndPlayerName(@Param("teamName") String teamName, @Param("playerName") String playerName);
 
     Optional<Team> findByNameAndUserId(String free, Long id);
+
 }

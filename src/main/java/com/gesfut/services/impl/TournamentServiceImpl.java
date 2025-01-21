@@ -188,7 +188,11 @@ public class TournamentServiceImpl implements TournamentService {
         if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         verifyTournamentBelongsToManager(tournament.get(), user);
         tournament.get().setIsActive(isActive);
-        tournament.get().setIsFinished(true);
+        if (isActive){
+            tournament.get().setIsFinished(false);
+        }else {
+            tournament.get().setIsFinished(true);
+        }
         this.tournamentRepository.save(tournament.get());
         return true;
     }
@@ -222,6 +226,12 @@ public class TournamentServiceImpl implements TournamentService {
             });
         });
         return matches;
+    }
+
+    @Override
+    public boolean isMyTournament(String code) {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        return this.tournamentRepository.findByCodeAndUser(UUID.fromString(code), user).isPresent();
     }
 
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){

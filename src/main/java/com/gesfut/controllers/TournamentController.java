@@ -26,6 +26,17 @@ public class TournamentController {
     @Autowired
     private TournamentService tournamentService;
 
+
+    //GET: IS MY TOURNAMENT?
+    @GetMapping("/is-my-tournament/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public boolean isMyTournament(@PathVariable String code) {
+        return this.tournamentService.isMyTournament(code);
+    }
+
+
+
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @Operation(summary = "Permite crear un torneo", description = "Permite crear un torneo al usuario logueado.")
     @PostMapping
