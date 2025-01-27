@@ -36,7 +36,6 @@ public class TeamParticipantController {
 
     @GetMapping("/teams/{teamId}")
     @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public ParticipantResponse getTeamByIDParticipant(@PathVariable Long teamId) {
         return this.tournamentParticipantService.getOneParticipants(teamId);
     }

@@ -96,7 +96,6 @@ public class TournamentController {
     @Operation(summary = "Retorna el listado torneos del usuario logueado codigo y nombre.")
     @GetMapping("/short/{code}")
     @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public TournamentShortResponse findTournamentsShort(@PathVariable String code){
         return this.tournamentService.findAllTournamentsShort(code);
     }
