@@ -81,8 +81,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public TournamentShortResponse findAllTournamentsShort(String tournamentCode) {
-        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        return this.tournamentRepository.findByCodeAndUser(UUID.fromString(tournamentCode), user)
+        return this.tournamentRepository.findByCode(UUID.fromString(tournamentCode))
                 .map(this::tournamentToResponseShort)
                 .orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
     }
