@@ -45,7 +45,8 @@ public class PlayerServiceImpl implements PlayerService {
                 player.getLastName(),
                 player.getNumber(),
                 player.getIsCaptain(),
-                player.getIsGoalKeeper()
+                player.getIsGoalKeeper(),
+                player.getStatus()
         );
     }
 
@@ -62,9 +63,11 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public void verifyPlayer(PlayerRequest playerRequest, Team team){
         Boolean checkNumber = this.playerRepository.existsByNumberAndTeamId(playerRequest.number(), team.getId());
-        if(checkNumber) throw new ResourceAlreadyExistsException("El equipo " + team.getName() + " ya cuenta con el dorsal " + playerRequest.number());
+        if(checkNumber) throw new ResourceAlreadyExistsException("El equipo ya cuenta con el dorsal " + playerRequest.number());
         Boolean checkCaptain = this.playerRepository.existsByIsCaptainAndTeamId(playerRequest.isCaptain(), team.getId());
         if(checkCaptain && playerRequest.isCaptain()) throw  new ResourceNotFoundException("El equipo ya cuenta con capitan.");
+        Boolean checkName = this.playerRepository.existsByNameAndLastNameAndTeamId(playerRequest.name(),playerRequest.lastName(),team.getId());
+        if (checkName)throw new ResourceAlreadyExistsException("El equipo ya cuentacon ese jugador.");
     }
 
     @Override

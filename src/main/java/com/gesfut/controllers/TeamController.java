@@ -2,8 +2,9 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
-import com.gesfut.dtos.responses.ParticipantShortResponse;
-import com.gesfut.dtos.responses.TeamResponse;
+import com.gesfut.dtos.responses.*;
+import com.gesfut.models.team.Player;
+import com.gesfut.services.PlayerService;
 import com.gesfut.services.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -27,7 +28,8 @@ public class TeamController {
 
     @Autowired
     private TeamService teamService;
-
+    @Autowired
+    private PlayerService playerService;
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @Operation(
             summary = "Permite crear un nuevo equipo.",
@@ -62,6 +64,12 @@ public class TeamController {
         return this.teamService.getTeamTournamentsParticipations(idTeam);
     }
 
+    @Operation(summary = "Retorna estaidistcas de todos los jugadores ya esten o no jugando un torneo")
+    @GetMapping("/{idTeam}/players-stats")
+    @ResponseStatus(HttpStatus.OK)
+    public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(@PathVariable Long idTeam){
+        return this.teamService.getAllPlayerStatsByTeam(idTeam);
+    }
 
 
     @Operation(summary = "Retorna el listado de equipos.", description = "Los equipos deben pertenecer al usuario logueado.")
@@ -93,7 +101,7 @@ public class TeamController {
     @PutMapping("/add-player/{teamId}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void addPlayerToTeam(
+    public PlayerResponse addPlayerToTeam(
             @PathVariable("teamId") Long teamId,
             @Valid @RequestBody PlayerRequest playerRequest, // Objeto recibido en el cuerpo
             BindingResult bindingResult) throws BadRequestException {
@@ -104,7 +112,8 @@ public class TeamController {
             );
         }
 
-        teamService.addPlayerToTeam(teamId, playerRequest);
+        Player created = this.teamService.addPlayerToTeam(teamId, playerRequest);
+        return this.playerService.playerToResponse(created);
     }
 
 

@@ -7,7 +7,6 @@ public record ParticipantShortResponse(
         String nameTournament,
         String codeTournament,
         Long idParticipant,
-        Set<PlayerParticipantResponse> playerParticipants,
         Boolean isActive
 )
 {}

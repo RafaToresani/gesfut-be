@@ -6,6 +6,7 @@ public record PlayerResponse(
         String lastName,
         Integer number,
         Boolean isCaptain,
-        Boolean isGoalKeeper
+        Boolean isGoalKeeper,
+        Boolean status
     )
 {}

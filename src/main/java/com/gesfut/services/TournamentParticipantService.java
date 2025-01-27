@@ -18,7 +18,7 @@ public interface TournamentParticipantService {
     List<ParticipantResponse>getParticipants(String code);
     ParticipantResponse getOneParticipants(Long teamId);
     ParticipantShortResponse participantsToResponseShortOne(TournamentParticipant tournamentsParticipant);
-    void changeStatusPlayerParticipant(String code, Long idParticipant, Boolean status);
+    void changeStatusPlayerParticipant(Long idParticipantPlayer, Boolean status);
     List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id);
     ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player);
 }

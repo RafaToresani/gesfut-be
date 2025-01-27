@@ -3,11 +3,13 @@ package com.gesfut.services.impl;
 import com.gesfut.config.security.SecurityUtils;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
-import com.gesfut.dtos.responses.ParticipantShortResponse;
-import com.gesfut.dtos.responses.TeamResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.team.Player;
 import com.gesfut.models.team.Team;
+import com.gesfut.models.tournament.PlayerParticipant;
+import com.gesfut.models.tournament.Tournament;
+import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.PlayerRepository;
 import com.gesfut.repositories.TeamRepository;
@@ -124,9 +126,10 @@ public class TeamServiceImpl implements TeamService {
         Optional<Player> optPlayer = this.playerRepository.findById(idPlayer);
         if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El jugador no existe.");
 
-        optPlayer.get().getPlayerParticipants().forEach(player -> {
-            this.tournamentParticipantService.changeStatusPlayerParticipant(player.getTournamentParticipant().getTournament().getCode().toString(), player.getId(), status);
+        optPlayer.get().getPlayerParticipants().forEach(playerParticipant -> {
+            this.tournamentParticipantService.changeStatusPlayerParticipant(playerParticipant.getId(), status);
         });
+
         this.playerRepository.updatePlayerStatusById(idPlayer, status);
     }
 
@@ -139,6 +142,88 @@ public class TeamServiceImpl implements TeamService {
     public Player getPlayerNumber(Integer number, Long teamId) {
         return this.playerRepository.findByNumberAndTeamId(number, teamId);
     }
+
+    @Override
+    public Player getPlayerName(String name, String lastName, Long teamId){
+        return this.playerRepository.findByNameAndLastNameAndTeamId(name,lastName,teamId);
+    }
+
+    @Override
+    public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam) {
+        Optional<Team> teamFound = this.teamRepository.findById(idTeam);
+        if (teamFound.isEmpty()) {
+            throw new ResourceNotFoundException("Equipo no encontrado");
+        }
+
+        Team team = teamFound.get();
+        TeamWithAllStatsPlayerResponse response = new TeamWithAllStatsPlayerResponse(
+                idTeam,
+                team.getName(),
+                team.getStatus(),
+                new HashSet<>()
+        );
+
+        // Mapa para acumular estadísticas por jugador
+        Map<Long, PlayerParticipantResponse> playerStatsMap = new HashMap<>();
+
+        // 1️⃣ Agregar todos los jugadores del equipo al mapa con estadísticas en 0
+        for (Player player : team.getPlayers()) {
+            playerStatsMap.put(player.getId(), new PlayerParticipantResponse(
+                    0L,
+                    player.getNumber(),
+                    false,
+                    0, // Goles iniciales
+                    0, // Tarjetas rojas
+                    0, // Tarjetas amarillas
+                    0, // MVPs
+                    player.getId(),
+                    player.getName(),
+                    player.getLastName(),
+                    true,
+                    player.getIsCaptain(),
+                    player.getIsGoalKeeper(),
+                    player.getStatus()
+            ));
+        }
+
+        // 2️⃣ Recorrer los torneos del equipo para actualizar estadísticas
+        for (TournamentParticipant tournament : team.getTournaments()) {
+            for (PlayerParticipant participant : tournament.getPlayerParticipants()) {
+                Long playerId = participant.getPlayer().getId();
+
+                PlayerParticipantResponse currentStats = playerStatsMap.get(playerId);
+
+                // ✅ Crear un nuevo objeto con los valores actualizados
+                PlayerParticipantResponse updatedStats = new PlayerParticipantResponse(
+                        participant.getPlayer().getId(),
+                        currentStats.shirtNumber(),
+                        participant.getIsSuspended(),
+                        currentStats.goals() + participant.getGoals(), // Sumar goles
+                        currentStats.redCards() + participant.getRedCards(), // Sumar rojas
+                        currentStats.yellowCards() + participant.getYellowCards(), // Sumar amarillas
+                        currentStats.isMvp() + participant.getIsMvp(), // Sumar MVPs
+                        currentStats.playerId(),
+                        currentStats.playerName(),
+                        currentStats.playerLastName(),
+                        participant.getIsActive(),
+                        currentStats.isCaptain(),
+                        currentStats.isGoalKeeper(),
+                        participant.getPlayer().getStatus()
+                );
+
+                // ✅ Reemplazar en el mapa
+                playerStatsMap.put(playerId, updatedStats);
+            }
+        }
+
+        // 3️⃣ Agregar resultados a la respuesta
+        response.playerParticipants().addAll(playerStatsMap.values());
+
+        return response;
+    }
+
+
+
 
     @Override
     public Team getTeamByIdSecured(Long id) {
