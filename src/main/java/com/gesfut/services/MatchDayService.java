@@ -13,4 +13,5 @@ public interface MatchDayService {
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
     void updateStatusMatchDay(Long id, Boolean status);
     List<MatchDayResponse> getMatchDaysByCode(String code);
+    MatchDayResponse getLastMatchDayPlayed(String code);
 }

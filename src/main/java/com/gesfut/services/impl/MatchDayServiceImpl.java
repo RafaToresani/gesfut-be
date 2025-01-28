@@ -200,4 +200,17 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         return list.stream().map(matchDay -> matchDayToResponse(matchDay)).toList();
     }
+
+    @Override
+    public MatchDayResponse getLastMatchDayPlayed(String code) {
+        Optional<MatchDay> lastClosedMatchDay = matchDayRepository.findTopByTournament_CodeAndIsFinishedOrderByNumberOfMatchDayDesc(UUID.fromString(code), true);
+
+        MatchDay matchDay = lastClosedMatchDay.orElseGet(() ->
+                matchDayRepository.findTopByTournament_CodeOrderByNumberOfMatchDayAsc(UUID.fromString(code))
+                        .orElseThrow(() -> new ResourceNotFoundException("No se encontraron fechas para el torneo con código: " + code))
+        );
+
+        return matchDayToResponse(matchDay);
+    }
+
 }
