@@ -1,5 +1,6 @@
 package com.gesfut.controllers;
 
+import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -12,8 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/matches")
@@ -52,5 +51,13 @@ public class MatchController {
     public void updateMatchResult(@Valid @RequestBody MatchRequest request, BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         this.matchService.updateMatchResult(request);
+    }
+
+    @PatchMapping("/update-date-and-description/{matchId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void updateMatchDateAndDescription(@Valid @RequestBody MatchDateAndDescriptionRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
+        if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.matchService.updateMatchDateAndDescription(matchId, request);
     }
 }
