@@ -1,5 +1,6 @@
 package com.gesfut.dtos.responses;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record MatchResponse(
@@ -10,5 +11,7 @@ public record MatchResponse(
         Integer homeGoals,
         Integer awayGoals,
         List<EventResponse> events,
-        Boolean isFinished
+        Boolean isFinished,
+        LocalDateTime dateTime,
+        String description
 ) { }

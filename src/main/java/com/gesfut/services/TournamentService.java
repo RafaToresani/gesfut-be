@@ -2,10 +2,7 @@ package com.gesfut.services;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
-import com.gesfut.dtos.responses.MatchDayResponse;
-import com.gesfut.dtos.responses.MatchResponse;
-import com.gesfut.dtos.responses.TournamentResponse;
-import com.gesfut.dtos.responses.TournamentShortResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
@@ -45,4 +42,10 @@ public interface TournamentService {
     List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant);
 
     boolean isMyTournament(String code);
+
+    List<TopScorersResponse> findTopScorersByTournament(String code);
+
+    List<TopYellowCardsResponse> findTopYellowCardsByTournament(String code);
+
+    List<TopRedCardsResponse> findTopRedCardsByTournament(String code);
 }

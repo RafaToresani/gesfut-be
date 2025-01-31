@@ -1,6 +1,7 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.EventRequest;
+import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -20,6 +21,7 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -206,6 +208,8 @@ public class MatchServiceImpl implements MatchService {
                 .goalsHomeTeam(0)
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
+                .date(LocalDateTime.now())
+                .description("Complejo sin definir")
                 .build();
             matchRepository.save(newMatch);
             matches.add(newMatch);
@@ -235,6 +239,17 @@ public class MatchServiceImpl implements MatchService {
     public MatchDetailedResponse getDetailedMatchById(Long id) {
         Match match = this.getMatch(id);
         return this.matchDetailedToResponse(match);
+    }
+
+    @Override
+    public void updateMatchDateAndDescription(Long matchId, MatchDateAndDescriptionRequest request) {
+        Optional<Match> optMatch = this.matchRepository.findById(matchId);
+
+        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
+
+        optMatch.get().setDescription(request.description());
+        optMatch.get().setDate(request.localDateTime());
+        this.matchRepository.save(optMatch.get());
     }
 
     private MatchDetailedResponse matchDetailedToResponse(Match match) {
@@ -342,7 +357,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsHomeTeam(),
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList(),
-                match.getIsFinished()
+                match.getIsFinished(),
+                match.getDate(),
+                match.getDescription()
         );
     }
 
