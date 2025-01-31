@@ -70,11 +70,30 @@ public class JwtService {
                 .getPayload();
     }
 
+    public boolean isTokenValidNotUser(String token) {
+        try {
+            Claims claims = getAllClaims(token);
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private Date getExpiration(String token){
         return getClaim(token, Claims::getExpiration);
     }
 
     private Boolean isTokenExpired(String token){
         return getExpiration(token).before(new Date());
+    }
+
+    public String generateToken(String email) {
+        return Jwts
+                .builder()
+                .setSubject(email)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // 1 hora
+                .signWith(getKey())
+                .compact();
     }
 }

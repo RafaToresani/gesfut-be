@@ -2,8 +2,9 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
-import com.gesfut.dtos.responses.ParticipantShortResponse;
-import com.gesfut.dtos.responses.TeamResponse;
+import com.gesfut.dtos.responses.*;
+import com.gesfut.models.team.Player;
+import com.gesfut.services.PlayerService;
 import com.gesfut.services.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -27,7 +28,8 @@ public class TeamController {
 
     @Autowired
     private TeamService teamService;
-
+    @Autowired
+    private PlayerService playerService;
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @Operation(
             summary = "Permite crear un nuevo equipo.",
@@ -44,20 +46,7 @@ public class TeamController {
         this.teamService.createTeam(request);
     }
 
-    @Operation(
-            summary = "Permite agregar un jugador a un equipo ya creado.",
-            description = "Solicita el id del equipo al que pertenecerá el jugador. " +
-                    "El jugador debe tener un dorsal único, no puede ser capitán, porque el equipo ya contiene un capitán." +
-                    "Recordatorio: crear el jugadorxtorneo así puede participar en el torneo jaja")
-    @PostMapping("/add-player")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void addPlayerToTeam(@Valid @RequestBody PlayerRequest request, BindingResult bindingResult, @Param("team-id") Long teamId) throws BadRequestException {
-        if(bindingResult.hasErrors()) {
-            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
-        }
-        this.teamService.addPlayerToTeam(teamId, request);
-    }
+
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
     @Operation(summary = "Retorna un equipo en base a su id..")
@@ -75,6 +64,12 @@ public class TeamController {
         return this.teamService.getTeamTournamentsParticipations(idTeam);
     }
 
+    @Operation(summary = "Retorna estaidistcas de todos los jugadores ya esten o no jugando un torneo")
+    @GetMapping("/{idTeam}/players-stats")
+    @ResponseStatus(HttpStatus.OK)
+    public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(@PathVariable Long idTeam){
+        return this.teamService.getAllPlayerStatsByTeam(idTeam);
+    }
 
 
     @Operation(summary = "Retorna el listado de equipos.", description = "Los equipos deben pertenecer al usuario logueado.")
@@ -100,5 +95,26 @@ public class TeamController {
         response.put("message", "Estado cambiado correctamente");
         return ResponseEntity.ok(response);
     }
+
+
+    @Operation(summary = "Permite agregar un jugador a un equipo ya creado.")
+    @PutMapping("/add-player/{teamId}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public PlayerResponse addPlayerToTeam(
+            @PathVariable("teamId") Long teamId,
+            @Valid @RequestBody PlayerRequest playerRequest, // Objeto recibido en el cuerpo
+            BindingResult bindingResult) throws BadRequestException {
+
+        if (bindingResult.hasErrors()) {
+            throw new BadRequestException(
+                    Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage()
+            );
+        }
+
+        Player created = this.teamService.addPlayerToTeam(teamId, playerRequest);
+        return this.playerService.playerToResponse(created);
+    }
+
 
 }

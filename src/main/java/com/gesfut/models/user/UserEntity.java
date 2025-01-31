@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +21,12 @@ import java.util.Set;
 @AllArgsConstructor
 @Table(name = "users")
 public class UserEntity implements UserDetails {
+
+    @Column(name = "reset_token")
+    private String resetToken;
+    @Column(name = "reset_token_expiration")
+    private LocalDateTime resetTokenExpiration;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -25,6 +25,7 @@ public class Tournament {
     private String name;
     private LocalDate startDate;
     private Boolean isFinished;
+    private Boolean isActive;
 
     @ManyToOne()
     @JoinColumn(name = "user_id")
@@ -36,6 +37,9 @@ public class Tournament {
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private Set<MatchDay> matchDays;
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    private Set<Prize> prizes;
 }
 
 

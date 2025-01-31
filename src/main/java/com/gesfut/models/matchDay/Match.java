@@ -7,6 +7,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -42,5 +43,6 @@ public class Match {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Event> events;
 
-
+    private LocalDateTime date;
+    private String description;
 }

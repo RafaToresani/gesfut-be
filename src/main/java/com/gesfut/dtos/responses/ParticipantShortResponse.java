@@ -5,7 +5,8 @@ import java.util.Set;
 
 public record ParticipantShortResponse(
         String nameTournament,
-        Set<PlayerParticipantResponse> playerParticipants,
+        String codeTournament,
+        Long idParticipant,
         Boolean isActive
 )
 {}

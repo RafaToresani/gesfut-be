@@ -1,6 +1,7 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.EventRequest;
+import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -20,6 +21,7 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -52,6 +54,8 @@ public class MatchServiceImpl implements MatchService {
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
 
+        this.clearPlayerSuspensions(match);
+
         request.events().forEach(eventRequest -> {
             Event event = this.eventService.createEvent(eventRequest,match);
             increasePlayerStats(event);
@@ -62,6 +66,21 @@ public class MatchServiceImpl implements MatchService {
         return "Partido cargado";
     }
 
+    private void clearPlayerSuspensions(Match match) {
+        match.getHomeTeam().getPlayerParticipants().forEach(player -> {
+            if (player.getIsSuspended()) {
+                this.playerParticipantRepository.changeIsSuspended(player.getId(), false);
+            }
+        });
+
+        match.getAwayTeam().getPlayerParticipants().forEach(player -> {
+            if (player.getIsSuspended()) {
+                this.playerParticipantRepository.changeIsSuspended(player.getId(), false);
+            }
+        });
+    }
+
+
     @Override
     public MatchResponse getMatchById(Long id) {
         Optional<Match> match = this.matchRepository.findById(id);
@@ -71,14 +90,39 @@ public class MatchServiceImpl implements MatchService {
 
     private void increasePlayerStats(Event event) {
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
+
         switch (event.getType()) {
-            case GOAL -> playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
-            case RED_CARD -> playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
-            case YELLOW_CARD -> playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
-            case MVP -> playerParticipant.setIsMvp(playerParticipant.getIsMvp()+event.getQuantity());
+            case GOAL ->
+                    playerParticipant.setGoals(playerParticipant.getGoals() + event.getQuantity());
+
+            case RED_CARD -> {
+                playerParticipant.setRedCards(playerParticipant.getRedCards() + event.getQuantity());
+                playerParticipant.setConsecutiveCards(0);
+                playerParticipant.setIsSuspended(true);
+            }
+
+            case YELLOW_CARD -> {
+                playerParticipant.setYellowCards(playerParticipant.getYellowCards() + event.getQuantity());
+                int consecutiveYellows = playerParticipant.getConsecutiveCards() != null
+                        ? playerParticipant.getConsecutiveCards()
+                        : 0;
+
+                consecutiveYellows += event.getQuantity();
+                playerParticipant.setConsecutiveCards(consecutiveYellows);
+
+                if (consecutiveYellows >= 2) {
+                    playerParticipant.setIsSuspended(true);
+                    playerParticipant.setConsecutiveCards(0);
+                }
+            }
+
+            case MVP ->
+                    playerParticipant.setIsMvp(playerParticipant.getIsMvp() + event.getQuantity());
         }
+
         this.playerParticipantRepository.save(playerParticipant);
     }
+
 
     private void increaseTournamentParticipantStats (Event event){
         Match match = event.getMatch();
@@ -164,6 +208,8 @@ public class MatchServiceImpl implements MatchService {
                 .goalsHomeTeam(0)
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
+                .date(LocalDateTime.now())
+                .description("Complejo sin definir")
                 .build();
             matchRepository.save(newMatch);
             matches.add(newMatch);
@@ -195,6 +241,17 @@ public class MatchServiceImpl implements MatchService {
         return this.matchDetailedToResponse(match);
     }
 
+    @Override
+    public void updateMatchDateAndDescription(Long matchId, MatchDateAndDescriptionRequest request) {
+        Optional<Match> optMatch = this.matchRepository.findById(matchId);
+
+        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
+
+        optMatch.get().setDescription(request.description());
+        optMatch.get().setDate(request.localDateTime());
+        this.matchRepository.save(optMatch.get());
+    }
+
     private MatchDetailedResponse matchDetailedToResponse(Match match) {
         return new MatchDetailedResponse(
                 match.getId(),
@@ -219,8 +276,6 @@ public class MatchServiceImpl implements MatchService {
         match.setGoalsHomeTeam(0);
         match.setGoalsAwayTeam(0);
         match.getEvents().clear();
-
-
     }
 
     private void decreasePlayerStats(Event event) {
@@ -302,7 +357,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsHomeTeam(),
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList(),
-                match.getIsFinished()
+                match.getIsFinished(),
+                match.getDate(),
+                match.getDescription()
         );
     }
 

@@ -31,6 +31,12 @@ public class MatchDayController {
         return this.matchDayService.getMatchDaysByCode(code);
     }
 
+    @GetMapping("/{code}/lastPlayed")
+    @ResponseStatus(HttpStatus.OK)
+    public MatchDayResponse getLastPlayedMatchDay(@PathVariable String code){
+        return this.matchDayService.getLastMatchDayPlayed(code);
+    }
+
     @PutMapping("/close")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")

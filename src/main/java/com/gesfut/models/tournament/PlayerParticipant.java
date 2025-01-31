@@ -14,7 +14,6 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-//participant referencia a team que juega el torneo
 @Table(name = "player_participants")
 public class PlayerParticipant {
 
@@ -27,6 +26,7 @@ public class PlayerParticipant {
     private Integer yellowCards;
     private Integer isMvp;
     private Boolean isActive;
+    private Integer consecutiveCards;
 
     @ManyToOne
     @JoinColumn(name = "player_id")
@@ -38,6 +38,4 @@ public class PlayerParticipant {
 
     @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Event> events;
-
-
 }

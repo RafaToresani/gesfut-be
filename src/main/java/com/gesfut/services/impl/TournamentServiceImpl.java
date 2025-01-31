@@ -3,10 +3,7 @@ package com.gesfut.services.impl;
 import com.gesfut.config.security.SecurityUtils;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
-import com.gesfut.dtos.responses.ParticipantResponse;
-import com.gesfut.dtos.responses.StatisticsResponse;
-import com.gesfut.dtos.responses.TournamentResponse;
-import com.gesfut.dtos.responses.TournamentShortResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
@@ -63,7 +60,9 @@ public class TournamentServiceImpl implements TournamentService {
                     .name(request.name())
                     .user(user)
                     .isFinished(false)
+                    .isActive(true)
                     .startDate(LocalDate.now())
+                    .prizes(new HashSet<>())
                     .build()
         );
         return tournament.getCode().toString();
@@ -82,8 +81,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public TournamentShortResponse findAllTournamentsShort(String tournamentCode) {
-        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        return this.tournamentRepository.findByCodeAndUser(UUID.fromString(tournamentCode), user)
+        return this.tournamentRepository.findByCode(UUID.fromString(tournamentCode))
                 .map(this::tournamentToResponseShort)
                 .orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
     }
@@ -172,6 +170,122 @@ public class TournamentServiceImpl implements TournamentService {
         return this.tournamentRepository.existsByCode(UUID.fromString(tournamentCode));
     }
 
+    @Override
+    public Boolean changeNameTournamentByCode(String code, String name) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if (tournament.isEmpty()) return false;
+        verifyTournamentBelongsToManager(tournament.get(), user);
+        tournament.get().setName(name);
+        this.tournamentRepository.save(tournament.get());
+        return true;
+    }
+
+    @Override
+    public Boolean changeIsActive(String code, Boolean isActive) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        verifyTournamentBelongsToManager(tournament.get(), user);
+        tournament.get().setIsActive(isActive);
+        if (isActive){
+            tournament.get().setIsFinished(false);
+        }else {
+            tournament.get().setIsFinished(true);
+        }
+        this.tournamentRepository.save(tournament.get());
+        return true;
+    }
+
+    @Override
+    public List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant){
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        TournamentParticipant participant = this.participantRepository.findById(idParticipant).orElseThrow(() -> new ResourceNotFoundException("Participante no encontrado."));
+        if(!participant.getTournament().equals(tournament.get())) throw new ResourceNotFoundException("Participante no encontrado en el torneo.");
+        List<MatchResponse> matches = new ArrayList<>();
+        tournament.get().getMatchDays().forEach(matchDay -> {
+            matchDay.getMatches().forEach(match -> {
+                if(match.getHomeTeam().equals(participant) || match.getAwayTeam().equals(participant)){
+                    matches.add(new MatchResponse(
+                            match.getId(),
+                            match.getHomeTeam().getTeam().getName(),
+                            match.getAwayTeam().getTeam().getName(),
+                            matchDay.getNumberOfMatchDay(),
+                            match.getGoalsHomeTeam(),
+                            match.getGoalsAwayTeam(),
+                            match.getEvents().stream().map(event -> new EventResponse(
+                                    event.getId(),
+                                    event.getQuantity(),
+                                    event.getType(),
+                                    event.getPlayerParticipant().getPlayer().getName()
+                                    )).toList(),
+                            match.getIsFinished(),
+                            match.getDate(),
+                            match.getDescription()));
+                }
+            });
+        });
+        return matches;
+    }
+
+    @Override
+    public boolean isMyTournament(String code) {
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        return this.tournamentRepository.findByCodeAndUser(UUID.fromString(code), user).isPresent();
+    }
+
+    @Override
+    public List<TopScorersResponse> findTopScorersByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopScorersResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopScorersResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getGoals()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopScorersResponse::goals).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TopYellowCardsResponse> findTopYellowCardsByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopYellowCardsResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getYellowCards()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopYellowCardsResponse::yellowCards).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TopRedCardsResponse> findTopRedCardsByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopRedCardsResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getRedCards()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopRedCardsResponse::redCards).reversed())
+                .collect(Collectors.toList());
+    }
+
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
@@ -228,6 +342,7 @@ public class TournamentServiceImpl implements TournamentService {
                             .events(new ArrayList<>())
                             .goals(0)
                             .isSuspended(false)
+                            .consecutiveCards(0)
                             .redCards(0)
                             .yellowCards(0)
                             .isActive(true)
@@ -267,6 +382,7 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getCode().toString(),
                 tournament.getStartDate(),
                 tournament.getIsFinished(),
+                tournament.getIsActive(),
                 !tournament.getTeams().isEmpty()
         );
     }

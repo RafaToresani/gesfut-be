@@ -34,10 +34,12 @@ public class AppConfig {
         return authenticationProvider;
     }
 
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
 
     @Bean
     public UserDetailsService userDetailsService() {

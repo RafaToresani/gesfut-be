@@ -2,8 +2,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
-import com.gesfut.dtos.responses.TournamentResponse;
-import com.gesfut.dtos.responses.TournamentShortResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -23,6 +22,17 @@ public class TournamentController {
 
     @Autowired
     private TournamentService tournamentService;
+
+
+    //GET: IS MY TOURNAMENT?
+    @GetMapping("/is-my-tournament/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public boolean isMyTournament(@PathVariable String code) {
+        return this.tournamentService.isMyTournament(code);
+    }
+
+
 
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @Operation(summary = "Permite crear un torneo", description = "Permite crear un torneo al usuario logueado.")
@@ -83,7 +93,6 @@ public class TournamentController {
     @Operation(summary = "Retorna el listado torneos del usuario logueado codigo y nombre.")
     @GetMapping("/short/{code}")
     @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public TournamentShortResponse findTournamentsShort(@PathVariable String code){
         return this.tournamentService.findAllTournamentsShort(code);
     }
@@ -96,6 +105,34 @@ public class TournamentController {
         return this.tournamentService.existsByCode(code);
     }
 
+    @Operation(summary = "Retorna el listado de partidos de un torneo de un equipo en especifico.")
+    @GetMapping("/{code}/matches/{idParticipant}")
+    @ResponseStatus(HttpStatus.OK)
+    public List<MatchResponse> findMatchesByTournamentAndParticipant(@PathVariable String code, @PathVariable Long idParticipant){
+        return this.tournamentService.findMatchesByTournamentAndParticipant(code, idParticipant);
+    }
+
+    @Operation(summary = "Devuelve la lista de goleadores")
+    @GetMapping("/{code}/top-scorers")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopScorersResponse> findTopScorersTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopScorersByTournament(code);
+    }
+
+    @Operation(summary = "Devuelve la lista de amonestados")
+    @GetMapping("/{code}/top-yellow-cards")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopYellowCardsResponse> findTopYellowCardsTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopYellowCardsByTournament(code);
+    }
+
+    @Operation(summary = "Devuelve la lista de expulsados")
+    @GetMapping("/{code}/top-red-cards")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopRedCardsResponse> findTopRedCardsTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopRedCardsByTournament(code);
+    }
+
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo.")
     @PatchMapping("/change-status-tournament")
@@ -104,5 +141,23 @@ public class TournamentController {
     public String deleteTournamentByCode(@Param(value = "tournament-code") String code, @Param(value = "status") Boolean status){
         return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
+
+    // ~~~~~~~~~~~~ PUT ~~~~~~~~~~~~
+    @PutMapping("/change-name-tournament/{tournament-code}/{name}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean changeNameTournament(@PathVariable("tournament-code") String code, @PathVariable("name") String name) {
+        return this.tournamentService.changeNameTournamentByCode(code, name);
+    }
+
+    @PutMapping("/change-isActive/{tournament-code}/{isActive}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public Boolean changeIsActive(@PathVariable("tournament-code") String code, @PathVariable("isActive") Boolean isActive) {
+        return this.tournamentService.changeIsActive(code, isActive);
+    }
+
+
+
 
 }

@@ -21,4 +21,9 @@ public interface PlayerParticipantRepository extends JpaRepository <PlayerPartic
     @Transactional
     @Query("UPDATE PlayerParticipant p SET p.isActive = :isActive WHERE p.id = :id")
     void changeStatus(@Param("id") Long id, @Param("isActive") Boolean isActive);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE PlayerParticipant p SET p.isSuspended = :isSuspended WHERE p.id = :id")
+    void changeIsSuspended(@Param("id") Long id, @Param("isSuspended") boolean isSuspended);
 }

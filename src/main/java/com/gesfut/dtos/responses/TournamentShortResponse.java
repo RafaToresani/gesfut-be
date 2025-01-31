@@ -7,6 +7,7 @@ public record TournamentShortResponse(
         String code,
         LocalDate startDate,
         Boolean isFinished,
+        Boolean isActive,
         Boolean haveParticipants
 ) {
 }
