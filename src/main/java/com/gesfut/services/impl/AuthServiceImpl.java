@@ -19,6 +19,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -36,16 +37,18 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    @Autowired
+    private EmailService emailService;
+
     @Override
     public AuthResponse logIn(LoginRequest request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         Optional<UserEntity> user = userRepository.findByEmail(request.email());
         if(user.isEmpty()) throw new ResourceNotFoundException("El email ingresado no es válido.");
-
         String token = jwtService.getToken(user.get(), user.get().getAuthorities());
-
         return new AuthResponse(user.get().getName(), user.get().getLastname(), token, user.get().getRole().name());
     }
+
 
     @Override
     public AuthResponse singUp(RegisterRequest request) {
@@ -71,4 +74,47 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getToken(user, user.getAuthorities()),
                 user.getRole().name());
     }
+
+    public void resetPasswordSendEmail(String email) {
+        Optional<UserEntity> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) throw new ResourceNotFoundException("El email ingresado no es válido.");
+
+        String token = jwtService.generateToken(email);
+        System.out.printf("TOKEN GENERADO: %s%n", token);
+
+        user.get().setResetToken(token);
+        user.get().setResetTokenExpiration(LocalDateTime.now().plusMinutes(30));
+        userRepository.save(user.get());
+
+        this.emailService.sendEmail(email, "GESFUT - Recuperación de contraseña",
+                "Hola, para recuperar tu contraseña, haz click en el siguiente enlace: " +
+                        "http://localhost:4200/auth/reset-password/" + token);
+    }
+
+
+    public void changePassword(String token, String newPassword) {
+        Optional<UserEntity> user = userRepository.findByResetToken(token);
+        if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
+        if (user.get().getResetTokenExpiration().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("El token ha expirado.");
+        }
+        String hashedPassword = passwordEncoder.encode(newPassword);
+        user.get().setPassword(hashedPassword);
+        user.get().setResetToken(null);
+        user.get().setResetTokenExpiration(null);
+        userRepository.save(user.get());
+    }
+
+    @Override
+    public void changePasswordWithOldPassword(String oldPassword, String newPassword, String token) {
+        Optional<UserEntity> user = userRepository.findByEmail(jwtService.getUsernameFromToken(token));
+        if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
+        if (!passwordEncoder.matches(oldPassword, user.get().getPassword())) {
+            throw new IllegalStateException("La contraseña antigua no coincide.");
+        }
+        String hashedPassword = passwordEncoder.encode(newPassword);
+        user.get().setPassword(hashedPassword);
+        userRepository.save(user.get());
+    }
+
 }

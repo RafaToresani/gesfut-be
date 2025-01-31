@@ -9,4 +9,11 @@ public interface AuthService {
     AuthResponse logIn(LoginRequest request);
 
     AuthResponse singUp(RegisterRequest request);
+
+    void resetPasswordSendEmail(String email);
+
+    void changePassword(String token, String newPassword);
+
+    void changePasswordWithOldPassword(String oldPassword, String newPassword, String token);
+
 }
