@@ -235,6 +235,57 @@ public class TournamentServiceImpl implements TournamentService {
         return this.tournamentRepository.findByCodeAndUser(UUID.fromString(code), user).isPresent();
     }
 
+    @Override
+    public List<TopScorersResponse> findTopScorersByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopScorersResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopScorersResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getGoals()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopScorersResponse::goals).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TopYellowCardsResponse> findTopYellowCardsByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopYellowCardsResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getYellowCards()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopYellowCardsResponse::yellowCards).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TopRedCardsResponse> findTopRedCardsByTournament(String code) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        List<TopRedCardsResponse> response = new ArrayList<>();
+        tournament.get().getTeams().forEach(team -> {
+            team.getPlayerParticipants().forEach(player -> {
+                if(player.getGoals() >= 1){
+                    response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getRedCards()));
+                }
+            });
+        });
+        return response.stream()
+                .sorted(Comparator.comparingInt(TopRedCardsResponse::redCards).reversed())
+                .collect(Collectors.toList());
+    }
+
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");

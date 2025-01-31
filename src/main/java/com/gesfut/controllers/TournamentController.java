@@ -2,10 +2,7 @@ package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
-import com.gesfut.dtos.responses.MatchDayResponse;
-import com.gesfut.dtos.responses.MatchResponse;
-import com.gesfut.dtos.responses.TournamentResponse;
-import com.gesfut.dtos.responses.TournamentShortResponse;
+import com.gesfut.dtos.responses.*;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -115,6 +112,26 @@ public class TournamentController {
         return this.tournamentService.findMatchesByTournamentAndParticipant(code, idParticipant);
     }
 
+    @Operation(summary = "Devuelve la lista de goleadores")
+    @GetMapping("/{code}/top-scorers")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopScorersResponse> findTopScorersTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopScorersByTournament(code);
+    }
+
+    @Operation(summary = "Devuelve la lista de amonestados")
+    @GetMapping("/{code}/top-yellow-cards")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopYellowCardsResponse> findTopYellowCardsTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopYellowCardsByTournament(code);
+    }
+
+    @Operation(summary = "Devuelve la lista de expulsados")
+    @GetMapping("/{code}/top-red-cards")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TopRedCardsResponse> findTopRedCardsTournamentByCode(@PathVariable String code){
+        return this.tournamentService.findTopRedCardsByTournament(code);
+    }
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     @Operation(summary = "Permite deshabilitar un torneo.")
