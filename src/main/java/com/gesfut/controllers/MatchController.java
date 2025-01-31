@@ -1,6 +1,7 @@
 package com.gesfut.controllers;
 
 import com.gesfut.dtos.requests.MatchDateRequest;
+import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -53,11 +54,20 @@ public class MatchController {
         this.matchService.updateMatchResult(request);
     }
 
+
     @PatchMapping("/update-date/{matchId}")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void updateMatchDateAndDescription(@Valid @RequestBody MatchDateRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         this.matchService.updateMatchDateAndDescription(matchId, request);
+    }
+
+    @PatchMapping("/update-description/{matchId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void updateMatchDescription(@Valid @RequestBody MatchDescriptionRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
+        if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.matchService.updateMatchDescription(matchId, request);
     }
 }

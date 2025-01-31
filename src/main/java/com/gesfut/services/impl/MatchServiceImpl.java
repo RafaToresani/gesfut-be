@@ -1,6 +1,7 @@
 package com.gesfut.services.impl;
 
 import com.gesfut.dtos.requests.MatchDateRequest;
+import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -247,6 +248,16 @@ public class MatchServiceImpl implements MatchService {
         if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
 
         optMatch.get().setDate(request.localDateTime());
+        this.matchRepository.save(optMatch.get());
+    }
+
+    @Override
+    public void updateMatchDescription(Long matchId, MatchDescriptionRequest request) {
+        Optional<Match> optMatch = this.matchRepository.findById(matchId);
+
+        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
+
+        optMatch.get().setDescription(request.description());
         this.matchRepository.save(optMatch.get());
     }
 
