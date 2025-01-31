@@ -1,6 +1,6 @@
 package com.gesfut.services;
 
-import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
+import com.gesfut.dtos.requests.MatchDateRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
@@ -11,7 +11,6 @@ import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 
 import java.util.List;
-import java.util.Set;
 
 public interface MatchService {
     String loadMatchResult(MatchRequest request);
@@ -26,5 +25,5 @@ public interface MatchService {
 
     MatchDetailedResponse getDetailedMatchById(Long id);
 
-    void updateMatchDateAndDescription(Long matchId, @Valid MatchDateAndDescriptionRequest request);
+    void updateMatchDateAndDescription(Long matchId, @Valid MatchDateRequest request);
 }
