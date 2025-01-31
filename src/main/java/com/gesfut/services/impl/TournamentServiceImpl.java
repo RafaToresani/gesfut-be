@@ -221,7 +221,7 @@ public class TournamentServiceImpl implements TournamentService {
                                     event.getPlayerParticipant().getPlayer().getName()
                                     )).toList(),
                             match.getIsFinished(),
-                            match.getDate(),
+                            match.formatMatchDate(match.getDate()),
                             match.getDescription()));
                 }
             });

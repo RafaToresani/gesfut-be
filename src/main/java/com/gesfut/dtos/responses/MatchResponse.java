@@ -12,6 +12,6 @@ public record MatchResponse(
         Integer awayGoals,
         List<EventResponse> events,
         Boolean isFinished,
-        LocalDateTime dateTime,
+        String dateTime,
         String description
 ) { }

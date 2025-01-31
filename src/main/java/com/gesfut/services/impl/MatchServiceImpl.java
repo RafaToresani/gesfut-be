@@ -5,6 +5,7 @@ import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
 import com.gesfut.models.matchDay.Event;
@@ -242,13 +243,19 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public void updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
+    public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
         Optional<Match> optMatch = this.matchRepository.findById(matchId);
 
         if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
 
         optMatch.get().setDate(request.localDateTime());
         this.matchRepository.save(optMatch.get());
+
+        NewDateResponse response = new NewDateResponse(
+                optMatch.get().formatMatchDate(optMatch.get().getDate())
+        );
+
+        return  response;
     }
 
     @Override
@@ -367,12 +374,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList(),
                 match.getIsFinished(),
-                match.getDate(),
+                match.formatMatchDate(match.getDate()),
                 match.getDescription()
         );
     }
-
-
-
-
 }

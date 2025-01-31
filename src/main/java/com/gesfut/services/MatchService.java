@@ -5,6 +5,7 @@ import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.TournamentParticipant;
@@ -26,7 +27,7 @@ public interface MatchService {
 
     MatchDetailedResponse getDetailedMatchById(Long id);
 
-    void updateMatchDateAndDescription(Long matchId, @Valid MatchDateRequest request);
+    NewDateResponse updateMatchDateAndDescription(Long matchId, @Valid MatchDateRequest request);
 
     void updateMatchDescription(Long matchId, @Valid MatchDescriptionRequest request);
 }

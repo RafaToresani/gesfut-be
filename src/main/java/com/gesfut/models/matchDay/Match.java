@@ -8,7 +8,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Getter
 @Setter
@@ -45,4 +47,14 @@ public class Match {
 
     private LocalDateTime date;
     private String description;
+
+    public String formatMatchDate(LocalDateTime date) {
+        if (date == null) {
+            return "Fecha no disponible";
+        }
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM '|' HH 'hs'", new Locale("es", "ES"));
+        return date.format(formatter);
+    }
+
 }

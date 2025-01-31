@@ -5,6 +5,7 @@ import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.services.MatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -58,9 +59,9 @@ public class MatchController {
     @PatchMapping("/update-date/{matchId}")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void updateMatchDateAndDescription(@Valid @RequestBody MatchDateRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
+    public NewDateResponse updateMatchDateAndDescription(@Valid @RequestBody MatchDateRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-        this.matchService.updateMatchDateAndDescription(matchId, request);
+        return this.matchService.updateMatchDateAndDescription(matchId, request);
     }
 
     @PatchMapping("/update-description/{matchId}")
@@ -70,4 +71,8 @@ public class MatchController {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         this.matchService.updateMatchDescription(matchId, request);
     }
+
+
+
+
 }
