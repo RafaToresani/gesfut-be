@@ -196,7 +196,8 @@ public class MatchServiceImpl implements MatchService {
 
 
     @Override
-    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams){
+    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate) {
+
         Set<Match> matches = new HashSet<>();
         for (int j = 0; j < numberOfTeams / 2; j++) {
             TournamentParticipant homeTeam = teams.get(j);
@@ -209,11 +210,19 @@ public class MatchServiceImpl implements MatchService {
                 .goalsHomeTeam(0)
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
-                .date(LocalDateTime.now())
+                .date(startDate)
                 .description("Complejo sin definir")
                 .build();
             matchRepository.save(newMatch);
+            if(newMatch.formatMatchDate(newMatch.getDate()) == null) {
+                System.out.println("DATE NULL");
+                matchRepository.save(newMatch);
+            }
             matches.add(newMatch);
+            if (startDate != null) {
+                startDate = startDate.plusHours(1);
+                System.out.printf("DATE DAY: %s\n", startDate);
+            }
         }
     }
 

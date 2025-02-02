@@ -7,6 +7,7 @@ import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 
@@ -23,7 +24,7 @@ public interface TournamentService {
 
     String changeStatusTournamentByCode(String code, Boolean status);
 
-    void initializeTournament(MatchDayRequest request);
+    void initializeTournament(MatchDayRequest request, LocalDateTime startDate);
 
     void addTeamToTournament(Long idTeam, Tournament tournament);
 

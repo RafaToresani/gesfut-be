@@ -50,7 +50,7 @@ public class Match {
 
     public String formatMatchDate(LocalDateTime date) {
         if (date == null) {
-            return "Fecha no disponible";
+            return null;
         }
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM '|' HH 'hs'", new Locale("es", "ES"));

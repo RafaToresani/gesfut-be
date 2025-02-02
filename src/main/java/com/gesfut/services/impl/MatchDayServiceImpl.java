@@ -15,6 +15,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -121,7 +122,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
 
     @Override
-    public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode) {
+    public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode, LocalDateTime startDate) {
         Tournament tournament = getTournament(tournamentCode);
         if(!tournament.getMatchDays().isEmpty()) throw new ResourceAlreadyExistsException("El torneo ya cuenta con fechas.");
         int numberOfTeams = tournamentParticipants.size();
@@ -130,10 +131,10 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
         //generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
-        generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays);
+        generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, startDate);
     }
 
-    void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays) {
+    void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays, LocalDateTime startDate) {
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
             MatchDay matchDay = matchDayRepository.save(
                     MatchDay.builder()
@@ -142,7 +143,12 @@ public class MatchDayServiceImpl implements MatchDayService {
                             .isFinished(false)
                             .matches(new HashSet<>())
                             .build());
-            this.matchService.generateMatches(matchDay, teams, numberOfTeams);
+            this.matchService.generateMatches(matchDay, teams, numberOfTeams, startDate);
+            if(startDate != null){
+                startDate = startDate.plusDays(7);
+            }else {
+                startDate = null;
+            }
             rotateTeams(teams);
         }
     }

@@ -12,6 +12,7 @@ import com.gesfut.models.tournament.TournamentParticipant;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface MatchService {
@@ -19,7 +20,7 @@ public interface MatchService {
 
     MatchResponse getMatchById(Long id);
 
-    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams);
+    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate);
 
     MatchResponse matchToResponse(Match match);
 

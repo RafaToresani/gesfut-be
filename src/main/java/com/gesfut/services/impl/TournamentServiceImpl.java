@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -115,10 +116,10 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
-    public void initializeTournament(MatchDayRequest request){
+    public void initializeTournament(MatchDayRequest request, LocalDateTime startDate) {
         if(request.teams().size()%2 != 0) request.teams().add(getIdDummyParticipant());
         HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
-        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
+        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate);
     }
 
 
