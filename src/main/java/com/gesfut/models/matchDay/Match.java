@@ -42,7 +42,7 @@ public class Match {
     @JoinColumn(name = "match_day_id")
     private MatchDay matchDay;
     
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL,fetch =  FetchType.LAZY, orphanRemoval = true)
     private List<Event> events;
 
     private LocalDateTime date;

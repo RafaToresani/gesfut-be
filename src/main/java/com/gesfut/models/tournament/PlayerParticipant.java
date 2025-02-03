@@ -36,6 +36,6 @@ public class PlayerParticipant {
     @JoinColumn(name = "tournament_participant_id")
     private TournamentParticipant tournamentParticipant;
 
-    @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "playerParticipant", cascade = CascadeType.ALL, fetch =  FetchType.LAZY, orphanRemoval = true)
     private List<Event> events;
 }
