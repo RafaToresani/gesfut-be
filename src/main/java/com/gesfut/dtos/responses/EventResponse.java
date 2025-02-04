@@ -6,6 +6,8 @@ public record EventResponse(
         Long id,
         Integer quantity,
         EEventType type,
-        String playerName
+        String playerName,
+        String teamName,
+        Long idPlayerParticipant
 ) {
 }

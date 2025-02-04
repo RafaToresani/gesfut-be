@@ -211,7 +211,7 @@ public class MatchServiceImpl implements MatchService {
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
                 .date(startDate)
-                .description("SIN DEFINIR")
+                .description("0")
                 .build();
             matchRepository.save(newMatch);
             if(newMatch.formatMatchDate(newMatch.getDate()) == null) {

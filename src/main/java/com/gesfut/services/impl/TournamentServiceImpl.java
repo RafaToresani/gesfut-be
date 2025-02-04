@@ -219,7 +219,9 @@ public class TournamentServiceImpl implements TournamentService {
                                     event.getId(),
                                     event.getQuantity(),
                                     event.getType(),
-                                    event.getPlayerParticipant().getPlayer().getName()
+                                    event.getPlayerParticipant().getPlayer().getName(),
+                                    event.getPlayerParticipant().getPlayer().getTeam().getName(),
+                                    event.getPlayerParticipant().getId()
                                     )).toList(),
                             match.getIsFinished(),
                             match.formatMatchDate(match.getDate()),
