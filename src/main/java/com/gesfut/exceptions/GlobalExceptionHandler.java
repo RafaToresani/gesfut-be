@@ -1,6 +1,7 @@
 package com.gesfut.exceptions;
 
 import org.apache.coyote.BadRequestException;
+import org.hibernate.LazyInitializationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -69,4 +70,13 @@ public class GlobalExceptionHandler {
         response.put("error", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
+
+    @ExceptionHandler(LazyInitializationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ResponseEntity<Map<String, String>> handleLazyInitializationException(LazyInitializationException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Error de inicialización.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
 }

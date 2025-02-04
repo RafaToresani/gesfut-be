@@ -43,14 +43,18 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventResponse eventToResponse(Event event){
+    public EventResponse eventToResponse(Event event) {
         return new EventResponse(
                 event.getId(),
                 event.getQuantity(),
                 event.getType(),
                 event.getPlayerParticipant().getPlayer().getName() + " " +
-                event.getPlayerParticipant().getPlayer().getLastName());
+                        event.getPlayerParticipant().getPlayer().getLastName(),
+                event.getPlayerParticipant().getPlayer().getTeam().getName(),
+                event.getPlayerParticipant().getId()
+        );
     }
+
 
 
 }

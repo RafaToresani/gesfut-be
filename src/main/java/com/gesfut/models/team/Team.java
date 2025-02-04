@@ -29,10 +29,10 @@ public class Team {
     @JsonBackReference
     private UserEntity user;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, fetch =  FetchType.LAZY)
     private Set<Player> players;
 
-    @OneToMany(mappedBy = "team", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "team", fetch =  FetchType.LAZY)
     private Set<TournamentParticipant> tournaments;
 
 }
