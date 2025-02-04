@@ -53,8 +53,10 @@ public class Match {
             return null;
         }
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM '|' HH 'hs'", new Locale("es", "ES"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE d 'de' MMM yyyy '|' HH:mm 'hs'", new Locale("es", "ES"));
         return date.format(formatter);
     }
+
+
 
 }
