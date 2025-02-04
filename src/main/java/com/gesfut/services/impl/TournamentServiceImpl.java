@@ -262,7 +262,7 @@ public class TournamentServiceImpl implements TournamentService {
         List<TopYellowCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
             team.getPlayerParticipants().forEach(player -> {
-                if(player.getGoals() >= 1){
+                if(player.getYellowCards() >= 1){
                     response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getYellowCards()));
                 }
             });
@@ -279,7 +279,7 @@ public class TournamentServiceImpl implements TournamentService {
         List<TopRedCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
             team.getPlayerParticipants().forEach(player -> {
-                if(player.getGoals() >= 1){
+                if(player.getRedCards() >= 1){
                     response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getRedCards()));
                 }
             });
