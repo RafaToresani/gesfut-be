@@ -1,8 +1,10 @@
 package com.gesfut.controllers;
 
 
+import com.gesfut.dtos.requests.MatchDateRequest;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.services.MatchDayService;
 import com.gesfut.services.TeamService;
@@ -42,6 +44,14 @@ public class MatchDayController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void generateMatchDay(@RequestParam("matchDayId") Long id, @RequestParam("status") Boolean status){
         this.matchDayService.updateStatusMatchDay(id, status);
+    }
+
+    //ENDPOITN PARA ACTUALIZAR TODAS LAS FECHAS DE LOS PARTIDOS D EUNA FECHA
+    @PatchMapping("/update-date-all-matches/{idMatchDay}/{plusMinutes}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public List<NewDateResponse> updateDateAllMatches(@PathVariable Long idMatchDay, @Valid @RequestBody MatchDateRequest request, @PathVariable Integer plusMinutes){
+       return this.matchDayService.updateDateAllMatches(idMatchDay, request, plusMinutes);
     }
 
 }

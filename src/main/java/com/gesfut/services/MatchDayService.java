@@ -1,6 +1,8 @@
 package com.gesfut.services;
 
+import com.gesfut.dtos.requests.MatchDateRequest;
 import com.gesfut.dtos.responses.MatchDayResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.TournamentParticipant;
 
@@ -15,4 +17,5 @@ public interface MatchDayService {
     void updateStatusMatchDay(Long id, Boolean status);
     List<MatchDayResponse> getMatchDaysByCode(String code);
     MatchDayResponse getLastMatchDayPlayed(String code);
+    List<NewDateResponse> updateDateAllMatches(Long id, MatchDateRequest request, Integer plusMinutes);
 }

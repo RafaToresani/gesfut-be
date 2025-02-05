@@ -253,6 +253,8 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
+        if(request.localDateTime().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("La fecha no puede ser anterior a la actual.");
+
         Optional<Match> optMatch = this.matchRepository.findById(matchId);
 
         if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");

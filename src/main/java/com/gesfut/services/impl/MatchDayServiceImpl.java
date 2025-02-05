@@ -1,7 +1,10 @@
 package com.gesfut.services.impl;
 
+import com.gesfut.dtos.requests.MatchDateRequest;
+import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.responses.MatchDayResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.Match;
@@ -218,5 +221,25 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         return matchDayToResponse(matchDay);
     }
+
+    @Override
+    public List<NewDateResponse> updateDateAllMatches(Long id, MatchDateRequest request, Integer plusMinutes) {
+        List<NewDateResponse> newDates = new ArrayList<>();
+        Optional<MatchDay> matchDayOpt = this.matchDayRepository.findById(id);
+        if (matchDayOpt.isEmpty()) throw new ResourceNotFoundException("La jornada no existe.");
+
+        MatchDay matchDay = matchDayOpt.get();
+        MatchDateRequest newDate = request;
+        if(newDate.localDateTime().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("La fecha no puede ser anterior a la actual.");
+        for (Match match : matchDay.getMatches()) {
+            this.matchService.updateMatchDateAndDescription(match.getId(), newDate);
+            newDate = new MatchDateRequest(newDate.localDateTime().plusMinutes(plusMinutes));
+            NewDateResponse newDateResponse = new NewDateResponse(match.formatMatchDate(newDate.localDateTime()));
+            newDates.add(newDateResponse);
+        }
+        return newDates;
+    }
+
+
 
 }
