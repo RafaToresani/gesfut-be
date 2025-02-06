@@ -199,6 +199,12 @@ public class MatchDayServiceImpl implements MatchDayService {
             }
         });
 
+
+        if (matchDayOpt.get().getTournament().getMatchDays().size() == matchDayOpt.get().getNumberOfMatchDay() + 1) {
+            matchDay.getTournament().setIsFinished(true);
+            this.tournamentRepository.save(matchDay.getTournament());
+        }
+
         matchDay.setIsFinished(status);
         this.matchDayRepository.save(matchDay);
     }
@@ -231,6 +237,13 @@ public class MatchDayServiceImpl implements MatchDayService {
         MatchDay matchDay = matchDayOpt.get();
         MatchDateRequest newDate = request;
         if(newDate.localDateTime().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("La fecha no puede ser anterior a la actual.");
+        if( ( matchDay.getNumberOfMatchDay() > 0) && (matchDay.getNumberOfMatchDay()+1 <= matchDay.getTournament().getMatchDays().size())){
+            MatchDay previousMatchDay = this.matchDayRepository.findById(matchDay.getId() - 1).map(matchDay1 -> matchDay1).orElseThrow(() -> new ResourceNotFoundException("No se encontró la jornada anterior."));
+            if (previousMatchDay.getMatches().stream().anyMatch(match -> match.getDate() == null)) throw new IllegalArgumentException("La jornada anterior no tiene partidos con fecha. Carguelos antes de continuar.");
+            Match lastMatch = previousMatchDay.getMatches().stream().max(Comparator.comparing(Match::getDate)).orElseThrow(() -> new ResourceNotFoundException("No se encontró el último partido de la jornada anterior."));
+            if(newDate.localDateTime().isBefore(lastMatch.getDate())) throw new IllegalArgumentException("La fecha no puede ser anterior a la fecha del último partido de la jornada anterior.");
+        }
+
         for (Match match : matchDay.getMatches()) {
             this.matchService.updateMatchDateAndDescription(match.getId(), newDate);
             newDate = new MatchDateRequest(newDate.localDateTime().plusMinutes(plusMinutes));
