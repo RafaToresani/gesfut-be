@@ -30,6 +30,26 @@ public class TeamController {
     private TeamService teamService;
     @Autowired
     private PlayerService playerService;
+
+    //crear varios equipos
+    @Operation(
+            summary = "Permite crear varios equipos.",
+            description = "El equipo creado pertenecerá al usuario logueado. " +
+                    "Además, requiere un color, un nombre y un listado de jugadores." +
+                    "Cada jugador debe tener un dorsal único, al menos uno de los jugadores debe ser capitán, pudiendo haber sólo uno, y al menos uno de los jugadores debe ser arquero.")
+    @PostMapping("/create-multiple")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void createMultipleTeams(@Valid @RequestBody List<TeamRequest> request,BindingResult bindingResult) throws BadRequestException {
+        if(bindingResult.hasErrors()) {
+            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+        }
+        this.teamService.createMultipleTeams(request);
+    }
+
+
+
+
     // ~~~~~~~~~~~~ POST ~~~~~~~~~~~~
     @Operation(
             summary = "Permite crear un nuevo equipo.",

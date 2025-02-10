@@ -188,6 +188,18 @@ public class MatchServiceImpl implements MatchService {
             match.getAwayTeam().getStatistics().setPoints(match.getAwayTeam().getStatistics().getPoints() + 1);
         }
 
+        if (events.stream().anyMatch(event -> event.getType() == EEventType.MVP)){
+            match.setMvpPlayer(
+                    events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getNumber()
+                            + " - " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getName()
+                            + " " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getLastName()
+                            + " - " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getTeam().getName()
+            );
+        }else {
+            match.setMvpPlayer(null);
+        }
+
+
         match.setIsFinished(true);
         this.statisticsRepository.save(match.getHomeTeam().getStatistics());
         this.statisticsRepository.save(match.getAwayTeam().getStatistics());
@@ -212,6 +224,7 @@ public class MatchServiceImpl implements MatchService {
                 .matchDay(matchDay)
                 .date(startDate)
                 .description("0")
+                .mvpPlayer("")
                 .build();
             matchRepository.save(newMatch);
             if(newMatch.formatMatchDate(newMatch.getDate()) == null) {
@@ -386,7 +399,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList(),
                 match.getIsFinished(),
                 match.formatMatchDate(match.getDate()),
-                match.getDescription()
+                match.getDescription(),
+                match.getMvpPlayer()
         );
     }
 }

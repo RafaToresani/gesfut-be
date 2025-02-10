@@ -42,8 +42,8 @@ public class MatchDayController {
     @PutMapping("/close")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void generateMatchDay(@RequestParam("matchDayId") Long id, @RequestParam("status") Boolean status){
-        this.matchDayService.updateStatusMatchDay(id, status);
+    public void generateMatchDay(@RequestParam("matchDayId") Long id, @RequestParam("status") Boolean status, @RequestParam("playerMvp") String playerMvp){
+        this.matchDayService.updateStatusMatchDay(id, status, playerMvp);
     }
 
     //ENDPOITN PARA ACTUALIZAR TODAS LAS FECHAS DE LOS PARTIDOS D EUNA FECHA

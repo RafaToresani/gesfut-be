@@ -145,6 +145,7 @@ public class MatchDayServiceImpl implements MatchDayService {
                             .tournament(tournament)
                             .isFinished(false)
                             .matches(new HashSet<>())
+                            .mvpPlayer(null)
                             .build());
             this.matchService.generateMatches(matchDay, teams, numberOfTeams, startDate);
             if(startDate != null){
@@ -177,12 +178,12 @@ public class MatchDayServiceImpl implements MatchDayService {
         for (Match match : matchDay.getMatches()) {
             matches.add(this.matchService.matchToResponse(match));
         }
-        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(), matches);
+        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(),matchDay.getMvpPlayer(), matches);
     }
 
 
     @Override
-    public void updateStatusMatchDay(Long id, Boolean status) {
+    public void updateStatusMatchDay(Long id, Boolean status, String playerMvP) {
         Optional<MatchDay> matchDayOpt = this.matchDayRepository.findById(id);
 
         if(matchDayOpt.isEmpty()) throw new ResourceNotFoundException("El id de la jornada no existe.");
@@ -205,6 +206,7 @@ public class MatchDayServiceImpl implements MatchDayService {
             this.tournamentRepository.save(matchDay.getTournament());
         }
 
+        matchDay.setMvpPlayer(playerMvP);
         matchDay.setIsFinished(status);
         this.matchDayRepository.save(matchDay);
     }

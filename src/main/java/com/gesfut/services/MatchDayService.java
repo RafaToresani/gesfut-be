@@ -14,7 +14,7 @@ public interface MatchDayService {
     void reGenerateMatchDays(List<TournamentParticipant> tournamentParticipants, String tournamentCode);
     void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants , String tournamentCode, LocalDateTime startDate);
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
-    void updateStatusMatchDay(Long id, Boolean status);
+    void updateStatusMatchDay(Long id, Boolean status, String playerMvp);
     List<MatchDayResponse> getMatchDaysByCode(String code);
     MatchDayResponse getLastMatchDayPlayed(String code);
     List<NewDateResponse> updateDateAllMatches(Long id, MatchDateRequest request, Integer plusMinutes);

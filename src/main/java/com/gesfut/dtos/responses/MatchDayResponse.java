@@ -6,6 +6,7 @@ public record MatchDayResponse(
         Long idMatchDay,
         Integer numberOfMatchDay,
         Boolean isFinished,
+        String mvpPlayer,
         List<MatchResponse> matches
 ) {
 }

@@ -13,5 +13,7 @@ public record MatchResponse(
         List<EventResponse> events,
         Boolean isFinished,
         String dateTime,
-        String description
-) { }
+        String description,
+        String mvpPlayer
+
+        ) { }

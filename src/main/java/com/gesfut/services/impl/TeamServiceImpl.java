@@ -222,7 +222,11 @@ public class TeamServiceImpl implements TeamService {
         return response;
     }
 
-
+    @Override
+    public void createMultipleTeams(List<TeamRequest> request) {
+        UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
+        request.forEach(this::createTeam);
+    }
 
 
     @Override

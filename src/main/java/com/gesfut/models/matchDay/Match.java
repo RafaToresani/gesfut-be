@@ -48,6 +48,8 @@ public class Match {
     private LocalDateTime date;
     private String description;
 
+    private String mvpPlayer;
+
     public String formatMatchDate(LocalDateTime date) {
         if (date == null) {
             return null;
