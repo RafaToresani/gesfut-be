@@ -119,7 +119,7 @@ public class TournamentServiceImpl implements TournamentService {
     public void initializeTournament(MatchDayRequest request, LocalDateTime startDate) {
         if(request.teams().size()%2 != 0) request.teams().add(getIdDummyParticipant());
         HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
-        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate);
+        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate, request.minutesPerMatch(), request.dayBetweenMatchDay());
     }
 
 

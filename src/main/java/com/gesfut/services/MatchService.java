@@ -20,7 +20,7 @@ public interface MatchService {
 
     MatchResponse getMatchById(Long id);
 
-    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate);
+    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate, Integer durationMatch);
 
     MatchResponse matchToResponse(Match match);
 

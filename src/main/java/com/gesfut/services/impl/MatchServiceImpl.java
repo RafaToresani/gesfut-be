@@ -89,6 +89,7 @@ public class MatchServiceImpl implements MatchService {
         return matchToResponse(match.get());
     }
 
+
     private void increasePlayerStats(Event event) {
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
 
@@ -208,7 +209,7 @@ public class MatchServiceImpl implements MatchService {
 
 
     @Override
-    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate) {
+    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate, Integer durationMatch) {
 
         Set<Match> matches = new HashSet<>();
         for (int j = 0; j < numberOfTeams / 2; j++) {
@@ -233,8 +234,12 @@ public class MatchServiceImpl implements MatchService {
             }
             matches.add(newMatch);
             if (startDate != null) {
-                startDate = startDate.plusHours(1);
-                System.out.printf("DATE DAY: %s\n", startDate);
+                if(homeTeam.getTeam().getName().equals("Free") || awayTeam.getTeam().getName().equals("Free")){
+                    startDate = startDate.plusMinutes(0);
+                }else{
+                    startDate = startDate.plusMinutes(durationMatch);
+                    System.out.printf("DATE DAY: %s\n", startDate);
+                }
             }
         }
     }

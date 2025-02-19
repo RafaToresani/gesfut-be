@@ -63,6 +63,7 @@ public class MatchDayServiceImpl implements MatchDayService {
         reGenerate(finishedMatchDays, tournament, tournamentParticipants, tournamentParticipants.size(), nextMatchDayNumber);
     }
 
+
     @Transactional
     private void reGenerate(List<MatchDay> matchDays, Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int startingMatchDay) {
         Set<Match> playedMatches = new HashSet<>();
@@ -125,7 +126,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
 
     @Override
-    public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode, LocalDateTime startDate) {
+    public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode, LocalDateTime startDate, Integer plusMinutes, Integer plusDays) {
         Tournament tournament = getTournament(tournamentCode);
         if(!tournament.getMatchDays().isEmpty()) throw new ResourceAlreadyExistsException("El torneo ya cuenta con fechas.");
         int numberOfTeams = tournamentParticipants.size();
@@ -134,10 +135,10 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         List<TournamentParticipant> tournamentParticipantsList = new ArrayList<>(tournamentParticipants);
         //generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, allMatches);
-        generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, startDate);
+        generate(tournament, tournamentParticipantsList, numberOfTeams, numberOfMatchDays, startDate, plusMinutes, plusDays);
     }
 
-    void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays, LocalDateTime startDate) {
+    void generate(Tournament tournament, List<TournamentParticipant> teams, int numberOfTeams, int numberOfMatchDays, LocalDateTime startDate, Integer plusMinutes, Integer plusDays) {
         for (int matchDayNumber = 0; matchDayNumber < numberOfMatchDays; matchDayNumber++) {
             MatchDay matchDay = matchDayRepository.save(
                     MatchDay.builder()
@@ -147,9 +148,9 @@ public class MatchDayServiceImpl implements MatchDayService {
                             .matches(new HashSet<>())
                             .mvpPlayer(null)
                             .build());
-            this.matchService.generateMatches(matchDay, teams, numberOfTeams, startDate);
+            this.matchService.generateMatches(matchDay, teams, numberOfTeams, startDate, plusMinutes);
             if(startDate != null){
-                startDate = startDate.plusDays(7);
+                startDate = startDate.plusDays(plusDays);
             }else {
                 startDate = null;
             }

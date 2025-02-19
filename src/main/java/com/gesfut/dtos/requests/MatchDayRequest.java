@@ -14,5 +14,9 @@ public record MatchDayRequest (
         @Size(min = 1, message = "Debe haber al menos 4 equipos")
         List<Long> teams,
 
-        LocalDateTime startDate
+        LocalDateTime startDate,
+
+        Integer minutesPerMatch,
+
+        Integer dayBetweenMatchDay
     ){}

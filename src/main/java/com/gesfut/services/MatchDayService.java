@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface MatchDayService {
     void reGenerateMatchDays(List<TournamentParticipant> tournamentParticipants, String tournamentCode);
-    void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants , String tournamentCode, LocalDateTime startDate);
+    void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants , String tournamentCode, LocalDateTime startDate, Integer minutesPerMatch , Integer dayBetweenMatchDay);
     MatchDayResponse matchDayToResponse(MatchDay matchDay);
     void updateStatusMatchDay(Long id, Boolean status, String playerMvp);
     List<MatchDayResponse> getMatchDaysByCode(String code);
