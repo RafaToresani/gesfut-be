@@ -224,7 +224,7 @@ public class MatchServiceImpl implements MatchService {
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
                 .date(startDate)
-                .description("0")
+                .description("1")
                 .mvpPlayer("")
                 .build();
             matchRepository.save(newMatch);
