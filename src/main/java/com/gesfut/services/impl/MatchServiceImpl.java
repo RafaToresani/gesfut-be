@@ -266,9 +266,20 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
-        if(request.localDateTime().isBefore(LocalDateTime.now())) throw new IllegalArgumentException("La fecha no puede ser anterior a la actual.");
-
         Optional<Match> optMatch = this.matchRepository.findById(matchId);
+        //encontrar el ultimo partido de la jornada anterior
+        MatchDay matchDay = optMatch.get().getMatchDay();
+        matchDay.getTournament().getMatchDays().forEach(matchDay1 -> {
+            if(matchDay1.getNumberOfMatchDay() == matchDay.getNumberOfMatchDay() - 1){
+                Match lastMatch = matchDay1.getMatches().stream().reduce((first, second) -> second).orElse(null);
+                if(lastMatch != null){
+                    if(lastMatch.getDate().isAfter(request.localDateTime()) || lastMatch.getDate().isEqual(request.localDateTime())){
+                        throw new IllegalArgumentException("La fecha del partido no puede ser anterior al último partido de la jornada anterior");
+                    }
+                }
+            }
+        });
+
 
         if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
 

@@ -56,6 +56,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse singUp(RegisterRequest request) {
+        if (request.name().contains(" ")) throw new ResourceAlreadyExistsException("El nombre no puede contener espacios.");
+        if (request.lastName().contains(" ")) throw new ResourceAlreadyExistsException("El apellido no puede contener espacios.");
         Optional<UserEntity> opt = this.userRepository.findByEmail(request.email());
         if(opt.isPresent()) throw new ResourceAlreadyExistsException("El email ingresado ya existe.");
 

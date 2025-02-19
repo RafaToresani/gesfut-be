@@ -72,7 +72,6 @@ public class TeamController {
     @Operation(summary = "Retorna un equipo en base a su id..")
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public TeamResponse getTeamById(@PathVariable Long id) {
        return this.teamService.getTeamById(id);
     }

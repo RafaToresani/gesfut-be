@@ -90,6 +90,13 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     public void changeStatusPlayerParticipant(Long idParticipantPlayer, Boolean status) {
         Optional<PlayerParticipant> optPlayer = this.playerParticipantRepository.findById(idParticipantPlayer);
         if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El id del participante no existe.");
+
+        if (status){
+            if (!optPlayer.get().getPlayer().getStatus()){
+                optPlayer.get().getPlayer().setStatus(status);
+                this.playerParticipantRepository.save(optPlayer.get());
+            }
+        }
         this.playerParticipantRepository.changeStatus(idParticipantPlayer, status);
     }
 
