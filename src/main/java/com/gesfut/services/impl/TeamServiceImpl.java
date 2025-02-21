@@ -126,10 +126,11 @@ public class TeamServiceImpl implements TeamService {
         Optional<Player> optPlayer = this.playerRepository.findById(idPlayer);
         if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El jugador no existe.");
 
-        optPlayer.get().getPlayerParticipants().forEach(playerParticipant -> {
-            this.tournamentParticipantService.changeStatusPlayerParticipant(playerParticipant.getId(), status);
-        });
-
+        if (!status){
+            optPlayer.get().getPlayerParticipants().forEach(playerParticipant -> {
+                this.tournamentParticipantService.changeStatusPlayerParticipant(playerParticipant.getId(), status);
+            });
+        }
         this.playerRepository.updatePlayerStatusById(idPlayer, status);
     }
 
