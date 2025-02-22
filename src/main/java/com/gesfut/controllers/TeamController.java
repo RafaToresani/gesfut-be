@@ -59,11 +59,11 @@ public class TeamController {
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void createTeam(@Valid @RequestBody TeamRequest request,BindingResult bindingResult) throws BadRequestException {
+    public TeamResponse createTeam(@Valid @RequestBody TeamRequest request,BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) {
             throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
         }
-        this.teamService.createTeam(request);
+       return this.teamService.createTeam(request);
     }
 
 

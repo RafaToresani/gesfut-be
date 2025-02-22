@@ -46,7 +46,7 @@ public class TeamServiceImpl implements TeamService {
     private TournamentParticipantRepository participantRepository;
 
     @Override
-    public void createTeam(TeamRequest request) {
+    public TeamResponse createTeam(TeamRequest request) {
         this.playerService.validatePlayers(request.players());
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
         
@@ -58,10 +58,11 @@ public class TeamServiceImpl implements TeamService {
                 .tournaments(new HashSet<>())
                 .status(true)
                 .build();
-        teamRepository.save(team);
+        Team newTeam = teamRepository.save(team);
         request.players().forEach(playerRequest -> {
             playerService.createPlayer(playerRequest, team);
         });
+        return teamToResponse(newTeam);
     }
 
     @Override
