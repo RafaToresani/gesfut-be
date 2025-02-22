@@ -53,6 +53,7 @@ public class TournamentServiceImpl implements TournamentService {
     @Override
     public String createTournament(TournamentRequest request) {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if(this.tournamentRepository.existsByNameAndUser(request.name(), user)) throw new ResourceAlreadyExistsException("Ya existe un torneo con ese nombre.");
         Tournament tournament = tournamentRepository.save(
             Tournament
                     .builder()

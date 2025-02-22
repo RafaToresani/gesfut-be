@@ -27,4 +27,6 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     void deleteByCode(UUID code);
 
     Optional<Tournament> findByCodeAndUser(UUID uuid, UserEntity user);
+
+    Boolean existsByNameAndUser(String name, UserEntity user);
 }
