@@ -28,5 +28,5 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
 
     Optional<Tournament> findByCodeAndUser(UUID uuid, UserEntity user);
 
-    Boolean existsByNameAndUser(String name, UserEntity user);
+    Boolean existsByNameAndUserId(String name, Long id);
 }
