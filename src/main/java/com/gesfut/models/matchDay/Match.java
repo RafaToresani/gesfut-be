@@ -8,7 +8,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Getter
 @Setter
@@ -40,9 +42,23 @@ public class Match {
     @JoinColumn(name = "match_day_id")
     private MatchDay matchDay;
     
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL,fetch =  FetchType.LAZY, orphanRemoval = true)
     private List<Event> events;
 
     private LocalDateTime date;
     private String description;
+
+    private String mvpPlayer;
+
+    public String formatMatchDate(LocalDateTime date) {
+        if (date == null) {
+            return null;
+        }
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE d 'de' MMM yyyy '|' HH:mm 'hs'", new Locale("es", "ES"));
+        return date.format(formatter);
+    }
+
+
+
 }

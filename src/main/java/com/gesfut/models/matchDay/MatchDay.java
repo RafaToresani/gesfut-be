@@ -28,6 +28,9 @@ public class MatchDay {
     @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
-    @OneToMany(mappedBy = "matchDay", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @OneToMany(mappedBy = "matchDay", cascade = CascadeType.ALL, fetch =  FetchType.LAZY , orphanRemoval = true)
     private Set<Match> matches;
+
+    private String mvpPlayer;
+
 }

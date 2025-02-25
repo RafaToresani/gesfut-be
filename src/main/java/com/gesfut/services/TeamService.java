@@ -6,12 +6,13 @@ import com.gesfut.dtos.responses.*;
 import com.gesfut.models.team.Player;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.user.UserEntity;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface TeamService  {
-    void createTeam(TeamRequest request);
+    TeamResponse createTeam(TeamRequest request);
     void createDummyTeam(TeamRequest request, UserEntity user);
     TeamResponse getTeamById(Long id);
     List<TeamResponse> getAllTeams();
@@ -24,5 +25,7 @@ public interface TeamService  {
     Player getPlayerNumber(Integer number, Long teamId);
     Player getPlayerName(String name, String lastName, Long teamId);
     TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam);
+    void createMultipleTeams(List<TeamRequest> request);
 }
+
 

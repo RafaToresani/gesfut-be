@@ -54,7 +54,10 @@ public class TournamentController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void initializeTournament(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
         if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-        this.tournamentService.initializeTournament(request);
+        System.out.printf("request: %s\n", request);
+        System.out.printf("request.startDate(): %s\n", request.startDate());
+        System.out.printf("hola aca esta la infoooo");
+        this.tournamentService.initializeTournament(request, request.startDate());
     }
 
     @Operation(summary = "Recordatorio: rehacer endpoint entero.")

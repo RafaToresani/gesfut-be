@@ -1,24 +1,26 @@
 package com.gesfut.services;
 
-import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
+import com.gesfut.dtos.requests.MatchDateRequest;
+import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.models.matchDay.Match;
 import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.tournament.TournamentParticipant;
 import jakarta.validation.Valid;
 import org.apache.coyote.BadRequestException;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 public interface MatchService {
     String loadMatchResult(MatchRequest request);
 
     MatchResponse getMatchById(Long id);
 
-    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams);
+    void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate, Integer durationMatch);
 
     MatchResponse matchToResponse(Match match);
 
@@ -26,5 +28,7 @@ public interface MatchService {
 
     MatchDetailedResponse getDetailedMatchById(Long id);
 
-    void updateMatchDateAndDescription(Long matchId, @Valid MatchDateAndDescriptionRequest request);
+    NewDateResponse updateMatchDateAndDescription(Long matchId, @Valid MatchDateRequest request);
+
+    void updateMatchDescription(Long matchId, @Valid MatchDescriptionRequest request);
 }

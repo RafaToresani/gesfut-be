@@ -33,7 +33,7 @@ public class Player {
     @JsonBackReference
     private Team team;
 
-    @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, fetch =  FetchType.LAZY, orphanRemoval = true)
     private Set<PlayerParticipant> playerParticipants;
 
     private Boolean status;

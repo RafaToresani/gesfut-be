@@ -32,13 +32,13 @@ public class Tournament {
     @JsonBackReference
     private UserEntity user;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<TournamentParticipant> teams;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<MatchDay> matchDays;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, fetch =  FetchType.LAZY, orphanRemoval = true)
     private Set<Prize> prizes;
 }
 

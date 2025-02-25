@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,6 +53,7 @@ public class TournamentServiceImpl implements TournamentService {
     @Override
     public String createTournament(TournamentRequest request) {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        if(this.tournamentRepository.existsByNameAndUserId(request.name(), user.getId())) throw new ResourceAlreadyExistsException("Ya existe un torneo con ese nombre.");
         Tournament tournament = tournamentRepository.save(
             Tournament
                     .builder()
@@ -115,10 +117,10 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
-    public void initializeTournament(MatchDayRequest request){
+    public void initializeTournament(MatchDayRequest request, LocalDateTime startDate) {
         if(request.teams().size()%2 != 0) request.teams().add(getIdDummyParticipant());
         HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
-        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode());
+        matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate, request.minutesPerMatch(), request.dayBetweenMatchDay());
     }
 
 
@@ -188,11 +190,7 @@ public class TournamentServiceImpl implements TournamentService {
         if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         verifyTournamentBelongsToManager(tournament.get(), user);
         tournament.get().setIsActive(isActive);
-        if (isActive){
-            tournament.get().setIsFinished(false);
-        }else {
-            tournament.get().setIsFinished(true);
-        }
+
         this.tournamentRepository.save(tournament.get());
         return true;
     }
@@ -218,11 +216,14 @@ public class TournamentServiceImpl implements TournamentService {
                                     event.getId(),
                                     event.getQuantity(),
                                     event.getType(),
-                                    event.getPlayerParticipant().getPlayer().getName()
+                                    event.getPlayerParticipant().getPlayer().getName() + " " + event.getPlayerParticipant().getPlayer().getLastName(),
+                                    event.getPlayerParticipant().getPlayer().getTeam().getName(),
+                                    event.getPlayerParticipant().getId()
                                     )).toList(),
                             match.getIsFinished(),
-                            match.getDate(),
-                            match.getDescription()));
+                            match.formatMatchDate(match.getDate()),
+                            match.getDescription(),
+                            match.getMvpPlayer()));
                 }
             });
         });
@@ -259,7 +260,7 @@ public class TournamentServiceImpl implements TournamentService {
         List<TopYellowCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
             team.getPlayerParticipants().forEach(player -> {
-                if(player.getGoals() >= 1){
+                if(player.getYellowCards() >= 1){
                     response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getYellowCards()));
                 }
             });
@@ -276,7 +277,7 @@ public class TournamentServiceImpl implements TournamentService {
         List<TopRedCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
             team.getPlayerParticipants().forEach(player -> {
-                if(player.getGoals() >= 1){
+                if(player.getRedCards() >= 1){
                     response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getRedCards()));
                 }
             });

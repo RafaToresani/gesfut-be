@@ -1,10 +1,11 @@
 package com.gesfut.services.impl;
 
-import com.gesfut.dtos.requests.EventRequest;
-import com.gesfut.dtos.requests.MatchDateAndDescriptionRequest;
+import com.gesfut.dtos.requests.MatchDateRequest;
+import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
 import com.gesfut.dtos.responses.MatchDetailedResponse;
 import com.gesfut.dtos.responses.MatchResponse;
+import com.gesfut.dtos.responses.NewDateResponse;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.matchDay.EEventType;
 import com.gesfut.models.matchDay.Event;
@@ -87,6 +88,7 @@ public class MatchServiceImpl implements MatchService {
         if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
         return matchToResponse(match.get());
     }
+
 
     private void increasePlayerStats(Event event) {
         PlayerParticipant playerParticipant = event.getPlayerParticipant();
@@ -187,6 +189,18 @@ public class MatchServiceImpl implements MatchService {
             match.getAwayTeam().getStatistics().setPoints(match.getAwayTeam().getStatistics().getPoints() + 1);
         }
 
+        if (events.stream().anyMatch(event -> event.getType() == EEventType.MVP)){
+            match.setMvpPlayer(
+                    events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getNumber()
+                            + " - " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getName()
+                            + " " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getLastName()
+                            + " - " + events.stream().filter(event -> event.getType() == EEventType.MVP).findFirst().orElse(null).getPlayerParticipant().getPlayer().getTeam().getName()
+            );
+        }else {
+            match.setMvpPlayer(null);
+        }
+
+
         match.setIsFinished(true);
         this.statisticsRepository.save(match.getHomeTeam().getStatistics());
         this.statisticsRepository.save(match.getAwayTeam().getStatistics());
@@ -195,7 +209,8 @@ public class MatchServiceImpl implements MatchService {
 
 
     @Override
-    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams){
+    public void generateMatches(MatchDay matchDay, List<TournamentParticipant> teams, int numberOfTeams, LocalDateTime startDate, Integer durationMatch) {
+
         Set<Match> matches = new HashSet<>();
         for (int j = 0; j < numberOfTeams / 2; j++) {
             TournamentParticipant homeTeam = teams.get(j);
@@ -208,11 +223,24 @@ public class MatchServiceImpl implements MatchService {
                 .goalsHomeTeam(0)
                 .goalsAwayTeam(0)
                 .matchDay(matchDay)
-                .date(LocalDateTime.now())
-                .description("Complejo sin definir")
+                .date(startDate)
+                .description("1")
+                .mvpPlayer("")
                 .build();
             matchRepository.save(newMatch);
+            if(newMatch.formatMatchDate(newMatch.getDate()) == null) {
+                System.out.println("DATE NULL");
+                matchRepository.save(newMatch);
+            }
             matches.add(newMatch);
+            if (startDate != null) {
+                if(homeTeam.getTeam().getName().equals("Free") || awayTeam.getTeam().getName().equals("Free")){
+                    startDate = startDate.plusMinutes(0);
+                }else{
+                    startDate = startDate.plusMinutes(durationMatch);
+                    System.out.printf("DATE DAY: %s\n", startDate);
+                }
+            }
         }
     }
 
@@ -242,13 +270,41 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public void updateMatchDateAndDescription(Long matchId, MatchDateAndDescriptionRequest request) {
+    public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
+        Optional<Match> optMatch = this.matchRepository.findById(matchId);
+        //encontrar el ultimo partido de la jornada anterior
+        MatchDay matchDay = optMatch.get().getMatchDay();
+        matchDay.getTournament().getMatchDays().forEach(matchDay1 -> {
+            if(matchDay1.getNumberOfMatchDay() == matchDay.getNumberOfMatchDay() - 1){
+                Match lastMatch = matchDay1.getMatches().stream().reduce((first, second) -> second).orElse(null);
+                if(lastMatch != null){
+                    if(lastMatch.getDate().isAfter(request.localDateTime()) || lastMatch.getDate().isEqual(request.localDateTime())){
+                        throw new IllegalArgumentException("La fecha del partido no puede ser anterior al último partido de la jornada anterior");
+                    }
+                }
+            }
+        });
+
+
+        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
+
+        optMatch.get().setDate(request.localDateTime());
+        this.matchRepository.save(optMatch.get());
+
+        NewDateResponse response = new NewDateResponse(
+                optMatch.get().formatMatchDate(optMatch.get().getDate())
+        );
+
+        return  response;
+    }
+
+    @Override
+    public void updateMatchDescription(Long matchId, MatchDescriptionRequest request) {
         Optional<Match> optMatch = this.matchRepository.findById(matchId);
 
         if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
 
         optMatch.get().setDescription(request.description());
-        optMatch.get().setDate(request.localDateTime());
         this.matchRepository.save(optMatch.get());
     }
 
@@ -358,12 +414,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> this.eventService.eventToResponse(event)).toList(),
                 match.getIsFinished(),
-                match.getDate(),
-                match.getDescription()
+                match.formatMatchDate(match.getDate()),
+                match.getDescription(),
+                match.getMvpPlayer()
         );
     }
-
-
-
-
 }
