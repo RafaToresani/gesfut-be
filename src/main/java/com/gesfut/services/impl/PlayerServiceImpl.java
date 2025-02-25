@@ -23,6 +23,13 @@ public class PlayerServiceImpl implements PlayerService {
     @Override
     public Player createPlayer(PlayerRequest request, Team team)
     {
+        if(request.lastName() == null || request.name() == null || request.number() == null || request.isCaptain() == null || request.isGoalKeeper() == null){
+            throw new IllegalArgumentException("Todos los campos son obligatorios.");
+        }
+        if(request.lastName().isEmpty() || request.name().isEmpty()){
+            throw new IllegalArgumentException("Nombre y apellido no pueden estar vacios.");
+        }
+
       return playerRepository.save(Player.builder()
                 .name(request.name())
                 .lastName(request.lastName())
