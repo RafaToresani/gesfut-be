@@ -147,6 +147,7 @@ public class MatchDayServiceImpl implements MatchDayService {
                             .isFinished(false)
                             .matches(new HashSet<>())
                             .mvpPlayer(null)
+                            .isPlayOff(false)
                             .build());
             this.matchService.generateMatches(matchDay, teams, numberOfTeams, startDate, plusMinutes);
             if(startDate != null){
@@ -179,7 +180,7 @@ public class MatchDayServiceImpl implements MatchDayService {
         for (Match match : matchDay.getMatches()) {
             matches.add(this.matchService.matchToResponse(match));
         }
-        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(),matchDay.getMvpPlayer(), matches);
+        return new MatchDayResponse(matchDay.getId() ,matchDay.getNumberOfMatchDay(), matchDay.getIsFinished(),matchDay.getMvpPlayer(), matches, matchDay.getIsPlayOff());
     }
 
 
