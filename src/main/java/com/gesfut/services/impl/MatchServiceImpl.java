@@ -317,7 +317,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsHomeTeam(),
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> eventService.eventToResponse(event)).toList(),
-                match.getIsFinished()
+                match.getIsFinished(),
+                match.getVsMatchIdWhoWin()
         );
     }
 

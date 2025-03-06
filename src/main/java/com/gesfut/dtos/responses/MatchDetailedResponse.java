@@ -10,6 +10,7 @@ public record MatchDetailedResponse(
         Integer homeGoals,
         Integer awayGoals,
         List<EventResponse> events,
-        Boolean isFinished
+        Boolean isFinished,
+        Long vsMatchIdWhoWin
 ) {
 }
