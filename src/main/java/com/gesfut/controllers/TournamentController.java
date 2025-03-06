@@ -3,6 +3,7 @@ package com.gesfut.controllers;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.dtos.responses.*;
+import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.services.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -160,6 +161,14 @@ public class TournamentController {
         return this.tournamentService.changeIsActive(code, isActive);
     }
 
+
+    //generate playoffs
+    @PutMapping("/generate-playoffs/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void generatePlayOffs(@PathVariable("code")String code, @RequestBody List<Long> temasQualify){
+        this.tournamentService.generatePlayOffs(code, temasQualify);
+    }
 
 
 

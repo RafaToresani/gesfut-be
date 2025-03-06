@@ -33,4 +33,7 @@ public class MatchDay {
 
     private String mvpPlayer;
 
+    @Column (name = "play_off")
+    private Boolean isPlayOff;
+
 }

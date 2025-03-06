@@ -7,16 +7,20 @@ import com.gesfut.dtos.responses.*;
 import com.gesfut.exceptions.ResourceAlreadyExistsException;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.exceptions.TeamDisableException;
+import com.gesfut.models.matchDay.Match;
+import com.gesfut.models.matchDay.MatchDay;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.Statistics;
 import com.gesfut.models.tournament.Tournament;
 import com.gesfut.models.tournament.TournamentParticipant;
 import com.gesfut.models.user.UserEntity;
+import com.gesfut.repositories.MatchDayRepository;
 import com.gesfut.repositories.PlayerParticipantRepository;
 import com.gesfut.repositories.TournamentParticipantRepository;
 import com.gesfut.repositories.TournamentRepository;
 import com.gesfut.services.*;
+import org.antlr.v4.runtime.misc.LogManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,22 +54,25 @@ public class TournamentServiceImpl implements TournamentService {
     @Autowired
     private TournamentParticipantService participantService;
 
+    @Autowired
+    private MatchDayRepository matchDayRepository;
+
     @Override
     public String createTournament(TournamentRequest request) {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         if(this.tournamentRepository.existsByNameAndUserId(request.name(), user.getId())) throw new ResourceAlreadyExistsException("Ya existe un torneo con ese nombre.");
         Tournament tournament = tournamentRepository.save(
-            Tournament
-                    .builder()
-                    .code(getRandomUUID())
-                    .teams(new HashSet<>())
-                    .name(request.name())
-                    .user(user)
-                    .isFinished(false)
-                    .isActive(true)
-                    .startDate(LocalDate.now())
-                    .prizes(new HashSet<>())
-                    .build()
+                Tournament
+                        .builder()
+                        .code(getRandomUUID())
+                        .teams(new HashSet<>())
+                        .name(request.name())
+                        .user(user)
+                        .isFinished(false)
+                        .isActive(true)
+                        .startDate(LocalDate.now())
+                        .prizes(new HashSet<>())
+                        .build()
         );
         return tournament.getCode().toString();
     }
@@ -219,11 +226,13 @@ public class TournamentServiceImpl implements TournamentService {
                                     event.getPlayerParticipant().getPlayer().getName() + " " + event.getPlayerParticipant().getPlayer().getLastName(),
                                     event.getPlayerParticipant().getPlayer().getTeam().getName(),
                                     event.getPlayerParticipant().getId()
-                                    )).toList(),
+                            )).toList(),
                             match.getIsFinished(),
                             match.formatMatchDate(match.getDate()),
                             match.getDescription(),
-                            match.getMvpPlayer()));
+                            match.getMvpPlayer(),
+                            match.getVsMatchIdWhoWin()
+                            ));
                 }
             });
         });
@@ -286,6 +295,8 @@ public class TournamentServiceImpl implements TournamentService {
                 .sorted(Comparator.comparingInt(TopRedCardsResponse::redCards).reversed())
                 .collect(Collectors.toList());
     }
+
+
 
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
@@ -392,10 +403,10 @@ public class TournamentServiceImpl implements TournamentService {
 
 
     private UUID getRandomUUID(){
-       UUID code;
+        UUID code;
         do{
             code = UUID.randomUUID();
-       }while(this.tournamentRepository.existsByCode(code));
+        }while(this.tournamentRepository.existsByCode(code));
         return code;
     }
 
@@ -419,5 +430,183 @@ public class TournamentServiceImpl implements TournamentService {
                 .build();
     }
 
+    @Override
+    public void generatePlayOffs(String code, List<Long> qualifiedTeams) {
+        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        if(tournament.get().getMatchDays().stream().anyMatch(matchDay -> !matchDay.getIsFinished())) throw new RuntimeException("Hay jornadas sin cerrar.");
+        if (tournament.get().getMatchDays().stream().anyMatch(matchDay -> matchDay.getMatches().stream().anyMatch(match -> !match.getIsFinished()))) throw new RuntimeException("Hay partidos sin finalizar.");
+        Set<MatchDay> matchDays = tournament.get().getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).collect(Collectors.toSet());
+        MatchDay lastestMatchDay = matchDays.stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).orElseThrow(() -> new RuntimeException("No hay jornadas en el torneo."));
+        if (lastestMatchDay.getIsPlayOff()){
+            nextPlayOffs(tournament.get(), lastestMatchDay);
+        }else{
+            firstPlayOffs(tournament.get(), qualifiedTeams);
+        }
+    }
+
+    @Transactional
+    private void nextPlayOffs(Tournament tournament, MatchDay lastMatchDay){
+        MatchDay newMatchDay = MatchDay.builder()
+                .numberOfMatchDay(lastMatchDay.getNumberOfMatchDay() + 1)
+                .tournament(tournament)
+                .isFinished(false)
+                .matches(new HashSet<>())
+                .mvpPlayer(null)
+                .isPlayOff(true)
+                .build();
+
+        List<Match> matches = new ArrayList<>(lastMatchDay.getMatches().stream().toList());
+        matches.sort(Comparator.comparingLong(Match::getId));
+
+        for (int i = 0; i < matches.size(); i+=2){
+            Match match = matches.get(i);
+            TournamentParticipant winner = whoWin(match);
+
+            Match nextMatchfind = lastMatchDay.getMatches().stream()
+                    .filter(m -> m.getVsMatchIdWhoWin().equals(match.getId()))
+                    .findFirst()
+                    .get();
+            TournamentParticipant winnerNextMatch = whoWin(nextMatchfind);
+
+            System.out.printf("Winner del partido %s: %s\n", match.getId(), winner.getTeam().getName());
+            System.out.printf("Winner del partido %s: %s\n", nextMatchfind.getId(), winnerNextMatch.getTeam().getName());
+
+            Match newMatch = Match.builder()
+                    .homeTeam(winner)
+                    .awayTeam(winnerNextMatch)
+                    .goalsHomeTeam(0)
+                    .goalsAwayTeam(0)
+                    .isFinished(false)
+                    .matchDay(newMatchDay)
+                    .events(new ArrayList<>())
+                    .date(null)
+                    .description("1")
+                    .mvpPlayer(null)
+                    .build();
+            newMatchDay.getMatches().add(newMatch);
+        }
+        this.matchDayRepository.save(newMatchDay);
+        setNextMatchPlayOff(newMatchDay);
+        tournament.getMatchDays().add(newMatchDay);
+        this.tournamentRepository.save(tournament);
+    }
+
+    private void firstPlayOffs(Tournament tournament, List<Long> qualifiedTeams) {
+        List<TournamentParticipant> qualifiedParticipants = getQualifiedParticipants(tournament, qualifiedTeams);
+        sortParticipants(qualifiedParticipants);
+        validateQualifiedParticipants(qualifiedParticipants);
+        createPlayoffMatches(tournament, qualifiedParticipants);
+    }
+
+    private List<TournamentParticipant> getQualifiedParticipants(Tournament tournament, List<Long> qualifiedTeams) {
+        List<TournamentParticipant> qualifiedParticipants = new ArrayList<>();
+        tournament.getTeams().forEach(team -> {
+            if (qualifiedTeams.contains(team.getId())) {
+                qualifiedParticipants.add(team);
+            }
+        });
+        return qualifiedParticipants;
+    }
+
+    private void sortParticipants(List<TournamentParticipant> participants) {
+        System.out.printf("Equipos clasificados antes del ordenamiento:");
+        participants.forEach(team ->
+                System.out.printf("Equipo ID: %s, Puntos: %d\n",
+                        team.getTeam().getName(), team.getStatistics().getPoints()));
+
+        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
+                participant.getStatistics().getGoalsFor() - participant.getStatistics().getGoalsAgainst()).reversed());
+        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
+                participant.getStatistics().getGoalsFor()).reversed());
+        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
+                participant.getStatistics().getGoalsAgainst()));
+        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
+                participant.getStatistics().getPoints()).reversed());
+        participants.sort(Comparator.comparing((TournamentParticipant participant) ->
+                participant.getTeam().getName()));
+
+        System.out.println("Equipos clasificados después del ordenamiento:");
+        participants.forEach(team ->
+                System.out.printf("Equipo ID: %s, Puntos: %d\n",
+                        team.getTeam().getName(), team.getStatistics().getPoints()));
+    }
+
+    private void validateQualifiedParticipants(List<TournamentParticipant> participants) {
+        if (participants.isEmpty()) {
+            throw new RuntimeException("No hay equipos clasificados.");
+        }
+        if (participants.size() % 2 != 0) {
+            throw new RuntimeException("La cantidad de equipos clasificados no es par.");
+        }
+    }
+
+    private void createPlayoffMatches(Tournament tournament, List<TournamentParticipant> qualifiedParticipants) {
+        int lastMatchDay = tournament.getMatchDays().stream()
+                .map(MatchDay::getNumberOfMatchDay)
+                .max(Integer::compareTo)
+                .orElse(0);
+
+        MatchDay matchDay = MatchDay.builder()
+                .numberOfMatchDay(lastMatchDay + 1)
+                .tournament(tournament)
+                .isFinished(false)
+                .matches(new HashSet<>())
+                .mvpPlayer(null)
+                .isPlayOff(true)
+                .build();
+
+        for (int i = 0, j = qualifiedParticipants.size() - 1; i < j; i++, j--) {
+            Match match = Match.builder()
+                    .homeTeam(qualifiedParticipants.get(i))
+                    .awayTeam(qualifiedParticipants.get(j))
+                    .goalsHomeTeam(0)
+                    .goalsAwayTeam(0)
+                    .isFinished(false)
+                    .matchDay(matchDay)
+                    .events(new ArrayList<>())
+                    .date(null)
+                    .description("1")
+                    .mvpPlayer(null)
+                    .build();
+            matchDay.getMatches().add(match);
+        }
+        this.matchDayRepository.save(matchDay);
+        setNextMatchPlayOff(matchDay);
+        tournament.getMatchDays().add(matchDay);
+        this.tournamentRepository.save(tournament);
+    }
+
+    private void setNextMatchPlayOff(MatchDay matchDay) {
+        List<Match> matches = new ArrayList<>(matchDay.getMatches());
+        matches.sort(Comparator.comparingLong(Match::getId));
+
+        for (int i = 0; i < matches.size(); i += 2) {
+            if (i + 1 >= matches.size()) break;
+
+            Match match = matches.get(i);
+            Match nextMatch = matches.get(i + 1);
+
+            match.setVsMatchIdWhoWin(nextMatch.getId());
+            nextMatch.setVsMatchIdWhoWin(match.getId());
+
+            System.out.printf("Partido ID: %s, Equipo Local: %s, Equipo Visitante: %s, Next Match ID: %s\n",
+                    match.getId(), match.getHomeTeam().getTeam().getName(), match.getAwayTeam().getTeam().getName(), match.getVsMatchIdWhoWin());
+
+            System.out.printf("Partido ID: %s, Equipo Local: %s, Equipo Visitante: %s, Next Match ID: %s\n",
+                    nextMatch.getId(), nextMatch.getHomeTeam().getTeam().getName(), nextMatch.getAwayTeam().getTeam().getName(), nextMatch.getVsMatchIdWhoWin());
+        }
+    }
+
+
+    private TournamentParticipant whoWin(Match match){
+        if (match.getGoalsHomeTeam() > match.getGoalsAwayTeam()){
+            return match.getHomeTeam();
+        }else if (match.getGoalsHomeTeam() < match.getGoalsAwayTeam()){
+            return match.getAwayTeam();
+        }else{
+            return null;
+        }
+    }
 
 }

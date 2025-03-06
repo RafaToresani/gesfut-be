@@ -277,7 +277,7 @@ public class MatchServiceImpl implements MatchService {
         matchDay.getTournament().getMatchDays().forEach(matchDay1 -> {
             if(matchDay1.getNumberOfMatchDay() == matchDay.getNumberOfMatchDay() - 1){
                 Match lastMatch = matchDay1.getMatches().stream().reduce((first, second) -> second).orElse(null);
-                if(lastMatch != null){
+                if(lastMatch != null && lastMatch.getDate() != null){
                     if(lastMatch.getDate().isAfter(request.localDateTime()) || lastMatch.getDate().isEqual(request.localDateTime())){
                         throw new IllegalArgumentException("La fecha del partido no puede ser anterior al último partido de la jornada anterior");
                     }
@@ -317,7 +317,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsHomeTeam(),
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> eventService.eventToResponse(event)).toList(),
-                match.getIsFinished()
+                match.getIsFinished(),
+                match.getVsMatchIdWhoWin()
         );
     }
 
@@ -416,7 +417,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getIsFinished(),
                 match.formatMatchDate(match.getDate()),
                 match.getDescription(),
-                match.getMvpPlayer()
+                match.getMvpPlayer(),
+                match.getVsMatchIdWhoWin()
         );
     }
 }

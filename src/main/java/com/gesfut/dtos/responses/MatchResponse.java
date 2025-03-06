@@ -14,6 +14,6 @@ public record MatchResponse(
         Boolean isFinished,
         String dateTime,
         String description,
-        String mvpPlayer
-
+        String mvpPlayer,
+        Long vsMatchIdWhoWin
         ) { }

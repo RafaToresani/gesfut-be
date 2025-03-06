@@ -7,6 +7,7 @@ public record MatchDayResponse(
         Integer numberOfMatchDay,
         Boolean isFinished,
         String mvpPlayer,
-        List<MatchResponse> matches
+        List<MatchResponse> matches,
+        Boolean isPlayOff
 ) {
 }

@@ -49,4 +49,6 @@ public interface TournamentService {
     List<TopYellowCardsResponse> findTopYellowCardsByTournament(String code);
 
     List<TopRedCardsResponse> findTopRedCardsByTournament(String code);
+
+    void generatePlayOffs(String code, List<Long> temasQualify);
 }

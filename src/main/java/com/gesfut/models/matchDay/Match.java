@@ -59,6 +59,11 @@ public class Match {
         return date.format(formatter);
     }
 
+    @Column(name = "nextMatch")
+    private Long vsMatchIdWhoWin;
 
 
+    public Match get() {
+        return this;
+    }
 }
