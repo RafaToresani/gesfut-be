@@ -83,12 +83,14 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TeamResponse getTeamById(Long id) {
         Team team = teamById(id);
         return teamToResponse(team);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TeamResponse> getAllTeams() {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         List<Team> teams = this.teamRepository.findAllByUser(user);
@@ -137,6 +139,7 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
         return this.tournamentParticipantService.getTeamTournamentsParticipations(id);
     }
@@ -152,6 +155,7 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam) {
         Optional<Team> teamFound = this.teamRepository.findById(idTeam);
         if (teamFound.isEmpty()) {

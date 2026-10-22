@@ -152,6 +152,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void updateStatusMatchDay(Long id, Boolean status, String playerMvP) {
         Optional<MatchDay> matchDayOpt = this.matchDayRepository.findById(id);
 

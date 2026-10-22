@@ -81,11 +81,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
-    public List<TournamentResponse> findAllTournaments() {
-        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponse(tournament)).toList();
-    }
-    @Override
+    @Transactional(readOnly = true)
     public List<TournamentShortResponse> findAllTournamentsShortAll() {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         return this.tournamentRepository.findAllByUser(user).stream().map(tournament -> tournamentToResponseShort(tournament)).toList();
