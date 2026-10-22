@@ -2,6 +2,8 @@ package com.gesfut.dtos.requests;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,12 +13,13 @@ public record MatchDayRequest (
         @NotBlank(message = "El código del torneo es requerido")
         String tournamentCode,
 
-        @Size(min = 1, message = "Debe haber al menos 4 equipos")
-        List<Long> teams,
+        @NotNull(message = "Los equipos son requeridos")
+        @Size(min = 1, message = "Debe seleccionar al menos un equipo")
+        List<@NotNull @Positive Long> teams,
 
         LocalDateTime startDate,
 
-        Integer minutesPerMatch,
+        @Positive(message = "La duración debe ser positiva") Integer minutesPerMatch,
 
-        Integer dayBetweenMatchDay
+        @Positive(message = "El intervalo debe ser positivo") Integer dayBetweenMatchDay
     ){}

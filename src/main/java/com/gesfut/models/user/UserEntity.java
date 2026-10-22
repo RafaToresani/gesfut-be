@@ -26,6 +26,7 @@ public class UserEntity implements UserDetails {
     private String resetToken;
     @Column(name = "reset_token_expiration")
     private LocalDateTime resetTokenExpiration;
+    @Builder.Default
     private Boolean emailVerified = false;
 
     @Id

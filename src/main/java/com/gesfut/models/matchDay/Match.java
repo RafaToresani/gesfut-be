@@ -62,6 +62,8 @@ public class Match {
     @Column(name = "nextMatch")
     private Long vsMatchIdWhoWin;
 
+    private Long tiebreakWinnerId;
+
 
     public Match get() {
         return this;

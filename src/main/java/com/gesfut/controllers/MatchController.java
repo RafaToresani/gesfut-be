@@ -59,7 +59,7 @@ public class MatchController {
     @PatchMapping("/update-date/{matchId}")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public NewDateResponse updateMatchDateAndDescription(@Valid @RequestBody MatchDateRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
+    public NewDateResponse updateMatchDateAndDescription(@Valid @RequestBody MatchDateRequest request, BindingResult bindingResult, @PathVariable Long matchId ) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         return this.matchService.updateMatchDateAndDescription(matchId, request);
     }
@@ -67,7 +67,7 @@ public class MatchController {
     @PatchMapping("/update-description/{matchId}")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void updateMatchDescription(@Valid @RequestBody MatchDescriptionRequest request, @PathVariable Long matchId, BindingResult bindingResult ) throws BadRequestException {
+    public void updateMatchDescription(@Valid @RequestBody MatchDescriptionRequest request, BindingResult bindingResult, @PathVariable Long matchId ) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
         this.matchService.updateMatchDescription(matchId, request);
     }

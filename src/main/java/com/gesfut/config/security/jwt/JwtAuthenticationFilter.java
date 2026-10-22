@@ -36,7 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        email = jwtService.getUsernameFromToken(token);
+        try {
+            email = jwtService.getUsernameFromToken(token);
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            // Token vencido o inválido: se continúa como anónimo.
+            // Los endpoints públicos responden normal y los protegidos devuelven 401/403.
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if(email != null && SecurityContextHolder.getContext().getAuthentication() == null){
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
