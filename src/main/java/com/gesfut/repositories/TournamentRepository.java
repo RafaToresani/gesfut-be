@@ -22,6 +22,12 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
 
     Optional<Tournament> findByCode(UUID uuid);
 
+    // Lecturas públicas: trae usuario y participantes en una sola consulta.
+    // Las colecciones anidadas (fechas, partidos, eventos) se cargan en lotes (hibernate.default_batch_fetch_size).
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"user", "teams", "teams.team", "teams.statistics"})
+    @Query("SELECT t FROM Tournament t WHERE t.code = :code")
+    Optional<Tournament> findDetailedByCode(@org.springframework.data.repository.query.Param("code") UUID code);
+
     @Modifying
     @Query("DELETE FROM Tournament t WHERE t.code = :code")
     void deleteByCode(UUID code);

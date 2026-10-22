@@ -11,6 +11,8 @@ public record MatchDetailedResponse(
         Integer awayGoals,
         List<EventResponse> events,
         Boolean isFinished,
-        Long vsMatchIdWhoWin
+        Long vsMatchIdWhoWin,
+        Long tiebreakWinnerId,
+        Boolean isPlayOff
 ) {
 }

@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface MatchDayRepository extends JpaRepository<MatchDay, Long> {
+    Optional<MatchDay> findByTournament_IdAndNumberOfMatchDay(Long tournamentId, Integer number);
     void deleteAllByTournamentCodeAndIsFinished(UUID code, boolean isFinished);
     List<MatchDay> findAllByTournamentCode(UUID code);
     Optional<MatchDay> findTopByTournament_CodeAndIsFinishedOrderByNumberOfMatchDayDesc(UUID code, boolean isFinished);

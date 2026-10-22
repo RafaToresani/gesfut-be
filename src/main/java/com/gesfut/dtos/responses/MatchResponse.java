@@ -15,5 +15,6 @@ public record MatchResponse(
         String dateTime,
         String description,
         String mvpPlayer,
-        Long vsMatchIdWhoWin
+        Long vsMatchIdWhoWin,
+        Long tiebreakWinnerId
         ) { }

@@ -25,8 +25,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 public class TournamentParticipantServiceImpl implements TournamentParticipantService {
 
+    @Autowired
+    private TournamentAccess access;
     @Autowired
     private TournamentParticipantRepository participantRepository;
     @Autowired
@@ -91,6 +94,8 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         Optional<PlayerParticipant> optPlayer = this.playerParticipantRepository.findById(idParticipantPlayer);
         if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El id del participante no existe.");
 
+        access.requireOwner(optPlayer.get().getTournamentParticipant().getTournament());
+        if (status == null) throw new IllegalArgumentException("El estado es requerido.");
         if (status){
             if (!optPlayer.get().getPlayer().getStatus()){
                 optPlayer.get().getPlayer().setStatus(status);
@@ -122,9 +127,11 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     public ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player) {
         Optional<Tournament> optTournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(optTournament.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
+        access.requireOwner(optTournament.get());
 
         Optional<TournamentParticipant> optParticipant = this.participantRepository.findById(teamIdParticipant);
         if(optParticipant.isEmpty()) throw new ResourceNotFoundException("El participante no existe.");
+        if (!Objects.equals(optParticipant.get().getTournament().getId(), optTournament.get().getId()) || !Objects.equals(player.getTeam().getId(), optParticipant.get().getTeam().getId())) throw new IllegalArgumentException("El jugador o participante no pertenece al equipo y torneo indicado.");
         if (verifyPlayer(optParticipant.get().getPlayerParticipants(), player)) {
             throw new ResourceAlreadyExistsException("Ese jugador ya está jugando este torneo.");
         }
@@ -143,11 +150,13 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ParticipantResponse> getParticipants(String code) {
         return participantsToResponse(this.participantRepository.findAllByTournamentCode(UUID.fromString(code)));
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ParticipantResponse getOneParticipants(Long teamId) {
         return participantToResponse(this.participantRepository.findById(teamId).orElse(null));
     }

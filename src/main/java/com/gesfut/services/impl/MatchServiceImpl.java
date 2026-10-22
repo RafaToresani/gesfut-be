@@ -21,13 +21,17 @@ import com.gesfut.services.TournamentParticipantService;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
 public class MatchServiceImpl implements MatchService {
 
+    @Autowired
+    private TournamentAccess access;
     @Autowired
     private MatchRepository matchRepository;
     @Autowired
@@ -46,16 +50,18 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
-        Match match = this.getMatch(request.matchId());
+        Match match = getWritableMatch(request.matchId());
+        validateResult(request, match);
 
         long mvpCount = request.events().stream()
                 .filter(event -> event.type() == EEventType.MVP)
                 .count();
         if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
+        if (Boolean.TRUE.equals(match.getMatchDay().getIsFinished())) throw new IllegalArgumentException("La jornada está cerrada.");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
 
-        this.clearPlayerSuspensions(match);
+        // Las sanciones se reconstruyen cronológicamente después de guardar.
 
         request.events().forEach(eventRequest -> {
             Event event = this.eventService.createEvent(eventRequest,match);
@@ -63,7 +69,9 @@ public class MatchServiceImpl implements MatchService {
             increaseTournamentParticipantStats(event);
             events.add(event);
         });
+        match.setTiebreakWinnerId(request.tiebreakWinnerId());
         closeMatch(events,match);
+        rebuildDiscipline(match);
         return "Partido cargado";
     }
 
@@ -246,7 +254,8 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public void updateMatchResult(MatchRequest request) throws BadRequestException {
-        Match match = getMatch(request.matchId());
+        Match match = getWritableMatch(request.matchId());
+        validateResult(request, match);
         long mvpCount = request.events().stream()
                 .filter(event -> event.type() == EEventType.MVP)
                 .count();
@@ -259,6 +268,9 @@ public class MatchServiceImpl implements MatchService {
         * Actualizar las statistics de los equipos
         * Actualizar las tabla jugadoresxequipoxtorneo*/
 
+        if (match.getMatchDay().getTournament().getMatchDays().stream().anyMatch(day -> day.getNumberOfMatchDay() > match.getMatchDay().getNumberOfMatchDay() && Boolean.TRUE.equals(day.getIsPlayOff()))) {
+            throw new BadRequestException("No se puede cambiar un resultado después de generar la siguiente ronda.");
+        }
         deleteAllRelationsFromMatch(match);
         loadMatchResult(request);
     }
@@ -271,41 +283,24 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
-        Optional<Match> optMatch = this.matchRepository.findById(matchId);
-        //encontrar el ultimo partido de la jornada anterior
-        MatchDay matchDay = optMatch.get().getMatchDay();
-        matchDay.getTournament().getMatchDays().forEach(matchDay1 -> {
-            if(matchDay1.getNumberOfMatchDay() == matchDay.getNumberOfMatchDay() - 1){
-                Match lastMatch = matchDay1.getMatches().stream().reduce((first, second) -> second).orElse(null);
-                if(lastMatch != null && lastMatch.getDate() != null){
-                    if(lastMatch.getDate().isAfter(request.localDateTime()) || lastMatch.getDate().isEqual(request.localDateTime())){
-                        throw new IllegalArgumentException("La fecha del partido no puede ser anterior al último partido de la jornada anterior");
-                    }
-                }
-            }
-        });
-
-
-        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
-
-        optMatch.get().setDate(request.localDateTime());
-        this.matchRepository.save(optMatch.get());
-
-        NewDateResponse response = new NewDateResponse(
-                optMatch.get().formatMatchDate(optMatch.get().getDate())
-        );
-
-        return  response;
+        Match match = getWritableMatch(matchId);
+        if (request.localDateTime() == null) throw new IllegalArgumentException("La fecha es requerida.");
+        match.getMatchDay().getTournament().getMatchDays().stream()
+            .filter(day -> day.getNumberOfMatchDay() == match.getMatchDay().getNumberOfMatchDay() - 1)
+            .flatMap(day -> day.getMatches().stream()).map(Match::getDate).filter(Objects::nonNull)
+            .max(Comparator.naturalOrder()).ifPresent(last -> {
+                if (!request.localDateTime().isAfter(last)) throw new IllegalArgumentException("La fecha debe ser posterior a la jornada anterior.");
+            });
+        match.setDate(request.localDateTime());
+        matchRepository.save(match);
+        return new NewDateResponse(match.formatMatchDate(match.getDate()));
     }
 
     @Override
     public void updateMatchDescription(Long matchId, MatchDescriptionRequest request) {
-        Optional<Match> optMatch = this.matchRepository.findById(matchId);
-
-        if(optMatch.isEmpty()) throw new ResourceNotFoundException("Partido no encontrado");
-
-        optMatch.get().setDescription(request.description());
-        this.matchRepository.save(optMatch.get());
+        Match match = getWritableMatch(matchId);
+        match.setDescription(request.description());
+        matchRepository.save(match);
     }
 
     private MatchDetailedResponse matchDetailedToResponse(Match match) {
@@ -318,7 +313,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getGoalsAwayTeam(),
                 match.getEvents().stream().map(event -> eventService.eventToResponse(event)).toList(),
                 match.getIsFinished(),
-                match.getVsMatchIdWhoWin()
+                match.getVsMatchIdWhoWin(),
+                match.getTiebreakWinnerId(),
+                Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff())
         );
     }
 
@@ -333,6 +330,7 @@ public class MatchServiceImpl implements MatchService {
         match.setGoalsHomeTeam(0);
         match.setGoalsAwayTeam(0);
         match.getEvents().clear();
+        eventRepository.flush();
     }
 
     private void decreasePlayerStats(Event event) {
@@ -418,7 +416,75 @@ public class MatchServiceImpl implements MatchService {
                 match.formatMatchDate(match.getDate()),
                 match.getDescription(),
                 match.getMvpPlayer(),
-                match.getVsMatchIdWhoWin()
+                match.getVsMatchIdWhoWin(),
+                match.getTiebreakWinnerId()
         );
     }
+
+    private Match getWritableMatch(Long id) {
+        Match match = matchRepository.findForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("El partido no existe."));
+        access.requireOwner(match.getMatchDay().getTournament());
+        return match;
+    }
+
+    private void validateResult(MatchRequest request, Match match) {
+        if (request.events() == null) throw new IllegalArgumentException("Los eventos son requeridos.");
+        int homeGoals = 0, awayGoals = 0;
+        Set<String> keys = new HashSet<>();
+        int mvps = 0;
+        for (var event : request.events()) {
+            if (event == null || event.type() == null || event.quantity() == null || event.quantity() <= 0 || event.playerParticipantId() == null)
+                throw new IllegalArgumentException("Evento inválido.");
+            var player = playerParticipantRepository.findByIdAndTournamentParticipantIn(event.playerParticipantId(), List.of(match.getHomeTeam(), match.getAwayTeam()))
+                .orElseThrow(() -> new ResourceNotFoundException("El jugador no pertenece al partido."));
+            if (!keys.add(player.getId() + ":" + event.type())) throw new IllegalArgumentException("Hay eventos duplicados para un jugador.");
+            if (event.type() == EEventType.MVP && (event.quantity() != 1 || ++mvps > 1)) throw new IllegalArgumentException("Debe haber como máximo un MVP.");
+            if (event.type() == EEventType.RED_CARD && event.quantity() > 1 || event.type() == EEventType.YELLOW_CARD && event.quantity() > 2)
+                throw new IllegalArgumentException("Cantidad de tarjetas inválida.");
+            if (event.type() == EEventType.GOAL) {
+                if (Objects.equals(player.getTournamentParticipant().getId(), match.getHomeTeam().getId())) homeGoals += event.quantity();
+                else awayGoals += event.quantity();
+            }
+        }
+        Long winner = request.tiebreakWinnerId();
+        if (winner != null && (!Objects.equals(winner, match.getHomeTeam().getId()) && !Objects.equals(winner, match.getAwayTeam().getId())))
+            throw new IllegalArgumentException("El ganador del desempate debe participar en el partido.");
+        boolean playoff = Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff());
+        if (playoff && homeGoals == awayGoals && winner == null)
+            throw new IllegalArgumentException("Seleccioná el ganador del desempate para cerrar el cruce.");
+        if (winner != null && (!playoff || homeGoals != awayGoals))
+            throw new IllegalArgumentException("El desempate solo corresponde a un cruce empatado.");
+    }
+
+    private void rebuildDiscipline(Match changedMatch) {
+        var tournament = changedMatch.getMatchDay().getTournament();
+        List<Match> matches = tournament.getMatchDays().stream().flatMap(day -> day.getMatches().stream())
+            .filter(m -> Boolean.TRUE.equals(m.getIsFinished()))
+            .sorted(Comparator.comparingInt((Match m) -> m.getMatchDay().getNumberOfMatchDay()).thenComparing(Match::getId)).toList();
+        Map<Long, List<Event>> eventMap = new HashMap<>();
+        matches.forEach(m -> eventMap.put(m.getId(), eventRepository.findAllByMatchId(m.getId())));
+        for (var participant : tournament.getTeams()) {
+            for (var player : participant.getPlayerParticipants()) {
+                int consecutive = 0;
+                boolean suspended = false;
+                for (Match m : matches) {
+                    if (!Objects.equals(m.getHomeTeam().getId(), participant.getId()) && !Objects.equals(m.getAwayTeam().getId(), participant.getId())) continue;
+                    if (m.getHomeTeam().getTeam().getName().equals("Free") || m.getAwayTeam().getTeam().getName().equals("Free")) continue;
+                    suspended = false; // Esta participación cumple la suspensión anterior.
+                    int yellows = 0, reds = 0;
+                    for (Event e : eventMap.get(m.getId())) {
+                        if (!Objects.equals(e.getPlayerParticipant().getId(), player.getId())) continue;
+                        if (e.getType() == EEventType.YELLOW_CARD) yellows += e.getQuantity();
+                        if (e.getType() == EEventType.RED_CARD) reds += e.getQuantity();
+                    }
+                    consecutive += yellows;
+                    if (reds > 0 || consecutive >= 2) { suspended = true; consecutive = 0; }
+                }
+                player.setConsecutiveCards(consecutive);
+                player.setIsSuspended(suspended);
+                playerParticipantRepository.save(player);
+            }
+        }
+    }
+
 }

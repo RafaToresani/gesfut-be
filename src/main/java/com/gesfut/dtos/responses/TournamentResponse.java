@@ -12,6 +12,8 @@ public record TournamentResponse(
         Boolean isFinished,
         Boolean haveParticipants,
         List<ParticipantResponse> participants,
-        List<MatchDayResponse> matchDays
+        List<MatchDayResponse> matchDays,
+        Long championOfLeagueId,
+        Long championOfPlayoffsId
 ) {
 }

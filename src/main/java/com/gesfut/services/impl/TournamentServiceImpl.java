@@ -32,8 +32,11 @@ import java.util.stream.Collectors;
 
 
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class TournamentServiceImpl implements TournamentService {
 
+    @Autowired
+    private TournamentAccess access;
     @Autowired
     private TournamentRepository tournamentRepository;
 
@@ -89,6 +92,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public TournamentShortResponse findAllTournamentsShort(String tournamentCode) {
         return this.tournamentRepository.findByCode(UUID.fromString(tournamentCode))
                 .map(this::tournamentToResponseShort)
@@ -97,8 +101,9 @@ public class TournamentServiceImpl implements TournamentService {
 
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public TournamentResponse findTournamentByCode(String code) {
-        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
 
         return tournamentToResponse(tournament.get());
@@ -125,6 +130,10 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public void initializeTournament(MatchDayRequest request, LocalDateTime startDate) {
+        if (request.teams() == null || request.teams().size() < 2 || new HashSet<>(request.teams()).size() != request.teams().size())
+            throw new IllegalArgumentException("Seleccioná al menos dos equipos distintos.");
+        if (request.startDate() != null && (request.minutesPerMatch() == null || request.dayBetweenMatchDay() == null))
+            throw new IllegalArgumentException("Indicá duración e intervalo para programar las fechas.");
         if(request.teams().size()%2 != 0) request.teams().add(getIdDummyParticipant());
         HashSet<TournamentParticipant> tournamentParticipants = addTeamsToTournament(request.tournamentCode(), request.teams());
         matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate, request.minutesPerMatch(), request.dayBetweenMatchDay());
@@ -146,19 +155,25 @@ public class TournamentServiceImpl implements TournamentService {
             addTeamToTournament(team, tournament.get());
         });
 
-        return (HashSet<TournamentParticipant>) this.participantRepository.findAllByTournament(tournament.get());
+        return new HashSet<>(this.participantRepository.findAllByTournament(tournament.get()));
     }
 
     @Override
     public void updateTournamentParticipants(MatchDayRequest request) {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(request.tournamentCode()));
         if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        access.requireOwner(tournament.get());
+        if (tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsPlayOff()) || (!Boolean.TRUE.equals(day.getIsFinished()) && day.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished())))))
+            throw new IllegalArgumentException("Cerrá las jornadas con resultados antes de agregar equipos. No se pueden agregar equipos durante los playoffs.");
+        if (request.teams() == null || request.teams().isEmpty() || new HashSet<>(request.teams()).size() != request.teams().size())
+            throw new IllegalArgumentException("Seleccioná equipos distintos.");
         List<TournamentParticipant> tournamentParticipants = tournament.get().getTeams().stream().toList();
 
         boolean isOdd = tournamentParticipants.stream()
                 .anyMatch(particpant -> particpant.getTeam().getName().equals("Free"));
 
-        if (isOdd){
+        boolean hasHistory = tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsFinished()));
+        if (isOdd && !hasHistory){
             Long id =  replaceFreeParticipant(request.teams().get(0),tournamentParticipants);
             request.teams().remove(id);
         }
@@ -166,12 +181,16 @@ public class TournamentServiceImpl implements TournamentService {
         addTeamsToTournament(request.tournamentCode(), request.teams());
         tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
 
-        if (tournamentParticipants.size()%2 != 0) {
-            addTeamToTournament(getIdDummyParticipant(), tournament.get());
-            tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
+        List<TournamentParticipant> realTeams = new ArrayList<>(tournamentParticipants.stream().filter(p -> !p.getTeam().getName().equals("Free")).toList());
+        if (realTeams.size() % 2 != 0) {
+            var free = tournamentParticipants.stream().filter(p -> p.getTeam().getName().equals("Free")).findFirst();
+            if (free.isEmpty()) {
+                addTeamToTournament(getIdDummyParticipant(), tournament.get());
+                free = participantRepository.findAllByTournament(tournament.get()).stream().filter(p -> p.getTeam().getName().equals("Free")).findFirst();
+            }
+            realTeams.add(free.orElseThrow());
         }
-
-        matchDayService.reGenerateMatchDays(tournamentParticipants, request.tournamentCode());
+        matchDayService.reGenerateMatchDays(realTeams, request.tournamentCode());
     }
 
     @Override
@@ -203,6 +222,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<MatchResponse> findMatchesByTournamentAndParticipant(String code, Long idParticipant){
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
@@ -231,7 +251,8 @@ public class TournamentServiceImpl implements TournamentService {
                             match.formatMatchDate(match.getDate()),
                             match.getDescription(),
                             match.getMvpPlayer(),
-                            match.getVsMatchIdWhoWin()
+                            match.getVsMatchIdWhoWin(),
+                            match.getTiebreakWinnerId()
                             ));
                 }
             });
@@ -246,8 +267,9 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<TopScorersResponse> findTopScorersByTournament(String code) {
-        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopScorersResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
@@ -263,8 +285,9 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<TopYellowCardsResponse> findTopYellowCardsByTournament(String code) {
-        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopYellowCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
@@ -280,8 +303,9 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<TopRedCardsResponse> findTopRedCardsByTournament(String code) {
-        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
+        Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopRedCardsResponse> response = new ArrayList<>();
         tournament.get().getTeams().forEach(team -> {
@@ -375,6 +399,22 @@ public class TournamentServiceImpl implements TournamentService {
 
 
     public TournamentResponse tournamentToResponse(Tournament tournament){
+        List<TournamentParticipant> ranked = new ArrayList<>(tournament.getTeams().stream().filter(p -> !p.getTeam().getName().equals("Free")).toList());
+        sortParticipants(ranked);
+        List<ParticipantResponse> leagueParticipants = ranked.stream().map(p -> {
+            ParticipantResponse response = participantService.participantToResponse(p);
+            return new ParticipantResponse(response.idParticipant(), response.idTeam(), response.name(), response.isActive(), leagueStatistics(p), response.playerParticipants());
+        }).toList();
+        List<MatchDay> leagueDays = tournament.getMatchDays().stream().filter(day -> !Boolean.TRUE.equals(day.getIsPlayOff())).toList();
+        Long leagueChampion = !ranked.isEmpty() && !leagueDays.isEmpty() && leagueDays.stream().allMatch(day -> Boolean.TRUE.equals(day.getIsFinished())) ? ranked.getFirst().getId() : null;
+        Long playoffChampion = null;
+        var lastDay = tournament.getMatchDays().stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay));
+        if (lastDay.isPresent() && Boolean.TRUE.equals(lastDay.get().getIsPlayOff()) && Boolean.TRUE.equals(lastDay.get().getIsFinished()) && lastDay.get().getMatches().size() == 1) {
+            Match finalMatch = lastDay.get().getMatches().iterator().next();
+            if (Boolean.TRUE.equals(finalMatch.getIsFinished())) {
+                if (!Objects.equals(finalMatch.getGoalsHomeTeam(), finalMatch.getGoalsAwayTeam()) || finalMatch.getTiebreakWinnerId() != null) playoffChampion = whoWin(finalMatch).getId();
+            }
+        }
         return new TournamentResponse(
                 tournament.getName(),
                 tournament.getCode().toString(),
@@ -382,8 +422,10 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getUser().getName() + " " + tournament.getUser().getLastname(),
                 tournament.getIsFinished(),
                 !tournament.getTeams().isEmpty(),
-                this.participantService.participantsToResponse(tournament.getTeams()),
-                tournament.getMatchDays().stream().map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList())
+                leagueParticipants,
+                tournament.getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList()),
+                leagueChampion,
+                playoffChampion
         );
     }
 
@@ -411,7 +453,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     private void verifyTournamentBelongsToManager(Tournament tournament, UserEntity user){
-        if(!tournament.getUser().equals(user)) throw new RuntimeException("El torneo no pertenece a este usuario.");
+        access.requireOwner(tournament);
     }
 
 
@@ -434,11 +476,12 @@ public class TournamentServiceImpl implements TournamentService {
     public void generatePlayOffs(String code, List<Long> qualifiedTeams) {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
+        access.requireOwner(tournament.get());
         if(tournament.get().getMatchDays().stream().anyMatch(matchDay -> !matchDay.getIsFinished())) throw new RuntimeException("Hay jornadas sin cerrar.");
         if (tournament.get().getMatchDays().stream().anyMatch(matchDay -> matchDay.getMatches().stream().anyMatch(match -> !match.getIsFinished()))) throw new RuntimeException("Hay partidos sin finalizar.");
         Set<MatchDay> matchDays = tournament.get().getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).collect(Collectors.toSet());
         MatchDay lastestMatchDay = matchDays.stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).orElseThrow(() -> new RuntimeException("No hay jornadas en el torneo."));
-        if (lastestMatchDay.getIsPlayOff()){
+        if (Boolean.TRUE.equals(lastestMatchDay.getIsPlayOff())){
             nextPlayOffs(tournament.get(), lastestMatchDay);
         }else{
             firstPlayOffs(tournament.get(), qualifiedTeams);
@@ -447,6 +490,8 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Transactional
     private void nextPlayOffs(Tournament tournament, MatchDay lastMatchDay){
+        if (lastMatchDay.getMatches().size() <= 1) throw new IllegalArgumentException("La final ya fue disputada; no hay otra ronda.");
+        if (lastMatchDay.getMatches().size() % 2 != 0) throw new IllegalArgumentException("La ronda anterior no tiene un cuadro válido.");
         MatchDay newMatchDay = MatchDay.builder()
                 .numberOfMatchDay(lastMatchDay.getNumberOfMatchDay() + 1)
                 .tournament(tournament)
@@ -464,9 +509,9 @@ public class TournamentServiceImpl implements TournamentService {
             TournamentParticipant winner = whoWin(match);
 
             Match nextMatchfind = lastMatchDay.getMatches().stream()
-                    .filter(m -> m.getVsMatchIdWhoWin().equals(match.getId()))
+                    .filter(m -> Objects.equals(m.getVsMatchIdWhoWin(), match.getId()))
                     .findFirst()
-                    .get();
+                    .orElseThrow(() -> new IllegalArgumentException("El cuadro de cruces no tiene una pareja válida."));
             TournamentParticipant winnerNextMatch = whoWin(nextMatchfind);
 
             System.out.printf("Winner del partido %s: %s\n", match.getId(), winner.getTeam().getName());
@@ -489,11 +534,16 @@ public class TournamentServiceImpl implements TournamentService {
         this.matchDayRepository.save(newMatchDay);
         setNextMatchPlayOff(newMatchDay);
         tournament.getMatchDays().add(newMatchDay);
+        tournament.setIsFinished(false);
         this.tournamentRepository.save(tournament);
     }
 
     private void firstPlayOffs(Tournament tournament, List<Long> qualifiedTeams) {
+        if (qualifiedTeams == null || qualifiedTeams.isEmpty() || new HashSet<>(qualifiedTeams).size() != qualifiedTeams.size())
+            throw new IllegalArgumentException("Seleccioná equipos distintos para los cruces.");
         List<TournamentParticipant> qualifiedParticipants = getQualifiedParticipants(tournament, qualifiedTeams);
+        if (qualifiedParticipants.size() != qualifiedTeams.size() || qualifiedParticipants.stream().anyMatch(p -> p.getTeam().getName().equals("Free")))
+            throw new IllegalArgumentException("Hay participantes que no pertenecen al torneo o son fechas libres.");
         sortParticipants(qualifiedParticipants);
         validateQualifiedParticipants(qualifiedParticipants);
         createPlayoffMatches(tournament, qualifiedParticipants);
@@ -510,34 +560,35 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     private void sortParticipants(List<TournamentParticipant> participants) {
-        System.out.printf("Equipos clasificados antes del ordenamiento:");
-        participants.forEach(team ->
-                System.out.printf("Equipo ID: %s, Puntos: %d\n",
-                        team.getTeam().getName(), team.getStatistics().getPoints()));
+        participants.sort(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).points()).reversed()
+            .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).goalsFor() - leagueStatistics(p).goalsAgainst()).reversed())
+            .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).goalsFor()).reversed())
+            .thenComparing(p -> p.getTeam().getName(), String.CASE_INSENSITIVE_ORDER).thenComparing(TournamentParticipant::getId));
+    }
 
-        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
-                participant.getStatistics().getGoalsFor() - participant.getStatistics().getGoalsAgainst()).reversed());
-        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
-                participant.getStatistics().getGoalsFor()).reversed());
-        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
-                participant.getStatistics().getGoalsAgainst()));
-        participants.sort(Comparator.comparingInt((TournamentParticipant participant) ->
-                participant.getStatistics().getPoints()).reversed());
-        participants.sort(Comparator.comparing((TournamentParticipant participant) ->
-                participant.getTeam().getName()));
-
-        System.out.println("Equipos clasificados después del ordenamiento:");
-        participants.forEach(team ->
-                System.out.printf("Equipo ID: %s, Puntos: %d\n",
-                        team.getTeam().getName(), team.getStatistics().getPoints()));
+    private StatisticsResponse leagueStatistics(TournamentParticipant p) {
+        int played=0, wins=0, draws=0, losses=0, goalsFor=0, goalsAgainst=0;
+        for (MatchDay day : p.getTournament().getMatchDays()) {
+            if (Boolean.TRUE.equals(day.getIsPlayOff())) continue;
+            for (Match m : day.getMatches()) {
+                if (!Boolean.TRUE.equals(m.getIsFinished()) || m.getHomeTeam().getTeam().getName().equals("Free") || m.getAwayTeam().getTeam().getName().equals("Free")) continue;
+                boolean home=Objects.equals(m.getHomeTeam().getId(), p.getId());
+                if (!home && !Objects.equals(m.getAwayTeam().getId(), p.getId())) continue;
+                int scored=home?m.getGoalsHomeTeam():m.getGoalsAwayTeam(), conceded=home?m.getGoalsAwayTeam():m.getGoalsHomeTeam();
+                played++; goalsFor+=scored; goalsAgainst+=conceded;
+                if (scored>conceded) wins++; else if(scored<conceded) losses++; else draws++;
+            }
+        }
+        return new StatisticsResponse(3*wins+draws, played, wins, draws, losses, goalsFor, goalsAgainst);
     }
 
     private void validateQualifiedParticipants(List<TournamentParticipant> participants) {
         if (participants.isEmpty()) {
             throw new RuntimeException("No hay equipos clasificados.");
         }
-        if (participants.size() % 2 != 0) {
-            throw new RuntimeException("La cantidad de equipos clasificados no es par.");
+        int count = participants.size();
+        if (count < 2 || (count & (count - 1)) != 0) {
+            throw new IllegalArgumentException("Seleccioná 2, 4, 8, 16 o 32 equipos para un cuadro sin pases libres.");
         }
     }
 
@@ -574,6 +625,7 @@ public class TournamentServiceImpl implements TournamentService {
         this.matchDayRepository.save(matchDay);
         setNextMatchPlayOff(matchDay);
         tournament.getMatchDays().add(matchDay);
+        tournament.setIsFinished(false);
         this.tournamentRepository.save(tournament);
     }
 
@@ -605,7 +657,9 @@ public class TournamentServiceImpl implements TournamentService {
         }else if (match.getGoalsHomeTeam() < match.getGoalsAwayTeam()){
             return match.getAwayTeam();
         }else{
-            return null;
+            if (Objects.equals(match.getTiebreakWinnerId(), match.getHomeTeam().getId())) return match.getHomeTeam();
+            if (Objects.equals(match.getTiebreakWinnerId(), match.getAwayTeam().getId())) return match.getAwayTeam();
+            throw new IllegalArgumentException("Hay un cruce empatado sin ganador definido.");
         }
     }
 

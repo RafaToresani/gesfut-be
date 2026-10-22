@@ -55,6 +55,7 @@ public class PrizeServiceImpl implements PrizeService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PrizeResponse> findAllPrizes(String code) {
         Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
@@ -64,6 +65,7 @@ public class PrizeServiceImpl implements PrizeService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PrizeResponse> findAllPrizesByCategory(String code, String category) {
         if (category == null || !isValidEnumValue(EPrizeType.valueOf(category)))
             throw new IllegalArgumentException("El tipo de premio no es válido: " + category);
