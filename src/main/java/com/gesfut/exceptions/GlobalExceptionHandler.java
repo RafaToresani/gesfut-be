@@ -1,87 +1,79 @@
 package com.gesfut.exceptions;
 
 import org.apache.coyote.BadRequestException;
-import org.hibernate.LazyInitializationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Criterio de estados:
+ * - 404: el recurso no existe.
+ * - 400: datos de entrada inválidos o regla de negocio incumplida (mensaje para el usuario).
+ * - 409: el recurso ya existe.
+ * - 403: sin permiso / credenciales inválidas.
+ * - 500: error inesperado, se registra como ERROR y no se exponen detalles internos.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private static ResponseEntity<Map<String, String>> body(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(Map.of("error", message == null ? "" : message));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<Map<String, String>> handleResourceNotFoundException(ResourceNotFoundException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return body(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(ResourceAlreadyExistsException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
     public ResponseEntity<Map<String, String>> handleResourceAlreadyExistsException(ResourceAlreadyExistsException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return body(HttpStatus.CONFLICT, ex.getMessage());
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<Map<String, String>> handleBadRequestException(BadRequestException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler({BadRequestException.class, IllegalArgumentException.class, IllegalStateException.class, TeamDisableException.class})
+    public ResponseEntity<Map<String, String>> handleBadRequest(Exception ex) {
+        return body(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
     public ResponseEntity<Map<String, String>> handleBadCredentialsException(BadCredentialsException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", "Contraseña inválida.");
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        return body(HttpStatus.FORBIDDEN, "Contraseña inválida.");
     }
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "No tenés permiso para esta operación."));
+        return body(HttpStatus.FORBIDDEN, "No tenés permiso para esta operación.");
     }
 
+    /** Los servicios usan RuntimeException "pelada" para reglas de negocio con mensaje al usuario: 400. */
     @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        if (ex.getClass() == RuntimeException.class) return body(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return handleUnexpected(ex);
     }
 
-    @ExceptionHandler(TeamDisableException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<Map<String, String>> handleTeamDisableException(TeamDisableException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleUnreadable(Exception ex) {
+        return body(HttpStatus.BAD_REQUEST, "El cuerpo de la solicitud no es válido.");
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleUnexpected(Exception ex) {
+        // Errores propios de Spring MVC (405, ruta inexistente, 415, parámetro faltante...): respetan su status.
+        if (ex instanceof org.springframework.web.ErrorResponse er) {
+            HttpStatus status = HttpStatus.resolve(er.getStatusCode().value());
+            String detail = er.getBody().getDetail();
+            return body(status != null ? status : HttpStatus.BAD_REQUEST, detail != null ? detail : "Solicitud inválida.");
+        }
+        log.error("Error inesperado procesando la solicitud", ex);
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado. Intentá nuevamente.");
     }
-
-    @ExceptionHandler(LazyInitializationException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<Map<String, String>> handleLazyInitializationException(LazyInitializationException ex) {
-        Map<String, String> response = new HashMap<>();
-        response.put("error", "Error de inicialización.");
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }
-
 }
