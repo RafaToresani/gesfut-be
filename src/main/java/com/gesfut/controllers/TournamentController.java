@@ -55,9 +55,6 @@ public class TournamentController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void initializeTournament(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
         if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-        System.out.printf("request: %s\n", request);
-        System.out.printf("request.startDate(): %s\n", request.startDate());
-        System.out.printf("hola aca esta la infoooo");
         this.tournamentService.initializeTournament(request, request.startDate());
     }
 
@@ -71,14 +68,6 @@ public class TournamentController {
     }
 
     // ~~~~~~~~~~~~ GET ~~~~~~~~~~~~
-    @Operation(summary = "Retorna el listado torneos del usuario logueado Respuesta full.")
-    @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public List<TournamentResponse> findAllTournaments(){
-        return this.tournamentService.findAllTournaments();
-    }
-
     @Operation(summary = "Retorna un torneo en base a su código. Accesible para todos.")
     @GetMapping("/{code}")
     @ResponseStatus(HttpStatus.OK)

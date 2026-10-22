@@ -14,8 +14,6 @@ import java.util.List;
 public interface TournamentService {
     String createTournament(TournamentRequest request);
 
-    List<TournamentResponse> findAllTournaments();
-
     List<TournamentShortResponse> findAllTournamentsShortAll();
 
     TournamentShortResponse findAllTournamentsShort(String tournamentCode);
