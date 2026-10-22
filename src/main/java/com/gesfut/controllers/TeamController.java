@@ -61,7 +61,10 @@ public class TeamController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public TeamResponse createTeam(@Valid @RequestBody TeamRequest request,BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) {
-            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+            // Auditoria 22/10 (#16): informar todos los errores juntos (nombre, color, jugadores), no solo el primero.
+            java.util.Map<String, String> errors = new java.util.TreeMap<>();
+            bindingResult.getFieldErrors().forEach(fe -> errors.putIfAbsent(fe.getField(), fe.getDefaultMessage()));
+            throw new BadRequestException(String.join(" ", errors.values()));
         }
        return this.teamService.createTeam(request);
     }
@@ -108,6 +111,7 @@ public class TeamController {
     }
 
     @PutMapping("/change-status-team/{teamId}/{status}")
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
     public ResponseEntity<Map<String, String>> disableTeam(@PathVariable("teamId") Long teamId, @PathVariable("status") Boolean status) {
         this.teamService.disableTeam(teamId, status);
         Map<String, String> response = new HashMap<>();

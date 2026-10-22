@@ -101,7 +101,6 @@ public class TeamServiceImpl implements TeamService {
     @Transactional
     public String disableTeam(Long id, Boolean status) {
         Team team = getTeamByIdSecured(id);
-        System.out.println("team: " + team);
         this.teamRepository.updateTeamStatus(id, status);
         this.playerService.updateStatusPlayersByTeam(id, status);
         String valueStatus  = "habilitado";

@@ -29,10 +29,33 @@ public class SecurityConfig {
     @Value("${cors.allowed.origins}")
     private String url;
 
+    @Value("${app.security.swagger-public:false}")
+    private boolean swaggerPublic;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                // Auditoria 22/10: denegar por defecto. Solo es publico auth, la lectura publica de torneos y el preflight CORS.
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        // Swagger publico solo si app.security.swagger-public=true (desarrollo, application-local.properties). Default: cerrado.
+                        .requestMatchers(swaggerPublic ? new String[]{"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"} : new String[]{"/__swagger-cerrado__"}).permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/v1/auth/login", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token/*",
+                                "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
+                                "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/v1/tournaments/*", "/api/v1/tournaments/short/*",
+                                "/api/v1/tournaments/*/matches/*", "/api/v1/tournaments/*/top-scorers",
+                                "/api/v1/tournaments/*/top-yellow-cards", "/api/v1/tournaments/*/top-red-cards",
+                                "/api/v1/match-days/*", "/api/v1/match-days/*/lastPlayed",
+                                "/api/v1/prizes/*", "/api/v1/prizes/*/*",
+                                "/api/v1/team-participant/*/teams", "/api/v1/team-participant/teams/*",
+                                "/api/v1/matches/*", "/api/v1/matches/detailed/*",
+                                "/api/v1/teams/*", "/api/v1/teams/*/tournaments", "/api/v1/teams/*/players-stats").permitAll()
+                        .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authProvider)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

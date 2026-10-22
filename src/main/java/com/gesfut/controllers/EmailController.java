@@ -14,7 +14,9 @@ public class EmailController {
     @Autowired
     private EmailService emailService;
 
+    // Auditoria 22/10: estaba abierto sin autenticacion (relay de mails). Solo ADMIN.
     @PostMapping("/send")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ADMIN')")
     public String sendEmail(@RequestBody EmailRequest request) {
         emailService.sendEmail(request.getTo(), request.getSubject(), request.getText());
         return "Correo enviado exitosamente";
