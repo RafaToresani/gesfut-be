@@ -26,6 +26,8 @@ public class SecurityConfig {
     private AuthenticationProvider authProvider;
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Autowired
+    private AuthRateLimitFilter authRateLimitFilter;
     @Value("${cors.allowed.origins}")
     private String url;
 
@@ -43,7 +45,7 @@ public class SecurityConfig {
                         // Swagger publico solo si app.security.swagger-public=true (desarrollo, application-local.properties). Default: cerrado.
                         .requestMatchers(swaggerPublic ? new String[]{"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"} : new String[]{"/__swagger-cerrado__"}).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                "/api/v1/auth/login", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token/*",
+                                "/api/v1/auth/login", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token",
                                 "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
                                 "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
@@ -58,6 +60,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authProvider)
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

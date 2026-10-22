@@ -40,10 +40,13 @@ public class AuthController {
             summary = "Valida si el token es válido.",
             description = "Recibe un token y verifica su validez."
     )
-    @PostMapping("/validate-token/{token}")
+    // Loop 4: el token viaja en el header Authorization, no en la URL (las URLs quedan en logs de proxy/tunel).
+    // La ruta vieja /validate-token/{token} se elimino.
+    @PostMapping("/validate-token")
     @ResponseStatus(HttpStatus.OK)
-    public boolean validateToken(@PathVariable String token) {
-        return this.jwtService.isTokenValidNotUser(token);
+    public boolean validateToken(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return false;
+        return this.jwtService.isTokenValidNotUser(authorizationHeader.substring(7));
     }
 
     @Operation(

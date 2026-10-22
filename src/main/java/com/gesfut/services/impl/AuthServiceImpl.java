@@ -156,7 +156,8 @@ public class AuthServiceImpl implements AuthService {
 
     public void resetPasswordSendEmail(String email) {
         Optional<UserEntity> user = userRepository.findByEmail(email);
-        if (user.isEmpty()) throw new ResourceNotFoundException("El email ingresado no es válido.");
+        // Loop 4: no revelar si el email existe; el front ya muestra "Si X tiene una cuenta, te enviamos...".
+        if (user.isEmpty()) return;
 
         String token = jwtService.generateToken(email);
 
@@ -170,7 +171,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
 
+    // Loop 4: misma regla que el registro (min 8) y tope de BCrypt (72 bytes).
+    private static void validateNewPassword(String password) {
+        if (password == null || password.isBlank() || password.length() < 8) throw new IllegalArgumentException("La contraseña debe tener al menos 8 caracteres.");
+        if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) throw new IllegalArgumentException("La contraseña es demasiado larga (máximo 72 caracteres).");
+    }
+
     public void changePassword(String token, String newPassword) {
+        validateNewPassword(newPassword);
         Optional<UserEntity> user = userRepository.findByResetToken(token);
         if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
         if (user.get().getResetTokenExpiration().isBefore(LocalDateTime.now())) {
@@ -185,6 +193,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void changePasswordWithOldPassword(String oldPassword, String newPassword, String token) {
+        validateNewPassword(newPassword);
         Optional<UserEntity> user = userRepository.findByEmail(jwtService.getUsernameFromToken(token));
         if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
         if (!passwordEncoder.matches(oldPassword, user.get().getPassword())) {

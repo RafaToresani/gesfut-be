@@ -50,13 +50,20 @@ public class GlobalExceptionHandler {
     /** Auditoria 22/10: login con un email inexistente daba 500. */
     @ExceptionHandler(org.springframework.security.authentication.InternalAuthenticationServiceException.class)
     public ResponseEntity<Map<String, String>> handleInternalAuth(Exception ex) {
-        if (ex.getCause() instanceof ResourceNotFoundException) return body(HttpStatus.NOT_FOUND, "El email ingresado no existe.");
+        // Loop 4: mismo mensaje para email inexistente y contraseña incorrecta (evita enumerar cuentas).
+        if (ex.getCause() instanceof ResourceNotFoundException) return body(HttpStatus.UNAUTHORIZED, "Email o contrase\u00f1a incorrectos.");
         return handleUnexpected(ex);
+    }
+
+    /** Loop 4: parametro de ruta con tipo invalido (ej. /change-isActive/x/notbool): 400, no 500. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handleTypeMismatch(Exception ex) {
+        return body(HttpStatus.BAD_REQUEST, "Alg\u00fan dato de la solicitud no tiene el formato esperado.");
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentialsException(BadCredentialsException ex) {
-        return body(HttpStatus.FORBIDDEN, "Contraseña inválida.");
+        return body(HttpStatus.UNAUTHORIZED, "Email o contrase\u00f1a incorrectos.");
     }
 
     /** Auditoria 22/10: endpoint protegido llamado sin token: 401 en vez de 500. */
