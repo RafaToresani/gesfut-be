@@ -46,6 +46,7 @@ public class TeamServiceImpl implements TeamService {
     private TournamentParticipantRepository participantRepository;
 
     @Override
+    @Transactional
     public TeamResponse createTeam(TeamRequest request) {
         this.playerService.validatePlayers(request.players());
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
@@ -228,7 +229,9 @@ public class TeamServiceImpl implements TeamService {
         return response;
     }
 
+    // Loop 10: todo o nada; antes un equipo invalido dejaba creados los anteriores.
     @Override
+    @Transactional
     public void createMultipleTeams(List<TeamRequest> request) {
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
         request.forEach(this::createTeam);
