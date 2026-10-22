@@ -103,7 +103,7 @@ class ResultIntegrityIntegrationTests {
             SecurityContextHolder.getContext().setAuthentication(principal);
             try {
                 start.await();service.loadMatchResult(validResult(1));return true;
-            } catch(com.gesfut.exceptions.ResourceNotFoundException alreadySaved){return false;}
+            } catch(com.gesfut.exceptions.ResourceNotFoundException | com.gesfut.exceptions.ResourceAlreadyExistsException alreadySaved){return false;} // 22/10: el doble envio ahora es 409
             finally {SecurityContextHolder.clearContext();}
         };
         try {

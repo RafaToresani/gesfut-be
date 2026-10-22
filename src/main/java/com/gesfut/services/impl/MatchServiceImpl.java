@@ -51,6 +51,8 @@ public class MatchServiceImpl implements MatchService {
     public String loadMatchResult(MatchRequest request) {
         List<Event> events = new ArrayList<>();
         Match match = getWritableMatch(request.matchId());
+        // Auditoria 22/10: un segundo envio del mismo resultado debe decir eso (409), no "el jugador no pertenece al partido".
+        if (Boolean.TRUE.equals(match.getIsFinished())) throw new com.gesfut.exceptions.ResourceAlreadyExistsException("El resultado ya fue cargado. Us\u00e1 Editar resultado para cambiarlo.");
         validateResult(request, match);
 
         long mvpCount = request.events().stream()
