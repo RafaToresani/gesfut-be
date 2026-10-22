@@ -1,0 +1,9 @@
+# Copiar a application-local.properties (ignorado) y completar. Tambien pueden definirse como variables de entorno.
+DB_NAME=jdbc:mysql://localhost:3306/gesfut
+DB_USERNAME=
+DB_PASSWORD=
+SECRET_KEY=
+EMAIL_USER=
+EMAIL_PASS=
+EMAIL_PORT=587
+FE_URL=http://localhost:4200
