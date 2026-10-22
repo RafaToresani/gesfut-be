@@ -167,9 +167,14 @@ public class AuthServiceImpl implements AuthService {
         user.get().setResetTokenExpiration(LocalDateTime.now().plusMinutes(30));
         userRepository.save(user.get());
 
+        // Loop 6: si falla el envio se registra y se responde igual (200) para no revelar que la cuenta existe.
+        try {
         this.emailService.sendEmail(email, "GESFUT - Recuperación de contraseña",
                 "Hola, para recuperar tu contraseña, haz click en el siguiente enlace: " +
                         frontBaseUrl() + "/auth/reset-password/" + token);
+        } catch (RuntimeException e) {
+            log.warn("No se pudo enviar el mail de recuperacion: {}", e.getClass().getSimpleName());
+        }
     }
 
 
