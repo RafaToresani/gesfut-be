@@ -40,6 +40,24 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private EmailService emailService;
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthServiceImpl.class);
+
+    /** Auditoria 22/10: base de los links de mail. app.frontend.url si esta definida; si no, el primer origen https de FE_URL (o el primero). */
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:}")
+    private String frontendUrl;
+    @org.springframework.beans.factory.annotation.Value("${cors.allowed.origins:http://localhost:4200}")
+    private String allowedOrigins;
+
+    String frontBaseUrl() {
+        String base = frontendUrl;
+        if (base == null || base.isBlank()) {
+            String[] origins = allowedOrigins.split(",");
+            base = origins[0].trim();
+            for (String o : origins) if (o.trim().startsWith("https://")) { base = o.trim(); break; }
+        }
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+    }
+
     @Override
     public AuthResponse logIn(LoginRequest request) {
 
@@ -81,12 +99,17 @@ public class AuthServiceImpl implements AuthService {
         players.add(new PlayerRequest("Free", "Free", true, true, 10));
         this.teamService.createDummyTeam(new TeamRequest("Free", "#FFF", players), user);
 
+        // Auditoria 22/10: si falla el SMTP el usuario ya quedo creado; no devolver 500 (puede pedir "Reenviar enlace").
+        try {
         this.emailService.sendEmail(
                 request.email(),
                 "GESFUT - Verificación de email",
                 "Para verificar tu email, haz click en el siguiente enlace: " +
-                        "http://localhost:4200/auth/verify-email/" + verificationToken
+                        frontBaseUrl() + "/auth/verify-email/" + verificationToken
         );
+        } catch (RuntimeException e) {
+            log.warn("No se pudo enviar el mail de verificacion: {}", e.getMessage());
+        }
         return new AuthResponse(
                 user.getName(),
                 user.getLastname(),
@@ -125,7 +148,7 @@ public class AuthServiceImpl implements AuthService {
                 email,
                 "GESFUT - Verificación de email",
                 "Para verificar tu email, haz click en el siguiente enlace: " +
-                        "http://localhost:4200/auth/verify-email/" + newToken
+                        frontBaseUrl() + "/auth/verify-email/" + newToken
         );
     }
 
@@ -136,7 +159,6 @@ public class AuthServiceImpl implements AuthService {
         if (user.isEmpty()) throw new ResourceNotFoundException("El email ingresado no es válido.");
 
         String token = jwtService.generateToken(email);
-        System.out.printf("TOKEN GENERADO: %s%n", token);
 
         user.get().setResetToken(token);
         user.get().setResetTokenExpiration(LocalDateTime.now().plusMinutes(30));
@@ -144,7 +166,7 @@ public class AuthServiceImpl implements AuthService {
 
         this.emailService.sendEmail(email, "GESFUT - Recuperación de contraseña",
                 "Hola, para recuperar tu contraseña, haz click en el siguiente enlace: " +
-                        "http://localhost:4200/auth/reset-password/" + token);
+                        frontBaseUrl() + "/auth/reset-password/" + token);
     }
 
 
