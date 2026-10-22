@@ -26,6 +26,10 @@ import java.util.Set;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+    // Loop 5: cada token sirve solo para su proposito (un link de verificacion no puede cambiar la contrasena) y es de un solo uso.
+    static final String VERIFY_PREFIX = "verify:";
+    static final String RESET_PREFIX = "reset:";
+
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -89,7 +93,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.password()))
                 .role(ERole.MANAGER)
                 .emailVerified(false)
-                .resetToken(verificationToken)
+                .resetToken(VERIFY_PREFIX + verificationToken)
                 .resetTokenExpiration(LocalDateTime.now().plusHours(24))
                 .build();
 
@@ -113,12 +117,13 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponse(
                 user.getName(),
                 user.getLastname(),
-                jwtService.getToken(user, user.getAuthorities()),
+                // Loop 5: sin token hasta verificar el email (antes el registro devolvia un JWT valido y salteaba la verificacion).
+                null,
                 user.getRole().name());
     }
 
     public void verifyEmail(String token) {
-        UserEntity user = userRepository.findByResetToken(token)
+        UserEntity user = userRepository.findByResetToken(VERIFY_PREFIX + token)
                 .orElseThrow(() -> new ResourceNotFoundException("Token inválido"));
 
         if (user.getResetTokenExpiration().isBefore(LocalDateTime.now())) {
@@ -132,15 +137,12 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public void resendVerificationEmail(String email) {
-        UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Email no encontrado"));
-
-        if (user.getEmailVerified()) {
-            throw new IllegalStateException("El email ya está verificado");
-        }
+        // Loop 5: respuesta igual exista o no la cuenta, y este o no verificada (no enumerar emails).
+        UserEntity user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || Boolean.TRUE.equals(user.getEmailVerified())) return;
 
         String newToken = jwtService.generateToken(email);
-        user.setResetToken(newToken);
+        user.setResetToken(VERIFY_PREFIX + newToken);
         user.setResetTokenExpiration(LocalDateTime.now().plusHours(24));
         userRepository.save(user);
 
@@ -161,7 +163,7 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtService.generateToken(email);
 
-        user.get().setResetToken(token);
+        user.get().setResetToken(RESET_PREFIX + token);
         user.get().setResetTokenExpiration(LocalDateTime.now().plusMinutes(30));
         userRepository.save(user.get());
 
@@ -179,7 +181,7 @@ public class AuthServiceImpl implements AuthService {
 
     public void changePassword(String token, String newPassword) {
         validateNewPassword(newPassword);
-        Optional<UserEntity> user = userRepository.findByResetToken(token);
+        Optional<UserEntity> user = userRepository.findByResetToken(RESET_PREFIX + token);
         if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
         if (user.get().getResetTokenExpiration().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("El token ha expirado.");

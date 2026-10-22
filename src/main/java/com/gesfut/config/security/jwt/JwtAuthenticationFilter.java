@@ -26,13 +26,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private JwtService jwtService;
     @Autowired
     private UserDetailsService userDetailsService;
+    @Autowired
+    private TokenDenylist tokenDenylist;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String token = getTokenFromRequest(request);
         String email;
 
-        if(token==null){
+        // Loop 5: un token revocado por logout se trata como anonimo.
+        if(token==null || tokenDenylist.isRevoked(token)){
             filterChain.doFilter(request, response);
             return;
         }

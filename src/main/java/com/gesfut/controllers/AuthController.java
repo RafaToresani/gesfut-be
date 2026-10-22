@@ -26,6 +26,9 @@ public class AuthController {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private com.gesfut.config.security.jwt.TokenDenylist tokenDenylist;
+
     @Operation(
             summary = "Permite iniciar sesión al usuario.",
             description = "El email debe tener formato de email.")
@@ -46,7 +49,16 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public boolean validateToken(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return false;
-        return this.jwtService.isTokenValidNotUser(authorizationHeader.substring(7));
+        String token = authorizationHeader.substring(7);
+        return !tokenDenylist.isRevoked(token) && this.jwtService.isTokenValidNotUser(token);
+    }
+
+    // Loop 5: logout del lado del servidor. El token queda revocado hasta su vencimiento.
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestHeader("Authorization") String authorizationHeader) {
+        String token = authorizationHeader.replace("Bearer ", "");
+        tokenDenylist.revoke(token, jwtService.getExpirationMillis(token));
     }
 
     @Operation(

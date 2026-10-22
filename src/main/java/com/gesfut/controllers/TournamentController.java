@@ -131,7 +131,8 @@ public class TournamentController {
     @PatchMapping("/change-status-tournament")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public String deleteTournamentByCode(@Param(value = "tournament-code") String code, @Param(value = "status") Boolean status){
+    // Loop 5: @Param (Spring Data) no lee query params: code llegaba null y respondia 500.
+    public String deleteTournamentByCode(@RequestParam(value = "tournament-code") String code, @RequestParam(value = "status") Boolean status){
         return this.tournamentService.changeStatusTournamentByCode(code, status);
     }
 

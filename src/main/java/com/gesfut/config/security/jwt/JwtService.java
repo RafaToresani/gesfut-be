@@ -79,6 +79,10 @@ public class JwtService {
         }
     }
 
+    public long getExpirationMillis(String token){
+        return getExpiration(token).getTime();
+    }
+
     private Date getExpiration(String token){
         return getClaim(token, Claims::getExpiration);
     }
