@@ -16,5 +16,7 @@ public record MatchResponse(
         String description,
         String mvpPlayer,
         Long vsMatchIdWhoWin,
-        Long tiebreakWinnerId
+        Long tiebreakWinnerId,
+        // Plan 22/10 #9: false si el partido todavia no llego a su dia (no se puede cargar el resultado).
+        Boolean canLoadResult
         ) { }

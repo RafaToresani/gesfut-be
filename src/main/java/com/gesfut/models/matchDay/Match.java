@@ -50,6 +50,11 @@ public class Match {
 
     private String mvpPlayer;
 
+    /** Plan 22/10 #9: el resultado se carga recien el dia del partido (sin fecha: se permite). */
+    public boolean resultLoadableToday() {
+        return date == null || !date.toLocalDate().isAfter(java.time.LocalDate.now());
+    }
+
     public String formatMatchDate(LocalDateTime date) {
         if (date == null) {
             return null;

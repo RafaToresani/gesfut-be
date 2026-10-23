@@ -248,7 +248,8 @@ public class TournamentServiceImpl implements TournamentService {
                             match.getDescription(),
                             match.getMvpPlayer(),
                             match.getVsMatchIdWhoWin(),
-                            match.getTiebreakWinnerId()
+                            match.getTiebreakWinnerId(),
+                            match.resultLoadableToday()
                             ));
                 }
             });

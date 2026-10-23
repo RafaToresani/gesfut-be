@@ -62,6 +62,8 @@ public class MatchServiceImpl implements MatchService {
         if (Boolean.TRUE.equals(match.getMatchDay().getIsFinished())) throw new IllegalArgumentException("La jornada está cerrada.");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
+        // Plan 22/10 #9: no se carga un resultado antes del dia del partido.
+        if (!match.resultLoadableToday()) throw new IllegalArgumentException("Todav\u00eda no es el d\u00eda del partido: el resultado se carga desde ese d\u00eda.");
 
         // Las sanciones se reconstruyen cronológicamente después de guardar.
 
@@ -421,7 +423,8 @@ public class MatchServiceImpl implements MatchService {
                 match.getDescription(),
                 match.getMvpPlayer(),
                 match.getVsMatchIdWhoWin(),
-                match.getTiebreakWinnerId()
+                match.getTiebreakWinnerId(),
+                match.resultLoadableToday()
         );
     }
 
