@@ -287,6 +287,8 @@ public class MatchServiceImpl implements MatchService {
     public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
         Match match = getWritableMatch(matchId);
         if (request.localDateTime() == null) throw new IllegalArgumentException("La fecha es requerida.");
+        // Plan 22/10 #5: un partido suelto solo se programa con fecha futura.
+        if (request.localDateTime().isBefore(LocalDateTime.now().minusMinutes(1))) throw new IllegalArgumentException("Eleg\u00ed una fecha y hora futura para el partido.");
         match.getMatchDay().getTournament().getMatchDays().stream()
             .filter(day -> day.getNumberOfMatchDay() == match.getMatchDay().getNumberOfMatchDay() - 1)
             .flatMap(day -> day.getMatches().stream()).map(Match::getDate).filter(Objects::nonNull)
