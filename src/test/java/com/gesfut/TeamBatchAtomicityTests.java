@@ -2,6 +2,7 @@ package com.gesfut;
 
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
+import com.gesfut.dtos.responses.TeamImportResponse;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.TeamService;
@@ -14,7 +15,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Loop 11: importar varios equipos es todo o nada (antes un equipo invalido dejaba creados los anteriores). */
+/**
+ * Plan 22/10 #15 (reemplaza el todo o nada del loop 11): el import crea los equipos validos y reporta los que fallan.
+ * Cada equipo es atomico: uno que falla no deja el equipo creado ni jugadores sueltos.
+ */
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
@@ -39,14 +43,30 @@ class TeamBatchAtomicityTests {
         return new LinkedHashSet<>(List.of(new PlayerRequest("Juan", "Perez", captain, true, 1), new PlayerRequest("Pedro", "Gomez", false, false, 2)));
     }
     int count() { return jdbc.queryForObject("SELECT COUNT(*) FROM teams WHERE name LIKE ?", Integer.class, prefix + "%"); }
+    int orphanPlayers() { return jdbc.queryForObject("SELECT COUNT(*) FROM players p LEFT JOIN teams t ON t.id=p.team_id WHERE t.id IS NULL", Integer.class); }
 
-    @Test void unEquipoInvalidoNoDejaCreadosLosAnteriores() {
-        var batch = List.of(new TeamRequest(prefix + " A", "#000000", players(true)), new TeamRequest(prefix + " B", "#000000", players(false)));
-        assertThrows(IllegalArgumentException.class, () -> teams.createMultipleTeams(batch));
-        assertEquals(0, count());
+    @Test void importaLosValidosYReportaLosQueFallan() {
+        int orphansBefore = orphanPlayers();
+        var batch = List.of(
+            new TeamRequest(prefix + " A", "#000000", players(true)),
+            new TeamRequest(prefix + " B", "#000000", players(false)),      // sin capitan: falla en el servicio
+            new TeamRequest("X", "#000000", players(true)),                 // nombre corto: falla la validacion
+            new TeamRequest(prefix + " C", "#FFFFFF", players(true)));
+        TeamImportResponse r = teams.createMultipleTeams(batch);
+        assertEquals(2, r.createdCount());
+        assertEquals(List.of(prefix + " A", prefix + " C"), r.created());
+        assertEquals(List.of(1, 2), r.failed().stream().map(TeamImportResponse.Failure::index).toList());
+        r.failed().forEach(f -> assertFalse(f.error() == null || f.error().isBlank()));
+        assertEquals(2, count());
+        assertEquals(orphansBefore, orphanPlayers());
     }
     @Test void unLoteValidoCreaTodos() {
-        teams.createMultipleTeams(List.of(new TeamRequest(prefix + " C", "#000000", players(true)), new TeamRequest(prefix + " D", "#FFFFFF", players(true))));
+        TeamImportResponse r = teams.createMultipleTeams(List.of(new TeamRequest(prefix + " D", "#000000", players(true)), new TeamRequest(prefix + " E", "#FFFFFF", players(true))));
+        assertEquals(2, r.createdCount());
+        assertTrue(r.failed().isEmpty());
         assertEquals(2, count());
+    }
+    @Test void loteVacioOGrandeSeRechaza() {
+        assertThrows(IllegalArgumentException.class, () -> teams.createMultipleTeams(List.of()));
     }
 }

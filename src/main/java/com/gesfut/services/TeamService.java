@@ -25,7 +25,7 @@ public interface TeamService  {
     Player getPlayerNumber(Integer number, Long teamId);
     Player getPlayerName(String name, String lastName, Long teamId);
     TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam);
-    void createMultipleTeams(List<TeamRequest> request);
+    com.gesfut.dtos.responses.TeamImportResponse createMultipleTeams(List<TeamRequest> request);
 }
 
 

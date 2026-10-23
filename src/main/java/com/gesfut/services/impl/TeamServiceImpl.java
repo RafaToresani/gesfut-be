@@ -229,12 +229,39 @@ public class TeamServiceImpl implements TeamService {
         return response;
     }
 
-    // Loop 10: todo o nada; antes un equipo invalido dejaba creados los anteriores.
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+    @Autowired
+    private jakarta.validation.Validator validator;
+
+    public static final int MAX_TEAMS_PER_IMPORT = 200;
+
+    /**
+     * Plan 22/10 #15: import parcial. Cada equipo se crea en su propia transaccion (todo o nada por equipo):
+     * los validos quedan creados y los que fallan se informan con su motivo, sin dejar equipos a medias.
+     */
     @Override
-    @Transactional
-    public void createMultipleTeams(List<TeamRequest> request) {
-        UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
-        request.forEach(this::createTeam);
+    public TeamImportResponse createMultipleTeams(List<TeamRequest> request) {
+        if (request == null || request.isEmpty()) throw new IllegalArgumentException("No hay equipos para importar.");
+        if (request.size() > MAX_TEAMS_PER_IMPORT) throw new IllegalArgumentException("Se pueden importar hasta " + MAX_TEAMS_PER_IMPORT + " equipos por archivo.");
+        userService.findUserByEmail(getCurrentUserEmail());
+        org.springframework.transaction.support.TransactionTemplate tx = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        List<String> created = new ArrayList<>();
+        List<TeamImportResponse.Failure> failed = new ArrayList<>();
+        for (int i = 0; i < request.size(); i++) {
+            TeamRequest team = request.get(i);
+            String name = team == null ? null : team.name();
+            try {
+                if (team == null) throw new IllegalArgumentException("Equipo vac\u00edo.");
+                Set<jakarta.validation.ConstraintViolation<TeamRequest>> violations = validator.validate(team);
+                if (!violations.isEmpty()) throw new IllegalArgumentException(violations.stream().map(jakarta.validation.ConstraintViolation::getMessage).sorted().distinct().reduce((a, b) -> a + "; " + b).orElse("Datos inv\u00e1lidos."));
+                tx.executeWithoutResult(status -> createTeam(team));
+                created.add(name);
+            } catch (RuntimeException e) {
+                failed.add(new TeamImportResponse.Failure(i, name, e.getMessage() == null ? "No se pudo crear el equipo." : e.getMessage()));
+            }
+        }
+        return new TeamImportResponse(created.size(), created, failed);
     }
 
 

@@ -40,11 +40,9 @@ public class TeamController {
     @PostMapping("/create-multiple")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void createMultipleTeams(@Valid @RequestBody List<TeamRequest> request,BindingResult bindingResult) throws BadRequestException {
-        if(bindingResult.hasErrors()) {
-            throw new BadRequestException(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
-        }
-        this.teamService.createMultipleTeams(request);
+    // Plan 22/10 #15: sin @Valid sobre la lista: cada equipo se valida en el servicio y los invalidos se informan sin frenar a los validos.
+    public com.gesfut.dtos.responses.TeamImportResponse createMultipleTeams(@RequestBody List<TeamRequest> request) {
+        return this.teamService.createMultipleTeams(request);
     }
 
 
