@@ -19,6 +19,8 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     Boolean existsByCode(UUID code);
 
     List<Tournament> findAllByUser(UserEntity user);
+    /** Plan 22/10 #11: los torneos mas nuevos primero (id autoincremental = orden de creacion). */
+    List<Tournament> findAllByUserOrderByIdDesc(UserEntity user);
 
     Optional<Tournament> findByCode(UUID uuid);
 
