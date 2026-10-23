@@ -34,9 +34,13 @@ public class AuthController {
             description = "El email debe tener formato de email.")
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
-    public AuthResponse logIn(@RequestBody @Valid LoginRequest request, BindingResult bindingResult) throws BadRequestException {
+    public AuthResponse logIn(@RequestBody @Valid LoginRequest request, BindingResult bindingResult,
+                              jakarta.servlet.http.HttpServletRequest httpRequest, jakarta.servlet.http.HttpServletResponse httpResponse) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
-        return this.authService.logIn(request);
+        AuthResponse auth = this.authService.logIn(request);
+        // Plan #13: el JWT va solo en la cookie httpOnly; el body ya no lo expone.
+        com.gesfut.config.security.jwt.CookieAuth.issue(httpRequest, httpResponse, auth.token(), java.time.Duration.ofHours(24));
+        return new AuthResponse(auth.name(), auth.lastName(), null, auth.role());
     }
 
     @Operation(
@@ -47,18 +51,23 @@ public class AuthController {
     // La ruta vieja /validate-token/{token} se elimino.
     @PostMapping("/validate-token")
     @ResponseStatus(HttpStatus.OK)
-    public boolean validateToken(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return false;
-        String token = authorizationHeader.substring(7);
+    public boolean validateToken(jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String token = com.gesfut.config.security.jwt.CookieAuth.anyToken(httpRequest);
+        if (token == null) return false;
         return !tokenDenylist.isRevoked(token) && this.jwtService.isTokenValidNotUser(token);
     }
 
     // Loop 5: logout del lado del servidor. El token queda revocado hasta su vencimiento.
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@RequestHeader("Authorization") String authorizationHeader) {
-        String token = authorizationHeader.replace("Bearer ", "");
-        tokenDenylist.revoke(token, jwtService.getExpirationMillis(token));
+    public void logout(jakarta.servlet.http.HttpServletRequest httpRequest, jakarta.servlet.http.HttpServletResponse httpResponse) {
+        String token = com.gesfut.config.security.jwt.CookieAuth.anyToken(httpRequest);
+        if (token != null) {
+            try { tokenDenylist.revoke(token, jwtService.getExpirationMillis(token)); }
+            catch (io.jsonwebtoken.JwtException | IllegalArgumentException ignored) { /* vencido o invalido: solo se borra la cookie */ }
+        }
+        // Plan #13: borra la cookie de sesion y la de CSRF.
+        com.gesfut.config.security.jwt.CookieAuth.clear(httpRequest, httpResponse);
     }
 
     @Operation(
@@ -104,8 +113,8 @@ public class AuthController {
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void changePasswordWithOldPassword(
             @RequestBody PasswordsRequest passwords,
-            @RequestHeader("Authorization") String authorizationHeader) {
-        String token = authorizationHeader.replace("Bearer ", "");
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        String token = com.gesfut.config.security.jwt.CookieAuth.anyToken(httpRequest);
        this.authService.changePasswordWithOldPassword(passwords.oldPassword(), passwords.newPassword(), token);
     }
 

@@ -31,7 +31,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String token = getTokenFromRequest(request);
+        // Plan #13: primero la cookie httpOnly; si viene por cookie y el metodo escribe, exige CSRF (doble envio).
+        String token = CookieAuth.sessionToken(request);
+        if (token != null && !CookieAuth.csrfOk(request)) token = null;
+        if (token == null) token = getTokenFromRequest(request);
         String email;
 
         // Loop 5: un token revocado por logout se trata como anonimo.

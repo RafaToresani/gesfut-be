@@ -45,7 +45,7 @@ public class SecurityConfig {
                         // Swagger publico solo si app.security.swagger-public=true (desarrollo, application-local.properties). Default: cerrado.
                         .requestMatchers(swaggerPublic ? new String[]{"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"} : new String[]{"/__swagger-cerrado__"}).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                "/api/v1/auth/login", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token",
+                                "/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token",
                                 "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
                                 "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
@@ -70,8 +70,11 @@ public class SecurityConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(url)
-                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE");
+                        // Plan #13: credenciales (cookie) solo para los origenes listados en FE_URL.
+                        .allowedOrigins(java.util.Arrays.stream(url.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toArray(String[]::new))
+                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+                        .allowedHeaders("Content-Type", "Authorization", "X-XSRF-TOKEN")
+                        .allowCredentials(true);
             }
         };
     }
