@@ -29,6 +29,7 @@ class ResultIntegrityIntegrationTests {
     @Autowired UserRepository users;
     @SpyBean EventService events;
     long matchId, playerId;
+    TestDbSnapshot snapshot;
 
     @BeforeEach void fixture(){
         String database=jdbc.queryForObject("SELECT DATABASE()",String.class);
@@ -47,10 +48,17 @@ class ResultIntegrityIntegrationTests {
             GROUP BY m.id, md.id, t.user_id ORDER BY m.id LIMIT 1
             """);
         matchId=((Number)row.get("id")).longValue(); playerId=((Number)row.get("player_id")).longValue();
+        snapshot=new TestDbSnapshot(jdbc)
+            .take("matches","id=?",matchId)
+            .take("match_days","id=(SELECT match_day_id FROM matches WHERE id=?)",matchId)
+            .take("events","match_id=?",matchId)
+            .take("result_corrections","match_id=?",matchId)
+            .take("statistics","id IN (SELECT p.statistics_id FROM tournament_participants p JOIN matches m ON p.id=m.home_team_id OR p.id=m.away_team_id WHERE m.id=?)",matchId)
+            .take("player_participants","tournament_participant_id IN (SELECT home_team_id FROM matches WHERE id=? UNION SELECT away_team_id FROM matches WHERE id=?)",matchId,matchId);
         UserEntity user=users.findById(((Number)row.get("user_id")).longValue()).orElseThrow();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user,null,user.getAuthorities()));
     }
-    @AfterEach void clear(){SecurityContextHolder.clearContext();reset(events);}
+    @AfterEach void clear(){SecurityContextHolder.clearContext();reset(events);if(snapshot!=null)snapshot.restore();}
 
     List<Map<String,Object>> fingerprint(){
         var data=new ArrayList<Map<String,Object>>();
