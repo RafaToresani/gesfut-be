@@ -73,6 +73,7 @@ public class MatchDayServiceImpl implements MatchDayService {
             Set<Match> remaining = new HashSet<>();
             for (int i = 0; i < numberOfTeams / 2; i++) {
                 var home = teams.get(i); var away = teams.get(numberOfTeams - 1 - i);
+                if (Match.swapHomeAway(round, i)) { var tmp = home; home = away; away = tmp; }
                 if (played.add(pairKey(home, away))) remaining.add(Match.builder().homeTeam(home).awayTeam(away)
                     .goalsHomeTeam(0).goalsAwayTeam(0).isFinished(false).events(new ArrayList<>()).description("1").build());
             }

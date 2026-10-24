@@ -238,6 +238,7 @@ public class MatchServiceImpl implements MatchService {
         for (int j = 0; j < numberOfTeams / 2; j++) {
             TournamentParticipant homeTeam = teams.get(j);
             TournamentParticipant awayTeam = teams.get(numberOfTeams - 1 - j);
+            if (Match.swapHomeAway(matchDay.getNumberOfMatchDay(), j)) { var tmp = homeTeam; homeTeam = awayTeam; awayTeam = tmp; }
             Match newMatch = Match
                 .builder()
                 .homeTeam(homeTeam) // ?

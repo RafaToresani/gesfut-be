@@ -54,6 +54,15 @@ public class Match {
     private Boolean bye;
 
     /** Plan 22/10 #2: el equipo ficticio "Free" que completa torneos impares (unico lugar donde se reconoce por nombre). */
+    /**
+     * Revision critica #11: en el metodo del circulo, el equipo fijo alterna local/visitante por fecha
+     * y el resto alterna por posicion; asi cada equipo queda con diferencia de localias de a lo sumo 1
+     * y nunca mas de 2 partidos seguidos de local.
+     */
+    public static boolean swapHomeAway(int round, int slot) {
+        return slot == 0 ? round % 2 == 1 : slot % 2 == 1;
+    }
+
     public static boolean isFreeParticipant(TournamentParticipant p) {
         return p != null && isFreeParticipantTeam(p.getTeam());
     }
