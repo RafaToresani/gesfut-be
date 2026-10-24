@@ -110,4 +110,51 @@ class FixtureRegenerationTests {
         assertThrows(IllegalArgumentException.class, () -> service.removeParticipantAndRegenerate(a));
         verify(participants, never()).delete(any());
     }
+
+    // Revision critica #7: sumar equipos con el torneo empezado.
+    com.gesfut.repositories.TournamentRepository withRepo() {
+        var repo = mock(com.gesfut.repositories.TournamentRepository.class);
+        when(repo.findByCode(t.getCode())).thenReturn(Optional.of(t));
+        ReflectionTestUtils.setField(service, "tournamentRepository", repo);
+        return repo;
+    }
+    com.gesfut.dtos.requests.MatchDayRequest add(Long... teamIds) {
+        return new com.gesfut.dtos.requests.MatchDayRequest(t.getCode().toString(), new ArrayList<>(List.of(teamIds)), null, null, null);
+    }
+
+    @Test void empezadoImparNuevoEquipoOcupaLibreEnLoPendiente() {
+        withRepo();
+        var a = p("TEST A"); var b = p("TEST B"); var c = p("TEST C"); var free = p("Free");
+        MatchDay played = MatchDay.builder().id(ids++).numberOfMatchDay(0).isFinished(true).isPlayOff(false).tournament(t).matches(new HashSet<>()).build();
+        played.getMatches().add(Match.builder().id(ids++).homeTeam(a).awayTeam(b).isFinished(true).matchDay(played).build());
+        Match pastBye = Match.builder().id(ids++).homeTeam(c).awayTeam(free).isFinished(false).matchDay(played).build();
+        played.getMatches().add(pastBye); t.getMatchDays().add(played);
+        MatchDay pending = MatchDay.builder().id(ids++).numberOfMatchDay(1).isFinished(false).isPlayOff(false).tournament(t).matches(new HashSet<>()).build();
+        Match futureBye = Match.builder().id(ids++).homeTeam(free).awayTeam(a).isFinished(false).matchDay(pending).build();
+        pending.getMatches().add(futureBye); t.getMatchDays().add(pending);
+        Team nuevo = Team.builder().id(777L).name("TEST Nuevo").status(true).players(new HashSet<>()).tournaments(new HashSet<>()).build();
+        when(teams.getTeamByIdSecured(777L)).thenReturn(nuevo);
+
+        service.updateTournamentParticipants(add(777L));
+
+        assertEquals("TEST Nuevo", futureBye.getHomeTeam().getTeam().getName(), "lo pendiente lo juega el nuevo");
+        assertTrue(Match.isFreeParticipant(pastBye.getAwayTeam()), "la fecha jugada queda como libre");
+        verify(matchDays, never()).generateMatchDays(any(), any(), any(), any(), any());
+    }
+
+    @Test void empezadoParSeBloquea() {
+        withRepo();
+        var a = p("TEST A"); var b = p("TEST B");
+        day(a, b, true, null);
+        var e = assertThrows(IllegalArgumentException.class, () -> service.updateTournamentParticipants(add(777L)));
+        assertTrue(e.getMessage().contains("par"));
+    }
+
+    @Test void empezadoImparSoloUnEquipo() {
+        withRepo();
+        var a = p("TEST A"); var b = p("TEST B"); p("TEST C"); p("Free");
+        day(a, b, true, null);
+        var e = assertThrows(IllegalArgumentException.class, () -> service.updateTournamentParticipants(add(777L, 778L)));
+        assertTrue(e.getMessage().contains("solo se puede sumar 1 equipo"));
+    }
 }

@@ -184,10 +184,16 @@ public class TournamentServiceImpl implements TournamentService {
         if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         access.requireOwner(tournament.get());
         access.requireOpen(tournament.get());
-        if (tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsPlayOff()) || (!Boolean.TRUE.equals(day.getIsFinished()) && day.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished())))))
-            throw new IllegalArgumentException("Cerrá las jornadas con resultados antes de agregar equipos. No se pueden agregar equipos durante los playoffs.");
+        if (tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsPlayOff())))
+            throw new IllegalArgumentException("No se pueden agregar equipos durante los playoffs.");
         if (request.teams() == null || request.teams().isEmpty() || new HashSet<>(request.teams()).size() != request.teams().size())
-            throw new IllegalArgumentException("Seleccioná equipos distintos.");
+            throw new IllegalArgumentException("Seleccion\u00e1 equipos distintos.");
+        // Revision critica #7: con el torneo empezado solo se suma un equipo si es impar; ocupa el lugar de Libre
+        // en lo que falta jugar y las fechas ya jugadas quedan como libre.
+        if (hasStarted(tournament.get())) {
+            addTeamToStartedTournament(tournament.get(), request.teams());
+            return;
+        }
         List<TournamentParticipant> tournamentParticipants = tournament.get().getTeams().stream().toList();
 
         boolean isOdd = tournamentParticipants.stream()
@@ -212,6 +218,34 @@ public class TournamentServiceImpl implements TournamentService {
             realTeams.add(free.orElseThrow());
         }
         matchDayService.reGenerateMatchDays(realTeams, request.tournamentCode());
+    }
+
+    static boolean hasStarted(Tournament t) {
+        return t.getMatchDays().stream().anyMatch(d -> Boolean.TRUE.equals(d.getIsFinished())
+                || d.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished()) && !m.isByeMatch()));
+    }
+
+    private void addTeamToStartedTournament(Tournament t, List<Long> teams) {
+        var free = t.getTeams().stream().filter(Match::isFreeParticipant).findFirst();
+        boolean odd = free.isPresent() && t.getTeams().stream().filter(p -> !Match.isFreeParticipant(p)).count() % 2 == 1;
+        if (!odd) throw new IllegalArgumentException("El torneo ya empez\u00f3 y tiene cantidad par de equipos: no se pueden sumar equipos.");
+        if (teams.size() != 1) throw new IllegalArgumentException("El torneo ya empez\u00f3: solo se puede sumar 1 equipo, que ocupa el lugar de la fecha libre.");
+        addTeamToTournament(teams.get(0), t);
+        TournamentParticipant added = this.participantRepository.findAllByTournament(t).stream()
+                .filter(p -> p.getTeam() != null && Objects.equals(p.getTeam().getId(), teams.get(0)))
+                .findFirst().orElseThrow(() -> new IllegalStateException("No se pudo sumar el equipo."));
+        TournamentParticipant freeP = free.get();
+        for (MatchDay day : t.getMatchDays()) {
+            if (Boolean.TRUE.equals(day.getIsFinished())) continue; // fechas jugadas: quedan como libre
+            for (Match m : day.getMatches()) {
+                if (Boolean.TRUE.equals(m.getIsFinished())) continue;
+                boolean changed = false;
+                if (m.getHomeTeam() == freeP || Match.isFreeParticipant(m.getHomeTeam())) { m.setHomeTeam(added); changed = true; }
+                if (m.getAwayTeam() == freeP || Match.isFreeParticipant(m.getAwayTeam())) { m.setAwayTeam(added); changed = true; }
+                if (changed && Match.isInactiveParticipant(m.getHomeTeam()) == false && Match.isInactiveParticipant(m.getAwayTeam()) == false) m.setBye(false);
+            }
+            this.matchDayRepository.save(day);
+        }
     }
 
     @Override
