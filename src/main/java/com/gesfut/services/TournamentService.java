@@ -20,7 +20,7 @@ public interface TournamentService {
 
     TournamentResponse findTournamentByCode(String code);
 
-    String changeStatusTournamentByCode(String code, Boolean status);
+    void finishTournament(String code);
 
     void initializeTournament(MatchDayRequest request, LocalDateTime startDate);
 

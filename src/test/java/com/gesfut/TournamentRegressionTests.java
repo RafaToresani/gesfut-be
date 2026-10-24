@@ -61,7 +61,7 @@ class TournamentRegressionTests {
         Match top=playoffs.getMatches().stream().filter(m->m.getHomeTeam()==a).findFirst().orElseThrow();
         assertSame(b,top.getAwayTeam()); // Zulu primero por puntos/DG, Alfa último.
         verify(access).requireOwner(tournament);
-        assertFalse(tournament.getIsFinished());
+        assertNotEquals(Boolean.TRUE, tournament.getIsFinished()); // generar playoffs no toca "finalizado"
     }
     /** Plan 22/10 #2 (respuesta 3): un equipo dado de baja no clasifica a playoffs. */
     @Test void inactiveParticipantCannotQualify(){
@@ -86,6 +86,23 @@ class TournamentRegressionTests {
         assertEquals(ms.get(3).getId(), ms.get(2).getVsMatchIdWhoWin()); // 2/7 contra 3/6
         assertEquals(List.of(1,4,2,3), com.gesfut.services.impl.TournamentSeedAccess.order(4));
         assertEquals(List.of(1,2), com.gesfut.services.impl.TournamentSeedAccess.order(2));
+    }
+    /** Revision critica #2: finalizar es explicito, exige todo jugado y es irreversible. */
+    @Test void finishRequiresEverythingPlayedAndIsIrreversible(){
+        MatchDay league=day(false,false); match(league,a,b,1,0,true);
+        assertThrows(IllegalArgumentException.class,()->service.finishTournament(tournament.getCode().toString()));
+        league.setIsFinished(true);
+        service.finishTournament(tournament.getCode().toString());
+        assertEquals(Boolean.TRUE,tournament.getIsFinished());
+        doCallRealMethod().when(access).requireOpen(any());
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,()->service.finishTournament(tournament.getCode().toString()));
+    }
+    @Test void finishWaitsForPlayoffFinal(){
+        MatchDay league=day(false,true); match(league,a,b,1,0,true); match(league,c,d,1,0,true);
+        MatchDay semis=MatchDay.builder().id(2L).numberOfMatchDay(1).isPlayOff(true).isFinished(true).tournament(tournament).matches(new HashSet<>()).build();
+        tournament.getMatchDays().add(semis); match(semis,a,d,1,0,true); match(semis,b,c,1,0,true);
+        var e=assertThrows(IllegalArgumentException.class,()->service.finishTournament(tournament.getCode().toString()));
+        assertTrue(e.getMessage().contains("playoffs"));
     }
     @Test void sixQualifiersAreRejectedBeforeCreatingBrokenBracket(){
         day(false,true); participant(5L,"E");participant(6L,"F");

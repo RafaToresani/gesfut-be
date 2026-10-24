@@ -435,6 +435,7 @@ public class MatchServiceImpl implements MatchService {
     private Match getWritableMatch(Long id) {
         Match match = matchRepository.findForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("El partido no existe."));
         access.requireOwner(match.getMatchDay().getTournament());
+        access.requireOpen(match.getMatchDay().getTournament());
         return match;
     }
 

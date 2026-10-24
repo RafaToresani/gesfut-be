@@ -51,6 +51,7 @@ public class MatchDayServiceImpl implements MatchDayService {
     public void reGenerateMatchDays(List<TournamentParticipant> tournamentParticipants, String tournamentCode) {
         Tournament tournament = getTournament(tournamentCode);
         access.requireOwner(tournament);
+        access.requireOpen(tournament);
         if (tournament.getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsPlayOff()) || (!Boolean.TRUE.equals(day.getIsFinished()) && day.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished())))))
             throw new IllegalArgumentException("No se puede regenerar una jornada abierta con partidos jugados ni un cuadro de playoffs.");
         List<MatchDay> closed = tournament.getMatchDays().stream().filter(day -> Boolean.TRUE.equals(day.getIsFinished())).toList();
@@ -95,6 +96,7 @@ public class MatchDayServiceImpl implements MatchDayService {
     public void generateMatchDays(HashSet<TournamentParticipant> tournamentParticipants, String tournamentCode, LocalDateTime startDate, Integer plusMinutes, Integer plusDays) {
         Tournament tournament = getTournament(tournamentCode);
         access.requireOwner(tournament);
+        access.requireOpen(tournament);
         if(!tournament.getMatchDays().isEmpty()) throw new ResourceAlreadyExistsException("El torneo ya cuenta con fechas.");
         int numberOfTeams = tournamentParticipants.size();
         int numberOfMatchDays = numberOfTeams - 1;
@@ -160,6 +162,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         MatchDay matchDay = matchDayOpt.get();
         access.requireOwner(matchDay.getTournament());
+        access.requireOpen(matchDay.getTournament());
 
         matchDay.getMatches().forEach(match -> {
             if(!match.getIsFinished()){
@@ -175,9 +178,7 @@ public class MatchDayServiceImpl implements MatchDayService {
         if (status == null) throw new IllegalArgumentException("El estado es requerido.");
         if (!status && matchDay.getTournament().getMatchDays().stream().anyMatch(day -> day.getNumberOfMatchDay() > matchDay.getNumberOfMatchDay() && Boolean.TRUE.equals(day.getIsPlayOff())))
             throw new IllegalArgumentException("No se puede reabrir una jornada después de generar otra ronda.");
-        boolean allClosed = status && matchDay.getTournament().getMatchDays().stream().allMatch(day -> Objects.equals(day.getId(), matchDay.getId()) || Boolean.TRUE.equals(day.getIsFinished()));
-        matchDay.getTournament().setIsFinished(allClosed);
-        this.tournamentRepository.save(matchDay.getTournament());
+        // Revision critica #2: cerrar la ultima fecha ya no finaliza el torneo; eso es explicito ("Finalizar torneo").
 
         matchDay.setMvpPlayer(playerMvP);
         matchDay.setIsFinished(status);
@@ -213,6 +214,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         MatchDay matchDay = matchDayOpt.get();
         access.requireOwner(matchDay.getTournament());
+        access.requireOpen(matchDay.getTournament());
         if (request.localDateTime() == null || plusMinutes == null || plusMinutes <= 0) throw new IllegalArgumentException("Indicá fecha y duración positiva.");
         MatchDateRequest newDate = request;
         if( ( matchDay.getNumberOfMatchDay() > 0) && (matchDay.getNumberOfMatchDay()+1 <= matchDay.getTournament().getMatchDays().size())){

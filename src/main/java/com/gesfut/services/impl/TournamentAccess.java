@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 public class TournamentAccess {
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
+    /** Revision critica #2: un torneo finalizado es irreversible y no admite cambios (409). */
+    public void requireOpen(Tournament tournament) {
+        if (Boolean.TRUE.equals(tournament.getIsFinished()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "El torneo est\u00e1 finalizado: ya no admite cambios.");
+    }
+
     public void requireOwner(Tournament tournament) {
         String email = SecurityUtils.getCurrentUserEmail();
         if (email == null || !email.equals(tournament.getUser().getEmail())) {

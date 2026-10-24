@@ -108,23 +108,28 @@ public class TournamentServiceImpl implements TournamentService {
         return tournamentToResponse(tournament.get());
     }
 
+    /** Revision critica #2: finalizar es explicito, exige todo jugado (liga y playoffs) y es irreversible. */
     @Override
     @Transactional
-    public String changeStatusTournamentByCode(String code, Boolean status) {
-        Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
-        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        if (tournament.isEmpty()) return "El torneo no existe";
-        verifyTournamentBelongsToManager(tournament.get(), user);
-        tournament.get().setIsFinished(status);
-        this.tournamentRepository.save(tournament.get());
-        String response;
+    public void finishTournament(String code) {
+        Tournament t = this.tournamentRepository.findByCode(UUID.fromString(code)).orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
+        access.requireOwner(t);
+        access.requireOpen(t);
+        String pending = finishBlocker(t);
+        if (pending != null) throw new IllegalArgumentException(pending);
+        t.setIsFinished(true);
+        this.tournamentRepository.save(t);
+    }
 
-        if(status)
-            response= "habilitado";
-        else
-            response= "deshabilitado";
-
-        return "Torneo " + response + " exitosamente.";
+    /** Motivo por el que todavia no se puede finalizar, o null. */
+    static String finishBlocker(Tournament t) {
+        if (t.getMatchDays() == null || t.getMatchDays().isEmpty()) return "El torneo todav\u00eda no tiene fechas.";
+        if (t.getMatchDays().stream().anyMatch(d -> !Boolean.TRUE.equals(d.getIsFinished()))) return "Hay fechas sin cerrar. Cerralas antes de finalizar el torneo.";
+        if (t.getMatchDays().stream().flatMap(d -> d.getMatches().stream()).anyMatch(m -> !Boolean.TRUE.equals(m.getIsFinished()) && !m.isByeMatch()))
+            return "Hay partidos sin resultado.";
+        var last = t.getMatchDays().stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).orElseThrow();
+        if (Boolean.TRUE.equals(last.getIsPlayOff()) && last.getMatches().size() != 1) return "Faltan rondas de playoffs: gener\u00e1 la siguiente ronda hasta la final.";
+        return null;
     }
 
     @Override
@@ -162,6 +167,7 @@ public class TournamentServiceImpl implements TournamentService {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(request.tournamentCode()));
         if (tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         access.requireOwner(tournament.get());
+        access.requireOpen(tournament.get());
         if (tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsPlayOff()) || (!Boolean.TRUE.equals(day.getIsFinished()) && day.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished())))))
             throw new IllegalArgumentException("Cerrá las jornadas con resultados antes de agregar equipos. No se pueden agregar equipos durante los playoffs.");
         if (request.teams() == null || request.teams().isEmpty() || new HashSet<>(request.teams()).size() != request.teams().size())
@@ -527,6 +533,7 @@ public class TournamentServiceImpl implements TournamentService {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         access.requireOwner(tournament.get());
+        access.requireOpen(tournament.get());
         if(tournament.get().getMatchDays().stream().anyMatch(matchDay -> !matchDay.getIsFinished())) throw new RuntimeException("Hay jornadas sin cerrar.");
         if (tournament.get().getMatchDays().stream().anyMatch(matchDay -> matchDay.getMatches().stream().anyMatch(match -> !match.getIsFinished()))) throw new RuntimeException("Hay partidos sin finalizar.");
         Set<MatchDay> matchDays = tournament.get().getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).collect(Collectors.toSet());
@@ -584,7 +591,6 @@ public class TournamentServiceImpl implements TournamentService {
         this.matchDayRepository.save(newMatchDay);
         setNextMatchPlayOff(newMatchDay);
         tournament.getMatchDays().add(newMatchDay);
-        tournament.setIsFinished(false);
         this.tournamentRepository.save(tournament);
     }
 
@@ -683,7 +689,6 @@ public class TournamentServiceImpl implements TournamentService {
         this.matchDayRepository.save(matchDay);
         setNextMatchPlayOff(matchDay);
         tournament.getMatchDays().add(matchDay);
-        tournament.setIsFinished(false);
         this.tournamentRepository.save(tournament);
     }
 

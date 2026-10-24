@@ -127,13 +127,13 @@ public class TournamentController {
     }
 
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
-    @Operation(summary = "Permite deshabilitar un torneo.")
-    @PatchMapping("/change-status-tournament")
+    // Revision critica #2: se quita el toggle manual de "finalizado"; finalizar es explicito e irreversible.
+    @Operation(summary = "Finaliza el torneo (requiere todo jugado). Irreversible.")
+    @PutMapping("/{code}/finish")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    // Loop 5: @Param (Spring Data) no lee query params: code llegaba null y respondia 500.
-    public String deleteTournamentByCode(@RequestParam(value = "tournament-code") String code, @RequestParam(value = "status") Boolean status){
-        return this.tournamentService.changeStatusTournamentByCode(code, status);
+    public void finishTournament(@PathVariable("code") String code) {
+        this.tournamentService.finishTournament(code);
     }
 
     // ~~~~~~~~~~~~ PUT ~~~~~~~~~~~~
