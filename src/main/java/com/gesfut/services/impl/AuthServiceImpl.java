@@ -69,7 +69,7 @@ public class AuthServiceImpl implements AuthService {
         Optional<UserEntity> user = userRepository.findByEmail(request.email());
         if(user.isEmpty()) throw new ResourceNotFoundException("El email ingresado no es válido.");
         if (!user.get().getEmailVerified()) {
-            throw new IllegalStateException("Email no verificado. Por favor, verifica tu email antes de iniciar sesión.");
+            throw new IllegalStateException("Email no verificado. Por favor, verificá tu email antes de iniciar sesión.");
         }
         String token = jwtService.getToken(user.get(), user.get().getAuthorities());
         return new AuthResponse(user.get().getName(), user.get().getLastname(), token, user.get().getRole().name());
