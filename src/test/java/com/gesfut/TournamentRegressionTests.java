@@ -232,6 +232,22 @@ class TournamentRegressionTests {
         assertEquals(1,scorers.size()); assertEquals(2,scorers.getFirst().goals());
         assertTrue(service.findTopYellowCardsByTournament(tournament.getCode().toString()).isEmpty());
     }
+    /** Revision critica #15: borrar = definitivo si no se jugo nada; si hubo partidos, archivar. */
+    @Test void deleteWithoutPlayedMatchesIsHardDelete(){
+        tournament.setUser(UserEntity.builder().tournaments(new HashSet<>(Set.of(tournament))).build());
+        match(day(false,false),a,b,0,0,false);
+        assertEquals("DELETE",service.deleteTournament(tournament.getCode().toString()));
+        verify(access).requireOwner(tournament);
+        verify(tournaments).delete(tournament);
+        assertTrue(tournament.getUser().getTournaments().isEmpty());
+    }
+    @Test void deleteWithPlayedMatchesArchives(){
+        tournament.setIsActive(true);
+        match(day(false,true),a,b,1,0,true);
+        assertEquals("ARCHIVE",service.deleteTournament(tournament.getCode().toString()));
+        assertEquals(Boolean.FALSE,tournament.getIsActive());
+        verify(tournaments,never()).delete(any());
+    }
     void prepareResponseServices(){
         tournament.setUser(UserEntity.builder().name("Test").lastname("Owner").build());
         var participants=mock(TournamentParticipantService.class);

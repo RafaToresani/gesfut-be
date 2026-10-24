@@ -220,6 +220,26 @@ public class TournamentServiceImpl implements TournamentService {
         matchDayService.reGenerateMatchDays(realTeams, request.tournamentCode());
     }
 
+    @Override
+    @Transactional
+    public String deleteTournament(String code) {
+        Tournament t = this.tournamentRepository.findByCode(UUID.fromString(code)).orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
+        access.requireOwner(t);
+        boolean played = t.getMatchDays().stream().flatMap(d -> d.getMatches().stream())
+                .anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished()) && !m.isByeMatch());
+        if (played) {
+            t.setIsActive(false);
+            this.tournamentRepository.save(t);
+            return "ARCHIVE";
+        }
+        if (t.getUser() != null && t.getUser().getTournaments() != null) t.getUser().getTournaments().remove(t);
+        this.matchDayRepository.deleteAll(new ArrayList<>(t.getMatchDays()));
+        t.getMatchDays().clear();
+        this.matchDayRepository.flush();
+        this.tournamentRepository.delete(t);
+        return "DELETE";
+    }
+
     static boolean hasStarted(Tournament t) {
         return t.getMatchDays().stream().anyMatch(d -> Boolean.TRUE.equals(d.getIsFinished())
                 || d.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished()) && !m.isByeMatch()));

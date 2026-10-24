@@ -136,6 +136,14 @@ public class TournamentController {
         this.tournamentService.updateDiscipline(code, request);
     }
 
+    @Operation(summary = "Borra el torneo si no se jugo ningun partido; si ya hubo partidos, lo archiva (visible, solo lectura).")
+    @DeleteMapping("/{code}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public java.util.Map<String, String> deleteTournament(@PathVariable("code") String code) {
+        return java.util.Map.of("action", this.tournamentService.deleteTournament(code));
+    }
+
     @Operation(summary = "Finaliza el torneo (requiere todo jugado). Irreversible.")
     @PutMapping("/{code}/finish")
     @ResponseStatus(HttpStatus.OK)

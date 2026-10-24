@@ -21,6 +21,8 @@ public interface TournamentService {
     TournamentResponse findTournamentByCode(String code);
 
     void finishTournament(String code);
+    /** Revision critica #15: "DELETE" si no se jugo nada (borrado definitivo), "ARCHIVE" si ya hubo partidos. */
+    String deleteTournament(String code);
     void generatePlayOffs(String code, List<Long> qualifiedTeams, java.time.LocalDateTime startDate, Integer minutesPerMatch);
     void updateDiscipline(String code, com.gesfut.dtos.requests.DisciplineRequest request);
 
