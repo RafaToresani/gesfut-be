@@ -175,6 +175,9 @@ class TeamDeleteDisableTests {
         fixture(tor, ps, true);
         TeamDeletionResponse preview = service.previewDeleteTeam(a.getId());
         assertNotNull(preview.blockedReason());
+        assertTrue(preview.blockedReason().contains("'TEST A'"), preview.blockedReason()); // nombra al equipo
+        var ex = assertThrows(IllegalArgumentException.class, () -> service.disableTeam(a.getId(), false));
+        assertTrue(ex.getMessage().startsWith("No se puede deshabilitar a 'TEST A' mientras el torneo '"), ex.getMessage());
         assertThrows(IllegalArgumentException.class, () -> service.deleteTeam(a.getId()));
         assertThrows(IllegalArgumentException.class, () -> service.disableTeam(a.getId(), false));
         assertTrue(ps.get(0).getIsActive());

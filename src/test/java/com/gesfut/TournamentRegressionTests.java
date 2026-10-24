@@ -187,6 +187,16 @@ class TournamentRegressionTests {
         tournament.setIsFinished(true);
         assertEquals(a.getId(),service.tournamentToResponse(tournament).championOfLeagueId());
     }
+    /** Final de playoffs con ganador y torneo SIN finalizar: los campeones ya se informan. */
+    @Test void championsReportedOnceFinalHasWinnerEvenIfNotFinished(){
+        prepareResponseServices();
+        MatchDay league=day(false,true);match(league,a,b,2,0,true);
+        MatchDay playoff=day(true,true);playoff.setNumberOfMatchDay(1);match(playoff,b,a,3,1,true);
+        tournament.setIsFinished(false);
+        var r=service.tournamentToResponse(tournament);
+        assertEquals(b.getId(),r.championOfPlayoffsId());
+        assertEquals(a.getId(),r.championOfLeagueId());
+    }
     @Test void playoffPointsNeverContaminateLeagueClassification(){
         prepareResponseServices();
         MatchDay league=day(false,true);match(league,a,b,2,0,true);

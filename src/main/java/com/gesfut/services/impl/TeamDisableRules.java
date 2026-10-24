@@ -42,7 +42,7 @@ public final class TeamDisableRules {
         Tournament t = p.getTournament();
         if (!isOngoing(t) || t.getMatchDays() == null) return;
         boolean playoffs = t.getMatchDays().stream().anyMatch(d -> Boolean.TRUE.equals(d.getIsPlayOff()));
-        if (playoffs) throw new IllegalArgumentException("No se puede deshabilitar el equipo mientras el torneo '" + t.getName()
+        if (playoffs) throw new IllegalArgumentException("No se puede deshabilitar a '" + p.getTeam().getName() + "' mientras el torneo '" + t.getName()
                 + "' est\u00e1 en playoffs. Esper\u00e1 a que termine el torneo.");
     }
 
