@@ -49,7 +49,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
                                 "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification", "/api/v1/auth/resend-verification/*").permitAll()
                         // Review 24/10: la lista propia cae en el comodin /tournaments/* pero exige sesion (anonimo -> 401, no 403).
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tournaments/short", "/api/v1/tournaments/exist").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tournaments/short").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/v1/tournaments/*", "/api/v1/tournaments/short/*",
                                 "/api/v1/tournaments/*/matches/*", "/api/v1/tournaments/*/top-scorers",

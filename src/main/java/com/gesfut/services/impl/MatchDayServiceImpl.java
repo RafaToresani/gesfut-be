@@ -183,13 +183,15 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         // Review 24/10: vacio = "Cerrar sin MVP"; si viene, tiene que ser uno de los MVP cargados en los partidos de esta fecha.
         String mvp = playerMvP == null ? "" : playerMvP.trim();
+        // Reabrir nunca valida ni guarda MVP (el front podria reenviar uno viejo cambiado en "Corregir resultado").
+        if (!status) mvp = "";
         if (!mvp.isEmpty()) {
             boolean valid = matchDay.getMatches() != null && matchDay.getMatches().stream()
                     .map(m -> m.getMvpPlayer() == null ? "" : m.getMvpPlayer().trim())
                     .anyMatch(mvp::equals);
             if (!valid) throw new IllegalArgumentException("El MVP elegido no es MVP de ning\u00fan partido de esta fecha. Eleg\u00ed uno de la lista o cerr\u00e1 sin MVP.");
         }
-        matchDay.setMvpPlayer(mvp.isEmpty() ? playerMvP : mvp);
+        matchDay.setMvpPlayer(mvp.isEmpty() ? null : mvp); // vacio o solo espacios -> null
         matchDay.setIsFinished(status);
         this.matchDayRepository.save(matchDay);
     }

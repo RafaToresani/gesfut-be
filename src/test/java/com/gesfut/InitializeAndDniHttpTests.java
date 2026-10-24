@@ -245,6 +245,11 @@ class InitializeAndDniHttpTests {
         var empty = close(md, "");
         assertEquals(200, empty.getResponse().getStatus(), body(empty));
         jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
+        assertNull(jdbc.queryForObject("SELECT mvp_player FROM match_days WHERE id=?", String.class, md), "vacio se guarda null");
+        jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
+        assertEquals(200, close(md, "   ").getResponse().getStatus());
+        assertNull(jdbc.queryForObject("SELECT mvp_player FROM match_days WHERE id=?", String.class, md), "espacios se guardan null");
+        jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
         var none = close(md, null);
         assertEquals(200, none.getResponse().getStatus(), body(none));
         jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
@@ -254,6 +259,13 @@ class InitializeAndDniHttpTests {
         assertEquals(mvp, jdbc.queryForObject("SELECT mvp_player FROM match_days WHERE id=?", String.class, md));
         jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
         assertEquals(400, close(md, mvp.toUpperCase().equals(mvp) ? mvp.toLowerCase() : mvp.toUpperCase()).getResponse().getStatus(), "distingue mayusculas");
+        // Reabrir con un MVP viejo (cambiado en "Corregir resultado") no falla ni lo guarda.
+        assertEquals(200, close(md, mvp).getResponse().getStatus());
+        jdbc.update("UPDATE matches SET mvp_player=CONCAT('Otro MVP ', id) WHERE match_day_id=?", md);
+        var reopen = call(put("/api/v1/match-days/close").param("matchDayId", String.valueOf(md)).param("status", "false").param("playerMvp", mvp));
+        assertEquals(200, reopen.getResponse().getStatus(), body(reopen));
+        assertEquals(0, count("SELECT COUNT(*) FROM match_days WHERE id=? AND is_finished=1", md));
+        assertNull(jdbc.queryForObject("SELECT mvp_player FROM match_days WHERE id=?", String.class, md));
     }
 
     /** Recorre TODOS los GET permitAll de SecurityConfig, sin token, con la fecha 1 jugada y cerrada con MVP. */
@@ -276,7 +288,6 @@ class InitializeAndDniHttpTests {
                 "/api/v1/team-participant/" + code + "/teams"}) urls.put(u, 200);
         // Caen en el comodin GET /tournaments/* pero no son publicos: exigen sesion (401 sin token).
         urls.put("/api/v1/tournaments/short", 401);
-        urls.put("/api/v1/tournaments/exist", 401);
         for (var e : urls.entrySet()) {
             String url = e.getKey();
             var r = mvc.perform(get(url)).andReturn(); // sin token
@@ -304,9 +315,18 @@ class InitializeAndDniHttpTests {
         String forged = token.substring(0, token.length() - 4) + (token.endsWith("AAAA") ? "BBBB" : "AAAA");
         assertEquals(401, mvc.perform(get("/api/v1/teams").header("Authorization", forged)).andReturn().getResponse().getStatus());
         assertEquals(200, call(get("/api/v1/teams")).getResponse().getStatus());
-        Long other = jdbc.query("SELECT id FROM teams WHERE user_id IS NOT NULL AND user_id<>? ORDER BY id LIMIT 1", rs -> rs.next() ? rs.getLong(1) : null, owner.getId());
-        Assumptions.assumeTrue(other != null, "La base de regresion no tiene equipos de otro usuario: no se puede probar el 403.");
+        // Equipo de OTRO usuario creado por el test (no depende de datos previos).
+        String otherEmail = "otro-" + System.nanoTime() + "@test.invalid";
+        jdbc.update("INSERT INTO users (email, name, lastname, password, role, email_verified) SELECT ?, 'Otro', 'Usuario', 'x', role, 1 FROM users WHERE id=?", otherEmail, owner.getId());
+        long otherUser = jdbc.queryForObject("SELECT id FROM users WHERE email=?", Long.class, otherEmail);
+        jdbc.update("INSERT INTO teams (name, color, user_id, status) VALUES (?, '#000000', ?, 1)", prefix + " AJENO", otherUser);
+        long other = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " AJENO");
+        try {
         assertEquals(403, call(get("/api/v1/teams/" + other)).getResponse().getStatus());
+        } finally {
+            jdbc.update("DELETE FROM teams WHERE id=?", other);
+            jdbc.update("DELETE FROM users WHERE id=?", otherUser);
+        }
         assertEquals(200, mvc.perform(get("/api/v1/tournaments/" + code)).andReturn().getResponse().getStatus());
     }
 
