@@ -57,6 +57,8 @@ public class SecurityConfig {
                                 // Revision critica #14: solo lo que cuelga de un codigo de torneo; nada por id numerico.
                                 "/api/v1/team-participant/*/teams").permitAll()
                         .anyRequest().authenticated())
+                // Review 24/10: sin token o token invalido -> 401 (el front cierra la sesion). Sin permiso sigue siendo 403.
+                .exceptionHandling(e -> e.authenticationEntryPoint(new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authProvider)
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)

@@ -170,13 +170,23 @@ class InitializeAndDniHttpTests {
 
     long playersOf(String key) { return jdbc.queryForObject("SELECT COUNT(*) FROM players WHERE team_id=?", Long.class, ids.get(key)); }
 
+    long count(String sql, Object... a) { return jdbc.queryForObject(sql, Long.class, a); }
+
     @Test void addPlayerEnTorneoFinalizadoNoEscribeNada() throws Exception {
         assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
-        long before = playersOf("A");
+        long players = count("SELECT COUNT(*) FROM players WHERE team_id=?", ids.get("A"));
+        long playersAll = count("SELECT COUNT(*) FROM players");
+        long pps = count("SELECT COUNT(*) FROM player_participants WHERE tournament_participant_id=?", participantId("A"));
+        long ppsAll = count("SELECT COUNT(*) FROM player_participants");
+        long tps = participants();
         jdbc.update("UPDATE tournaments SET is_finished=1 WHERE name=?", prefix);
-        var r = call(put("/api/v1/team-participant/" + code + "/add-player/" + participantId("A")).content("{\"name\":\"No\",\"lastName\":\"Debe\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":40,\"dni\":\"42111999\"}"));
-        assertTrue(r.getResponse().getStatus() >= 400 && r.getResponse().getStatus() < 500, body(r));
-        assertEquals(before, playersOf("A"), "no debe quedar el jugador en el equipo global");
+        var r = call(put("/api/v1/team-participant/" + code + "/add-player/" + participantId("A")).content("{\"name\":\"Nuevo\",\"lastName\":\"Rechazado\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":40,\"dni\":\"42111999\"}"));
+        assertEquals(409, r.getResponse().getStatus(), body(r));
+        assertEquals(players, count("SELECT COUNT(*) FROM players WHERE team_id=?", ids.get("A")), "no debe quedar el jugador en el equipo global");
+        assertEquals(playersAll, count("SELECT COUNT(*) FROM players"));
+        assertEquals(pps, count("SELECT COUNT(*) FROM player_participants WHERE tournament_participant_id=?", participantId("A")));
+        assertEquals(ppsAll, count("SELECT COUNT(*) FROM player_participants"));
+        assertEquals(tps, participants());
     }
 
     @Test void addPlayerPorRutaDeEquipoDevuelveMensajeConDniYEquipo() throws Exception {
@@ -189,20 +199,61 @@ class InitializeAndDniHttpTests {
     @Test void equipoConHistorialEnTorneoFinalizadoSePuedeDeshabilitar() throws Exception {
         assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
         jdbc.update("UPDATE tournaments SET is_finished=1 WHERE name=?", prefix);
+        long tp = participantId("A");
+        Map<String, Object> tpBefore = jdbc.queryForMap("SELECT * FROM tournament_participants WHERE id=?", tp);
+        long ppBefore = count("SELECT COUNT(*) FROM player_participants WHERE tournament_participant_id=?", tp);
+        String ppStateBefore = jdbc.queryForList("SELECT CONCAT(id,':',COALESCE(is_active,'-')) FROM player_participants WHERE tournament_participant_id=? ORDER BY id", String.class, tp).toString();
         var p = call(get("/api/v1/teams/" + ids.get("A") + "/delete-preview"));
         assertEquals(200, p.getResponse().getStatus(), body(p));
         assertFalse(body(p).contains("participa en el torneo"), body(p));
         var d = call(put("/api/v1/teams/change-status-team/" + ids.get("A") + "/false"));
         assertEquals(200, d.getResponse().getStatus(), body(d));
+        assertEquals(tpBefore, jdbc.queryForMap("SELECT * FROM tournament_participants WHERE id=?", tp), "el participante del torneo finalizado no cambia");
+        assertEquals(ppBefore, count("SELECT COUNT(*) FROM player_participants WHERE tournament_participant_id=?", tp));
+        assertEquals(ppStateBefore, jdbc.queryForList("SELECT CONCAT(id,':',COALESCE(is_active,'-')) FROM player_participants WHERE tournament_participant_id=? ORDER BY id", String.class, tp).toString());
     }
 
+    /** Recorre TODOS los GET permitAll de SecurityConfig, sin token, con un torneo inicializado y una fecha cerrada. */
     @Test void vistaPublicaNoExponeDniNiEmails() throws Exception {
         assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
-        for (String url : new String[]{"/api/v1/tournaments/" + code, "/api/v1/team-participant/" + code + "/teams"}) {
+        jdbc.update("UPDATE players SET dni='40111222' WHERE team_id=? AND dni IS NOT NULL", ids.get("A"));
+        String ownerEmail = owner.getUsername();
+        long pid = participantId("A");
+        String[] urls = {
+            "/api/v1/tournaments/" + code, "/api/v1/tournaments/short/" + code,
+            "/api/v1/tournaments/" + code + "/matches/" + pid,
+            "/api/v1/tournaments/" + code + "/top-scorers", "/api/v1/tournaments/" + code + "/top-yellow-cards", "/api/v1/tournaments/" + code + "/top-red-cards",
+            "/api/v1/match-days/" + code, "/api/v1/match-days/" + code + "/lastPlayed",
+            "/api/v1/prizes/" + code, "/api/v1/prizes/" + code + "/POSITION", "/api/v1/prizes/" + code + "/FAIR_PLAY", "/api/v1/prizes/" + code + "/TOP_SCORER",
+            "/api/v1/team-participant/" + code + "/teams",
+            // Tambien caen en el comodin /tournaments/*: no deben filtrar nada sin token.
+            "/api/v1/tournaments/short", "/api/v1/tournaments/exist"
+        };
+        for (String url : urls) {
             var r = mvc.perform(get(url)).andReturn(); // sin token
-            String b = body(r);
-            assertEquals(200, r.getResponse().getStatus(), url + " " + b);
-            assertFalse(b.toLowerCase().contains("dni") || b.contains("40111222") || b.contains("@") || b.toLowerCase().contains("phone") || b.toLowerCase().contains("email"), url + " " + b);
+            String b = body(r), low = b.toLowerCase();
+            assertTrue(r.getResponse().getStatus() < 500, url + " " + r.getResponse().getStatus() + " " + b);
+            assertFalse(low.contains("\"dni\"") || b.contains("40111222") || b.contains("40333444"), "DNI en " + url + ": " + b);
+            assertFalse(low.contains("email") || low.contains("mail\"") || b.contains(ownerEmail) || b.matches("(?s).*[\\w.+-]+@[\\w-]+\\.[\\w.]+.*"), "email en " + url + ": " + b);
+            assertFalse(low.contains("phone") || low.contains("telefono") || low.contains("password"), "telefono en " + url + ": " + b);
         }
+        for (String url : new String[]{"/api/v1/tournaments/" + code, "/api/v1/tournaments/short/" + code, "/api/v1/match-days/" + code, "/api/v1/team-participant/" + code + "/teams"})
+            assertEquals(200, mvc.perform(get(url)).andReturn().getResponse().getStatus(), url);
+    }
+
+    /** Review 24/10: sin token / token basura -> 401 (el front cierra sesion); con token valido pero sin permiso -> 403. */
+    @Test void codigosDeSeguridad401y403() throws Exception {
+        assertEquals(401, mvc.perform(get("/api/v1/teams")).andReturn().getResponse().getStatus());
+        assertEquals(401, mvc.perform(get("/api/v1/teams").header("Authorization", "Bearer basura.no.firmada")).andReturn().getResponse().getStatus());
+        String forged = token.substring(0, token.length() - 4) + (token.endsWith("AAAA") ? "BBBB" : "AAAA");
+        assertEquals(401, mvc.perform(get("/api/v1/teams").header("Authorization", forged)).andReturn().getResponse().getStatus());
+        assertEquals(200, call(get("/api/v1/teams")).getResponse().getStatus());
+        Long other = jdbc.query("SELECT id FROM teams WHERE user_id IS NOT NULL AND user_id<>? ORDER BY id LIMIT 1", rs -> rs.next() ? rs.getLong(1) : null, owner.getId());
+        if (other != null) assertEquals(403, call(get("/api/v1/teams/" + other)).getResponse().getStatus());
+        // publico y login siguen igual
+        assertEquals(200, mvc.perform(get("/api/v1/tournaments/" + code)).andReturn().getResponse().getStatus());
+        var login = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"nadie-test@example.invalid\",\"password\":\"x\"}")).andReturn();
+        assertNotEquals(500, login.getResponse().getStatus());
+        assertNotEquals(404, login.getResponse().getStatus());
     }
 }
