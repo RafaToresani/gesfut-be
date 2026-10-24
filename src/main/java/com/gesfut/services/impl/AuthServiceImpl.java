@@ -124,10 +124,10 @@ public class AuthServiceImpl implements AuthService {
 
     public void verifyEmail(String token) {
         UserEntity user = userRepository.findByResetToken(VERIFY_PREFIX + token)
-                .orElseThrow(() -> new ResourceNotFoundException("Token inválido"));
+                .orElseThrow(() -> new IllegalArgumentException("El enlace de verificaci\u00f3n no es v\u00e1lido o ya se us\u00f3. Ped\u00ed uno nuevo con \"Reenviar mail\" desde el inicio de sesi\u00f3n."));
 
-        if (user.getResetTokenExpiration().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("El token ha expirado");
+        if (user.getResetTokenExpiration() == null || user.getResetTokenExpiration().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("El enlace de verificaci\u00f3n venci\u00f3. Ped\u00ed uno nuevo con \"Reenviar mail\" desde el inicio de sesi\u00f3n.");
         }
 
         user.setEmailVerified(true);
@@ -146,12 +146,17 @@ public class AuthServiceImpl implements AuthService {
         user.setResetTokenExpiration(LocalDateTime.now().plusHours(24));
         userRepository.save(user);
 
+        // Nunca se loguea el token; si falla el SMTP la respuesta sigue siendo la misma (neutral).
+        try {
         emailService.sendEmail(
                 email,
                 "GESFUT - Verificación de email",
                 "Para verificar tu email, haz click en el siguiente enlace: " +
                         frontBaseUrl() + "/auth/verify-email/" + newToken
         );
+        } catch (RuntimeException e) {
+            log.warn("No se pudo reenviar el mail de verificacion: {}", e.getClass().getSimpleName());
+        }
     }
 
 

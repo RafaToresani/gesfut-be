@@ -123,10 +123,13 @@ public class AuthController {
         this.authService.verifyEmail(token);
     }
 
+    static final String RESEND_NEUTRAL = "Si el mail existe y falta verificarlo, te lo mandamos. Revis\u00e1 tu casilla (y spam).";
+
     @PostMapping("/resend-verification/{email}")
-    public ResponseEntity<Void> resendVerification(@PathVariable String email) {
-        this.authService.resendVerificationEmail(email);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<java.util.Map<String, String>> resendVerification(@PathVariable String email) {
+        // Siempre la misma respuesta: no revela si la cuenta existe o ya esta verificada.
+        try { this.authService.resendVerificationEmail(email); } catch (RuntimeException ignored) { }
+        return ResponseEntity.ok(java.util.Map.of("message", RESEND_NEUTRAL));
     }
 
 

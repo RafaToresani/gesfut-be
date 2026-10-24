@@ -31,6 +31,22 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         return -1;
     }
 
+    static final String RESEND = "/api/v1/auth/resend-verification/";
+    static final long RESEND_WINDOW_MS = 3_600_000;
+
+    /** Reenviar mail: 3 por hora por IP y tambien por cuenta (email), aunque cambie la IP. */
+    static long windowFor(String path) { return path.startsWith(RESEND) ? RESEND_WINDOW_MS : WINDOW_MS; }
+
+    private boolean hit(String key, int limit, long window, long now) {
+        Deque<Long> q = hits.computeIfAbsent(key, k -> new ArrayDeque<>());
+        synchronized (q) {
+            while (!q.isEmpty() && now - q.peekFirst() > window) q.pollFirst();
+            if (q.size() >= limit) return true;
+            q.addLast(now);
+            return false;
+        }
+    }
+
     static String bucketFor(String path) {
         int i = path.indexOf('/', "/api/v1/auth/".length());
         return i > 0 ? path.substring(0, i) : path;
@@ -53,19 +69,20 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         if (limit < 0) { chain.doFilter(request, response); return; }
         String key = clientIp(request) + "|" + bucketFor(path);
         long now = System.currentTimeMillis();
-        Deque<Long> q = hits.computeIfAbsent(key, k -> new ArrayDeque<>());
-        boolean blocked;
-        synchronized (q) {
-            while (!q.isEmpty() && now - q.peekFirst() > WINDOW_MS) q.pollFirst();
-            blocked = q.size() >= limit;
-            if (!blocked) q.addLast(now);
+        long window = windowFor(path);
+        boolean blocked = hit(key, limit, window, now);
+        if (!blocked && path.startsWith(RESEND)) {
+            String email = java.net.URLDecoder.decode(path.substring(RESEND.length()), java.nio.charset.StandardCharsets.UTF_8).trim().toLowerCase();
+            blocked = hit("email|" + email, limit, window, now);
         }
-        if (hits.size() > 10_000) hits.entrySet().removeIf(e -> { synchronized (e.getValue()) { return e.getValue().isEmpty() || now - e.getValue().peekLast() > WINDOW_MS; } });
+        if (hits.size() > 10_000) hits.entrySet().removeIf(e -> { synchronized (e.getValue()) { return e.getValue().isEmpty() || now - e.getValue().peekLast() > RESEND_WINDOW_MS; } });
         if (blocked) {
             response.setStatus(429);
-            response.setHeader("Retry-After", "60");
+            response.setHeader("Retry-After", String.valueOf(window / 1000));
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"error\":\"Demasiados intentos. Esper\u00e1 un minuto y prob\u00e1 de nuevo.\"}");
+            response.getWriter().write(path.startsWith(RESEND)
+                    ? "{\"error\":\"Probaste muchas veces. Esper\u00e1 un rato e intent\u00e1 de nuevo.\"}"
+                    : "{\"error\":\"Demasiados intentos. Esper\u00e1 un minuto y prob\u00e1 de nuevo.\"}");
             return;
         }
         chain.doFilter(request, response);
