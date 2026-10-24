@@ -266,11 +266,6 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public Player getPlayerNumber(Integer number, Long teamId) {
-        return this.playerRepository.findByNumberAndTeamId(number, teamId);
-    }
-
-    @Override
     public Player getPlayerName(String name, String lastName, Long teamId){
         return this.playerRepository.findByNameAndLastNameAndTeamId(name,lastName,teamId);
     }

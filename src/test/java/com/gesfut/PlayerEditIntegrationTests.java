@@ -76,6 +76,20 @@ class PlayerEditIntegrationTests {
         assertDoesNotThrow(() -> teams.addPlayerToTeam(teamId, new PlayerRequest("Carlos", "Diaz", false, false, 10)));
     }
 
+    @Test void loteRechazaDorsalRepetidoCon400() {
+        var ex = assertThrows(IllegalArgumentException.class, () -> teams.createTeam(new TeamRequest(prefix + " B", "#000000", new LinkedHashSet<>(List.of(
+                new PlayerRequest("Ana", "Lopez", true, false, 7),
+                new PlayerRequest("Bea", "Ruiz", false, true, 7))))));
+        assertTrue(ex.getMessage().contains("7"));
+    }
+
+    @Test void cualquierAltaRespetaElDorsalActivo(@Autowired com.gesfut.services.PlayerService players) {
+        var team = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " A");
+        var t = com.gesfut.models.team.Team.builder().id(team).players(new HashSet<>()).build();
+        var ex = assertThrows(IllegalArgumentException.class, () -> players.createPlayer(new PlayerRequest("Carlos", "Diaz", false, false, 1), t));
+        assertTrue(ex.getMessage().contains("Pedro Gomez"));
+    }
+
     @Test void otroUsuarioNoPuede() {
         var other = UserEntity.builder().id(-1L).email("other@example.test").build();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(other, null, List.of()));

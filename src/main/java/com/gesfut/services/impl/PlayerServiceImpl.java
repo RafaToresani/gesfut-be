@@ -33,6 +33,12 @@ public class PlayerServiceImpl implements PlayerService {
         String dni = com.gesfut.services.impl.DniRules.normalize(request.dni());
         if (dni != null && team.getPlayers() != null && team.getPlayers().stream().anyMatch(p -> dni.equals(p.getDni())))
             throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
+        // Regla unica de dorsal para cualquier alta (individual, por torneo o en lote): no repetir el de un jugador activo.
+        if (team.getId() != null) {
+            var sameNumber = this.playerRepository.findActiveByNumberAndTeamId(request.number(), team.getId());
+            if (!sameNumber.isEmpty())
+                throw new IllegalArgumentException("El dorsal " + request.number() + " ya lo usa " + sameNumber.get(0).getName() + " " + sameNumber.get(0).getLastName() + ".");
+        }
       return playerRepository.save(Player.builder()
                 .dni(dni)
                 .name(request.name())
@@ -93,7 +99,7 @@ public class PlayerServiceImpl implements PlayerService {
         boolean goalKeeperFound = false;
 
         for (PlayerRequest player : players) {
-            if (!uniqueNumbers.add(player.number())) throw new ResourceAlreadyExistsException("El número " + player.number() + " ya está asignado a otro jugador.");
+            if (!uniqueNumbers.add(player.number())) throw new IllegalArgumentException("El número " + player.number() + " ya está asignado a otro jugador.");
 
             if (player.isCaptain()) {
                 if (captainFound) {

@@ -25,7 +25,6 @@ public interface TeamService  {
     void changeStatusPlayer(Long idPlayer, Boolean status);
     com.gesfut.dtos.responses.PlayerResponse editPlayer(Long idPlayer, com.gesfut.dtos.requests.PlayerEditRequest request);
     List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id);
-    Player getPlayerNumber(Integer number, Long teamId);
     Player getPlayerName(String name, String lastName, Long teamId);
     TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam);
     com.gesfut.dtos.responses.TeamImportResponse createMultipleTeams(List<TeamRequest> request);

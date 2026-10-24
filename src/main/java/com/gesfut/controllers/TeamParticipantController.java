@@ -51,7 +51,7 @@ public class TeamParticipantController {
     @PutMapping("/{code}/add-player/{teamIdParticipant}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public ParticipantResponse addPlayerToTeam(@PathVariable String code, @PathVariable Long teamIdParticipant, @RequestBody PlayerRequest player){
+    public ParticipantResponse addPlayerToTeam(@PathVariable String code, @PathVariable Long teamIdParticipant, @jakarta.validation.Valid @RequestBody PlayerRequest player){
         ParticipantResponse participant = this.tournamentParticipantService.getOneParticipants(teamIdParticipant);
         TeamResponse team = this.teamService.getTeamById(participant.idTeam());
         Player playerAux = this.teamService.getPlayerName(player.name(),player.lastName(),team.id());
