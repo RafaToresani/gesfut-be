@@ -319,12 +319,12 @@ class InitializeAndDniHttpTests {
         String otherEmail = "otro-" + System.nanoTime() + "@test.invalid";
         jdbc.update("INSERT INTO users (email, name, lastname, password, role, email_verified) SELECT ?, 'Otro', 'Usuario', 'x', role, 1 FROM users WHERE id=?", otherEmail, owner.getId());
         long otherUser = jdbc.queryForObject("SELECT id FROM users WHERE email=?", Long.class, otherEmail);
+        try {
         jdbc.update("INSERT INTO teams (name, color, user_id, status) VALUES (?, '#000000', ?, 1)", prefix + " AJENO", otherUser);
         long other = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " AJENO");
-        try {
         assertEquals(403, call(get("/api/v1/teams/" + other)).getResponse().getStatus());
-        } finally {
-            jdbc.update("DELETE FROM teams WHERE id=?", other);
+        } finally { // aunque falle el INSERT del equipo, se borra el usuario
+            jdbc.update("DELETE FROM teams WHERE user_id=?", otherUser);
             jdbc.update("DELETE FROM users WHERE id=?", otherUser);
         }
         assertEquals(200, mvc.perform(get("/api/v1/tournaments/" + code)).andReturn().getResponse().getStatus());
