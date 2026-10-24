@@ -50,6 +50,38 @@ public class Match {
 
     private String mvpPlayer;
 
+    /** Plan 22/10 #2: fecha libre por equipo dado de baja (el rival queda libre). Mismo trato que "Free": sin resultado ni estadisticas. */
+    private Boolean bye;
+
+    /** Plan 22/10 #2: el equipo ficticio "Free" que completa torneos impares (unico lugar donde se reconoce por nombre). */
+    public static boolean isFreeParticipant(TournamentParticipant p) {
+        return p != null && isFreeParticipantTeam(p.getTeam());
+    }
+
+    public static boolean isFreeParticipantTeam(Team team) {
+        return team != null && "Free".equals(team.getName());
+    }
+
+    /** Plan 22/10 #2: participante dado de baja del torneo (null = activo, filas viejas). */
+    public static boolean isInactiveParticipant(TournamentParticipant p) {
+        return p != null && Boolean.FALSE.equals(p.getIsActive());
+    }
+
+    /** Plan 22/10 #2: partido que no se juega: contra "Free" o marcado como libre por una baja. */
+    public boolean isByeMatch() {
+        return Boolean.TRUE.equals(bye) || isFreeParticipant(homeTeam) || isFreeParticipant(awayTeam);
+    }
+
+    /** Equipo que descansa en una fecha libre (el que sigue activo y no es "Free"); null si no aplica. */
+    public String restingTeamName() {
+        if (!isByeMatch()) return null;
+        boolean homeRests = !isFreeParticipant(homeTeam) && !isInactiveParticipant(homeTeam);
+        boolean awayRests = !isFreeParticipant(awayTeam) && !isInactiveParticipant(awayTeam);
+        if (homeRests && !awayRests) return homeTeam.getTeam().getName();
+        if (awayRests && !homeRests) return awayTeam.getTeam().getName();
+        return null;
+    }
+
     /** Plan 22/10 #9: el resultado se carga recien el dia del partido (sin fecha: se permite). */
     public boolean resultLoadableToday() {
         return date == null || !date.toLocalDate().isAfter(java.time.LocalDate.now());

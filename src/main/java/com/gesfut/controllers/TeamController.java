@@ -118,6 +118,21 @@ public class TeamController {
     }
 
 
+    // Plan 22/10 #2: "Eliminar equipo". Borra si nunca jugo; si tiene historial lo deshabilita.
+    @Operation(summary = "Indica que pasara al eliminar el equipo (DELETE o DISABLE) sin cambiar nada.")
+    @GetMapping("/{teamId}/delete-preview")
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public TeamDeletionResponse previewDeleteTeam(@PathVariable("teamId") Long teamId) {
+        return this.teamService.previewDeleteTeam(teamId);
+    }
+
+    @Operation(summary = "Elimina el equipo si nunca jugo; si tiene historial lo deshabilita (conserva resultados).")
+    @DeleteMapping("/{teamId}")
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public TeamDeletionResponse deleteTeam(@PathVariable("teamId") Long teamId) {
+        return this.teamService.deleteTeam(teamId);
+    }
+
     @Operation(summary = "Permite agregar un jugador a un equipo ya creado.")
     @PutMapping("/add-player/{teamId}")
     @ResponseStatus(HttpStatus.OK)

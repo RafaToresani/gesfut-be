@@ -61,7 +61,7 @@ public class MatchServiceImpl implements MatchService {
         if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
         if (Boolean.TRUE.equals(match.getMatchDay().getIsFinished())) throw new IllegalArgumentException("La jornada está cerrada.");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
-        if (match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
+        if (match.isByeMatch()) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
         // Plan 22/10 #9: no se carga un resultado antes del dia del partido.
         if (!match.resultLoadableToday()) throw new IllegalArgumentException("Todav\u00eda no es el d\u00eda del partido: el resultado se carga desde ese d\u00eda.");
 
@@ -238,6 +238,8 @@ public class MatchServiceImpl implements MatchService {
                 .date(startDate)
                 .description("1")
                 .mvpPlayer("")
+                // Plan 22/10 #2: si uno de los dos esta dado de baja, el rival queda libre.
+                .bye(Match.isInactiveParticipant(homeTeam) || Match.isInactiveParticipant(awayTeam))
                 .build();
             matchRepository.save(newMatch);
             if(newMatch.formatMatchDate(newMatch.getDate()) == null) {
@@ -246,7 +248,7 @@ public class MatchServiceImpl implements MatchService {
             }
             matches.add(newMatch);
             if (startDate != null) {
-                if(homeTeam.getTeam().getName().equals("Free") || awayTeam.getTeam().getName().equals("Free")){
+                if(newMatch.isByeMatch()){
                     startDate = startDate.plusMinutes(0);
                 }else{
                     startDate = startDate.plusMinutes(durationMatch);
@@ -424,7 +426,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getMvpPlayer(),
                 match.getVsMatchIdWhoWin(),
                 match.getTiebreakWinnerId(),
-                match.resultLoadableToday()
+                match.resultLoadableToday(),
+                match.isByeMatch(),
+                match.restingTeamName()
         );
     }
 
@@ -476,7 +480,7 @@ public class MatchServiceImpl implements MatchService {
                 boolean suspended = false;
                 for (Match m : matches) {
                     if (!Objects.equals(m.getHomeTeam().getId(), participant.getId()) && !Objects.equals(m.getAwayTeam().getId(), participant.getId())) continue;
-                    if (m.getHomeTeam().getTeam().getName().equals("Free") || m.getAwayTeam().getTeam().getName().equals("Free")) continue;
+                    if (m.isByeMatch()) continue;
                     suspended = false; // Esta participación cumple la suspensión anterior.
                     int yellows = 0, reds = 0;
                     for (Event e : eventMap.get(m.getId())) {

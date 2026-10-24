@@ -6,6 +6,8 @@ import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.*;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.models.team.Player;
+import com.gesfut.models.matchDay.Match;
+import com.gesfut.repositories.MatchRepository;
 import com.gesfut.models.team.Team;
 import com.gesfut.models.tournament.PlayerParticipant;
 import com.gesfut.models.tournament.Tournament;
@@ -44,6 +46,9 @@ public class TeamServiceImpl implements TeamService {
 
     @Autowired
     private TournamentParticipantRepository participantRepository;
+
+    @Autowired
+    private MatchRepository matchRepository;
 
     @Override
     @Transactional
@@ -99,9 +104,62 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public TeamDeletionResponse previewDeleteTeam(Long id) {
+        Team team = getTeamByIdSecured(id);
+        return deletionPlan(team, null);
+    }
+
+    @Override
+    @Transactional
+    public TeamDeletionResponse deleteTeam(Long id) {
+        Team team = getTeamByIdSecured(id);
+        TeamDeletionResponse plan = deletionPlan(team, null);
+        if (plan.blockedReason() != null) throw new IllegalArgumentException(plan.blockedReason());
+        if ("DELETE".equals(plan.action())) {
+            // El usuario tiene cascade ALL sobre sus equipos: si sigue en la coleccion, Hibernate cancela el borrado.
+            if (team.getUser() != null && team.getUser().getTeams() != null) team.getUser().getTeams().remove(team);
+            teamRepository.delete(team);
+            return deletionPlan(team, "Equipo '" + team.getName() + "' eliminado.");
+        }
+        disableTeam(id, false);
+        return new TeamDeletionResponse(team.getId(), team.getName(), "DISABLE", plan.ongoingTournaments(), null,
+                "Equipo '" + team.getName() + "' deshabilitado. Sus resultados se conservan.");
+    }
+
+    /** Plan 22/10 #2: si nunca estuvo en un torneo se borra; si tiene historial (jugo o esta inscripto) se deshabilita. */
+    private TeamDeletionResponse deletionPlan(Team team, String message) {
+        List<TournamentParticipant> participations = participantRepository.findAllByTeamId(team.getId());
+        String action = participations.isEmpty() ? "DELETE" : "DISABLE";
+        List<String> ongoing = participations.stream().filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
+                .map(p -> p.getTournament().getName()).distinct().toList();
+        String blocked = null;
+        if (Match.isFreeParticipantTeam(team)) blocked = "La fecha libre no se puede eliminar.";
+        else if ("DISABLE".equals(action) && Boolean.FALSE.equals(team.getStatus())) blocked = "El equipo ya est\u00e1 deshabilitado.";
+        else if ("DISABLE".equals(action)) {
+            try { participations.stream().filter(p -> !Boolean.FALSE.equals(p.getIsActive())).forEach(TeamDisableRules::checkCanDisable); }
+            catch (IllegalArgumentException e) { blocked = e.getMessage(); }
+        }
+        return new TeamDeletionResponse(team.getId(), team.getName(), action, ongoing, blocked, message);
+    }
+
+    @Override
     @Transactional
     public String disableTeam(Long id, Boolean status) {
+        if (status == null) throw new IllegalArgumentException("El estado es requerido.");
         Team team = getTeamByIdSecured(id);
+        if (Match.isFreeParticipantTeam(team)) throw new IllegalArgumentException("La fecha libre no se puede modificar.");
+        if (!status) {
+            // Plan 22/10 #2: baja en torneos en curso. Primero se valida todo (playoffs) y despues se aplica.
+            List<TournamentParticipant> ongoing = participantRepository.findAllByTeamId(id).stream()
+                    .filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive())).toList();
+            ongoing.forEach(TeamDisableRules::checkCanDisable);
+            for (TournamentParticipant p : ongoing) {
+                List<Match> changed = TeamDisableRules.disableParticipant(p);
+                participantRepository.save(p);
+                matchRepository.saveAll(changed);
+            }
+        }
         this.teamRepository.updateTeamStatus(id, status);
         this.playerService.updateStatusPlayersByTeam(id, status);
         String valueStatus  = "habilitado";
@@ -283,7 +341,7 @@ public class TeamServiceImpl implements TeamService {
 
     }
     private void verifyTeamBelongsToManager(Team team, UserEntity user){
-        if(!team.getUser().equals(user)) throw new RuntimeException("El equipo no pertenece a este usuario.");
+        if(team.getUser() == null || user == null || !java.util.Objects.equals(team.getUser().getId(), user.getId())) throw new org.springframework.security.access.AccessDeniedException("El equipo no pertenece a este usuario.");
     }
     private Team teamById(Long id){
         Optional<Team> team = this.teamRepository.findById(id);

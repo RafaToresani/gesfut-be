@@ -18,5 +18,8 @@ public record MatchResponse(
         Long vsMatchIdWhoWin,
         Long tiebreakWinnerId,
         // Plan 22/10 #9: false si el partido todavia no llego a su dia (no se puede cargar el resultado).
-        Boolean canLoadResult
+        Boolean canLoadResult,
+        // Plan 22/10 #2: fecha libre (rival "Free" o dado de baja) y quien descansa.
+        Boolean isBye,
+        String restingTeam
         ) { }

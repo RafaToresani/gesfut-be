@@ -18,6 +18,8 @@ public interface TeamService  {
     List<TeamResponse> getAllTeams();
     Team getTeamByIdSecured(Long id);
     String disableTeam(Long id, Boolean status);
+    TeamDeletionResponse previewDeleteTeam(Long id);
+    TeamDeletionResponse deleteTeam(Long id);
     Player addPlayerToTeam(Long teamId, PlayerRequest request);
     Team getTeamByName();
     void changeStatusPlayer(Long idPlayer, Boolean status);

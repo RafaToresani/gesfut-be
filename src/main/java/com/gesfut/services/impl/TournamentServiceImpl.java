@@ -46,6 +46,9 @@ public class TournamentServiceImpl implements TournamentService {
     @Autowired
     private TeamService teamService;
 
+    @Autowired(required = false)
+    private com.gesfut.repositories.MatchRepository byeMatchRepository;
+
     @Autowired
     private TournamentParticipantRepository participantRepository;
 
@@ -166,7 +169,7 @@ public class TournamentServiceImpl implements TournamentService {
         List<TournamentParticipant> tournamentParticipants = tournament.get().getTeams().stream().toList();
 
         boolean isOdd = tournamentParticipants.stream()
-                .anyMatch(particpant -> particpant.getTeam().getName().equals("Free"));
+                .anyMatch(particpant -> Match.isFreeParticipant(particpant));
 
         boolean hasHistory = tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsFinished()));
         if (isOdd && !hasHistory){
@@ -177,12 +180,12 @@ public class TournamentServiceImpl implements TournamentService {
         addTeamsToTournament(request.tournamentCode(), request.teams());
         tournamentParticipants = this.participantRepository.findAllByTournament(tournament.get()).stream().toList();
 
-        List<TournamentParticipant> realTeams = new ArrayList<>(tournamentParticipants.stream().filter(p -> !p.getTeam().getName().equals("Free")).toList());
+        List<TournamentParticipant> realTeams = new ArrayList<>(tournamentParticipants.stream().filter(p -> !Match.isFreeParticipant(p)).toList());
         if (realTeams.size() % 2 != 0) {
-            var free = tournamentParticipants.stream().filter(p -> p.getTeam().getName().equals("Free")).findFirst();
+            var free = tournamentParticipants.stream().filter(p -> Match.isFreeParticipant(p)).findFirst();
             if (free.isEmpty()) {
                 addTeamToTournament(getIdDummyParticipant(), tournament.get());
-                free = participantRepository.findAllByTournament(tournament.get()).stream().filter(p -> p.getTeam().getName().equals("Free")).findFirst();
+                free = participantRepository.findAllByTournament(tournament.get()).stream().filter(p -> Match.isFreeParticipant(p)).findFirst();
             }
             realTeams.add(free.orElseThrow());
         }
@@ -249,7 +252,9 @@ public class TournamentServiceImpl implements TournamentService {
                             match.getMvpPlayer(),
                             match.getVsMatchIdWhoWin(),
                             match.getTiebreakWinnerId(),
-                            match.resultLoadableToday()
+                            match.resultLoadableToday(),
+                            match.isByeMatch(),
+                            match.restingTeamName()
                             ));
                 }
             });
@@ -324,7 +329,7 @@ public class TournamentServiceImpl implements TournamentService {
         if(!team.getStatus()) throw new TeamDisableException("El equipo '"+ team.getName() + "' se encuentra deshabilitado.");
         if(this.participantRepository.existsByTournamentAndTeam(tournamentParticipants.getFirst().getTournament(), team)) throw new ResourceAlreadyExistsException("El equipo ya está participando en el torneo");
         TournamentParticipant newTeam = tournamentParticipants.stream()
-                .filter(part -> part.getTeam().getName().equals("Free"))
+                .filter(part -> Match.isFreeParticipant(part))
                 .findFirst()
                 .get();
 
@@ -390,13 +395,16 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public void disableTeamFromTournament(TournamentParticipant tournamentParticipant) {
-        tournamentParticipant.setIsActive(false);
+        // Plan 22/10 #2: sus partidos pendientes pasan a fecha libre del rival; lo jugado no se toca.
+        TeamDisableRules.checkCanDisable(tournamentParticipant);
+        var changed = TeamDisableRules.disableParticipant(tournamentParticipant);
         this.participantRepository.save(tournamentParticipant);
+        if (byeMatchRepository != null) byeMatchRepository.saveAll(changed);
     }
 
 
     public TournamentResponse tournamentToResponse(Tournament tournament){
-        List<TournamentParticipant> ranked = new ArrayList<>(tournament.getTeams().stream().filter(p -> !p.getTeam().getName().equals("Free")).toList());
+        List<TournamentParticipant> ranked = new ArrayList<>(tournament.getTeams().stream().filter(p -> !Match.isFreeParticipant(p)).toList());
         sortParticipants(ranked);
         List<ParticipantResponse> leagueParticipants = ranked.stream().map(p -> {
             ParticipantResponse response = participantService.participantToResponse(p);
@@ -539,7 +547,7 @@ public class TournamentServiceImpl implements TournamentService {
         if (qualifiedTeams == null || qualifiedTeams.isEmpty() || new HashSet<>(qualifiedTeams).size() != qualifiedTeams.size())
             throw new IllegalArgumentException("Seleccioná equipos distintos para los cruces.");
         List<TournamentParticipant> qualifiedParticipants = getQualifiedParticipants(tournament, qualifiedTeams);
-        if (qualifiedParticipants.size() != qualifiedTeams.size() || qualifiedParticipants.stream().anyMatch(p -> p.getTeam().getName().equals("Free")))
+        if (qualifiedParticipants.size() != qualifiedTeams.size() || qualifiedParticipants.stream().anyMatch(p -> Match.isFreeParticipant(p)))
             throw new IllegalArgumentException("Hay participantes que no pertenecen al torneo o son fechas libres.");
         sortParticipants(qualifiedParticipants);
         validateQualifiedParticipants(qualifiedParticipants);
@@ -568,7 +576,7 @@ public class TournamentServiceImpl implements TournamentService {
         for (MatchDay day : p.getTournament().getMatchDays()) {
             if (Boolean.TRUE.equals(day.getIsPlayOff())) continue;
             for (Match m : day.getMatches()) {
-                if (!Boolean.TRUE.equals(m.getIsFinished()) || m.getHomeTeam().getTeam().getName().equals("Free") || m.getAwayTeam().getTeam().getName().equals("Free")) continue;
+                if (!Boolean.TRUE.equals(m.getIsFinished()) || m.isByeMatch()) continue;
                 boolean home=Objects.equals(m.getHomeTeam().getId(), p.getId());
                 if (!home && !Objects.equals(m.getAwayTeam().getId(), p.getId())) continue;
                 int scored=home?m.getGoalsHomeTeam():m.getGoalsAwayTeam(), conceded=home?m.getGoalsAwayTeam():m.getGoalsHomeTeam();

@@ -163,7 +163,7 @@ public class MatchDayServiceImpl implements MatchDayService {
 
         matchDay.getMatches().forEach(match -> {
             if(!match.getIsFinished()){
-                if(match.getHomeTeam().getTeam().getName().equals("Free") || match.getAwayTeam().getTeam().getName().equals("Free")){
+                if(match.isByeMatch()){
                     match.setIsFinished(true);
                 }else{
                 throw new IllegalArgumentException("El partido " + match.getHomeTeam().getTeam().getName() + " vs " + match.getAwayTeam().getTeam().getName() + " no fue cargado");
@@ -225,7 +225,7 @@ public class MatchDayServiceImpl implements MatchDayService {
         for (Match match : matchDay.getMatches().stream().sorted(Comparator.comparing(Match::getId)).toList()) {
             this.matchService.updateMatchDateAndDescription(match.getId(), newDate);
             newDates.add(new NewDateResponse(match.formatMatchDate(newDate.localDateTime())));
-            if (!match.getHomeTeam().getTeam().getName().equals("Free") && !match.getAwayTeam().getTeam().getName().equals("Free")) newDate = new MatchDateRequest(newDate.localDateTime().plusMinutes(plusMinutes));
+            if (!match.isByeMatch()) newDate = new MatchDateRequest(newDate.localDateTime().plusMinutes(plusMinutes));
         }
         return newDates;
     }
