@@ -310,7 +310,9 @@ public class TournamentServiceImpl implements TournamentService {
                             match.getTiebreakWinnerId(),
                             match.resultLoadableToday(),
                             match.isByeMatch(),
-                            match.restingTeamName()
+                            match.restingTeamName(),
+                            match.getPenaltiesHome(),
+                            match.getPenaltiesAway()
                             ));
                 }
             });

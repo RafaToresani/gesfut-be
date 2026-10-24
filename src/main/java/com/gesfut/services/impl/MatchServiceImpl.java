@@ -82,7 +82,9 @@ public class MatchServiceImpl implements MatchService {
             increaseTournamentParticipantStats(event);
             events.add(event);
         });
-        match.setTiebreakWinnerId(request.tiebreakWinnerId());
+        match.setTiebreakWinnerId(request.effectiveTiebreakWinner(match.getHomeTeam().getId(), match.getAwayTeam().getId()));
+        match.setPenaltiesHome(request.penaltiesHome());
+        match.setPenaltiesAway(request.penaltiesAway());
         closeMatch(events,match);
         rebuildDiscipline(match);
         return "Partido cargado";
@@ -388,7 +390,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getIsFinished(),
                 match.getVsMatchIdWhoWin(),
                 match.getTiebreakWinnerId(),
-                Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff())
+                Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff()),
+                match.getPenaltiesHome(),
+                match.getPenaltiesAway()
         );
     }
 
@@ -402,6 +406,9 @@ public class MatchServiceImpl implements MatchService {
         });
         match.setGoalsHomeTeam(0);
         match.setGoalsAwayTeam(0);
+        match.setPenaltiesHome(null);
+        match.setPenaltiesAway(null);
+        match.setTiebreakWinnerId(null);
         match.getEvents().clear();
         eventRepository.flush();
     }
@@ -493,7 +500,9 @@ public class MatchServiceImpl implements MatchService {
                 match.getTiebreakWinnerId(),
                 match.resultLoadableToday(),
                 match.isByeMatch(),
-                match.restingTeamName()
+                match.restingTeamName(),
+                match.getPenaltiesHome(),
+                match.getPenaltiesAway()
         );
     }
 
@@ -523,7 +532,21 @@ public class MatchServiceImpl implements MatchService {
                 else awayGoals += event.quantity();
             }
         }
-        Long winner = request.tiebreakWinnerId();
+        boolean hasPenalties = request.penaltiesHome() != null || request.penaltiesAway() != null;
+        if (hasPenalties) {
+            if (request.penaltiesHome() == null || request.penaltiesAway() == null)
+                throw new IllegalArgumentException("Carg\u00e1 los penales de los dos equipos.");
+            if (request.penaltiesHome() < 0 || request.penaltiesAway() < 0 || request.penaltiesHome() > 99 || request.penaltiesAway() > 99)
+                throw new IllegalArgumentException("Resultado de penales inv\u00e1lido.");
+            if (request.penaltiesHome().equals(request.penaltiesAway()))
+                throw new IllegalArgumentException("Los penales no pueden terminar empatados.");
+            Long derived = request.penaltiesHome() > request.penaltiesAway() ? match.getHomeTeam().getId() : match.getAwayTeam().getId();
+            if (request.tiebreakWinnerId() != null && !Objects.equals(request.tiebreakWinnerId(), derived))
+                throw new IllegalArgumentException("El ganador elegido no coincide con los penales.");
+        }
+        Long winner = request.effectiveTiebreakWinner(match.getHomeTeam().getId(), match.getAwayTeam().getId());
+        if (hasPenalties && !(Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff()) && homeGoals == awayGoals))
+            throw new IllegalArgumentException("Los penales solo corresponden a un cruce de playoffs empatado.");
         if (winner != null && (!Objects.equals(winner, match.getHomeTeam().getId()) && !Objects.equals(winner, match.getAwayTeam().getId())))
             throw new IllegalArgumentException("El ganador del desempate debe participar en el partido.");
         boolean playoff = Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff());

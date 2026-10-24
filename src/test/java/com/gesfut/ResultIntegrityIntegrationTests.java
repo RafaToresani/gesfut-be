@@ -129,4 +129,18 @@ class ResultIntegrityIntegrationTests {
             assertNotNull(audit.get("user_email"));
         } finally { jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?",dayId); }
     }
+    /** Revision critica #9: se guarda la tanda de penales y define el ganador. */
+    @Test void penaltyShootoutIsStoredAndDecidesWinner(){
+        jdbc.update("UPDATE match_days SET play_off=1 WHERE id=(SELECT match_day_id FROM matches WHERE id=?)",matchId);
+        long home=jdbc.queryForObject("SELECT home_team_id FROM matches WHERE id=?",Long.class,matchId);
+        long away=jdbc.queryForObject("SELECT away_team_id FROM matches WHERE id=?",Long.class,matchId);
+        assertThrows(IllegalArgumentException.class,()->service.loadMatchResult(new MatchRequest(matchId,List.of(),null,3,3)));
+        assertThrows(IllegalArgumentException.class,()->service.loadMatchResult(new MatchRequest(matchId,List.of(),home,2,4)));
+        service.loadMatchResult(new MatchRequest(matchId,List.of(),null,2,4));
+        var result=service.getDetailedMatchById(matchId);
+        assertEquals(away,result.tiebreakWinnerId());assertEquals(2,result.penaltiesHome());assertEquals(4,result.penaltiesAway());
+    }
+    @Test void penaltiesOnlyForTiedPlayoff(){
+        assertThrows(IllegalArgumentException.class,()->service.loadMatchResult(new MatchRequest(matchId,List.of(),null,4,3)));
+    }
 }

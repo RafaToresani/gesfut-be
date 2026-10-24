@@ -21,5 +21,8 @@ public record MatchResponse(
         Boolean canLoadResult,
         // Plan 22/10 #2: fecha libre (rival "Free" o dado de baja) y quien descansa.
         Boolean isBye,
-        String restingTeam
+        String restingTeam,
+        // Revision critica #9: tanda de penales.
+        Integer penaltiesHome,
+        Integer penaltiesAway
         ) { }

@@ -101,6 +101,10 @@ public class Match {
 
     private Long tiebreakWinnerId;
 
+    /** Revision critica #9: resultado de la tanda de penales (null si no hubo). */
+    private Integer penaltiesHome;
+    private Integer penaltiesAway;
+
 
     public Match get() {
         return this;

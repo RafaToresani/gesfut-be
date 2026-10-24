@@ -13,6 +13,8 @@ public record MatchDetailedResponse(
         Boolean isFinished,
         Long vsMatchIdWhoWin,
         Long tiebreakWinnerId,
-        Boolean isPlayOff
+        Boolean isPlayOff,
+        Integer penaltiesHome,
+        Integer penaltiesAway
 ) {
 }
