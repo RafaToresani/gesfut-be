@@ -66,6 +66,16 @@ class PlayerEditIntegrationTests {
         assertEquals("Pedro", jdbc.queryForObject("SELECT name FROM players WHERE id=?", String.class, pedro));
     }
 
+    @Test void altaRechazaDorsalDeJugadorActivo() {
+        long teamId = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " A");
+        var dup = assertThrows(IllegalArgumentException.class, () -> teams.addPlayerToTeam(teamId, new PlayerRequest("Carlos", "Diaz", false, false, 10)));
+        assertTrue(dup.getMessage().contains("dorsal 10"));
+        assertTrue(dup.getMessage().contains("Juan Perez"));
+        // Si el que tenia el dorsal esta dado de baja, el dorsal queda libre (igual que en editar).
+        jdbc.update("UPDATE players SET status=0 WHERE id=?", juan);
+        assertDoesNotThrow(() -> teams.addPlayerToTeam(teamId, new PlayerRequest("Carlos", "Diaz", false, false, 10)));
+    }
+
     @Test void otroUsuarioNoPuede() {
         var other = UserEntity.builder().id(-1L).email("other@example.test").build();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(other, null, List.of()));

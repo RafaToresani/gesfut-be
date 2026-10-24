@@ -74,8 +74,12 @@ public class PlayerServiceImpl implements PlayerService {
 
     @Override
     public void verifyPlayer(PlayerRequest playerRequest, Team team){
-        Boolean checkNumber = this.playerRepository.existsByNumberAndTeamId(playerRequest.number(), team.getId());
-        if(checkNumber) throw new ResourceAlreadyExistsException("El equipo ya cuenta con el dorsal " + playerRequest.number());
+        // Misma regla que editar jugador (a2f86be): el dorsal no puede repetirse entre jugadores activos del equipo (400).
+        var sameNumber = this.playerRepository.findActiveByNumberAndTeamId(playerRequest.number(), team.getId());
+        if (!sameNumber.isEmpty()) {
+            var other = sameNumber.get(0);
+            throw new IllegalArgumentException("El dorsal " + playerRequest.number() + " ya lo usa " + other.getName() + " " + other.getLastName() + ".");
+        }
         Boolean checkCaptain = this.playerRepository.existsByIsCaptainAndTeamId(playerRequest.isCaptain(), team.getId());
         if(checkCaptain && playerRequest.isCaptain()) throw  new ResourceNotFoundException("El equipo ya cuenta con capitan.");
         Boolean checkName = this.playerRepository.existsByNameAndLastNameAndTeamId(playerRequest.name(),playerRequest.lastName(),team.getId());
