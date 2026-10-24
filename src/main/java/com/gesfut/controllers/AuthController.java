@@ -126,10 +126,38 @@ public class AuthController {
 
     static final String RESEND_NEUTRAL = "Si el mail existe y falta verificarlo, te lo mandamos. Revis\u00e1 tu casilla (y spam).";
 
+    public record ResendRequest(String email) { }
+
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("mailExecutor")
+    private org.springframework.core.task.TaskExecutor mailExecutor;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthController.class);
+
+    /** Reenviar mail de verificacion: email en el body (no queda en logs de acceso ni historial). */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<java.util.Map<String, String>> resendVerification(@RequestBody(required = false) ResendRequest request) {
+        return queueResend(request == null ? null : request.email());
+    }
+
+    /** @deprecated alias viejo con el email en la ruta (apps cacheadas); usar POST /resend-verification con {email}. */
+    @Deprecated
     @PostMapping("/resend-verification/{email}")
-    public ResponseEntity<java.util.Map<String, String>> resendVerification(@PathVariable String email) {
-        // Siempre la misma respuesta: no revela si la cuenta existe o ya esta verificada.
-        try { this.authService.resendVerificationEmail(email); } catch (RuntimeException ignored) { }
+    public ResponseEntity<java.util.Map<String, String>> resendVerificationLegacy(@PathVariable String email) {
+        return queueResend(email);
+    }
+
+    /** Siempre la misma respuesta y enseguida: la busqueda y el envio corren en otro hilo,
+     *  asi ni el cuerpo ni el tiempo de respuesta revelan si la cuenta existe o ya esta verificada. */
+    private ResponseEntity<java.util.Map<String, String>> queueResend(String email) {
+        if (email != null && !email.isBlank()) {
+            String target = email.trim();
+            try {
+                mailExecutor.execute(() -> {
+                    try { this.authService.resendVerificationEmail(target); }
+                    catch (RuntimeException e) { log.warn("Fallo el reenvio de verificacion: {}", e.getClass().getSimpleName()); }
+                });
+            } catch (RuntimeException rejected) { log.warn("No se pudo encolar el reenvio de verificacion."); }
+        }
         return ResponseEntity.ok(java.util.Map.of("message", RESEND_NEUTRAL));
     }
 

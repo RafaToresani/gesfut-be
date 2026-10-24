@@ -26,7 +26,7 @@ public final class TeamDisableRules {
 
     /** Torneo en curso que todavia no arranco: se quita al equipo y se regenera el fixture. */
     public static boolean regeneratesFixture(TournamentParticipant p) {
-        return isOngoing(p.getTournament()) && !hasStarted(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive());
+        return DniRules.openTournament(p.getTournament()) && !hasStarted(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive());
     }
 
     /** Minimo 2 equipos reales despues de quitarlo. */
@@ -73,7 +73,7 @@ public final class TeamDisableRules {
      *  Devuelve los partidos que dejan de ser libres, o null si no vuelve a ese torneo. Las fechas cerradas no se tocan. */
     public static List<Match> enableParticipant(TournamentParticipant p) {
         Tournament t = p.getTournament();
-        if (!Boolean.FALSE.equals(p.getIsActive()) || !isOngoing(t) || t.getMatchDays() == null) return null;
+        if (!Boolean.FALSE.equals(p.getIsActive()) || !DniRules.openTournament(t) || t.getMatchDays() == null) return null;
         if (t.getMatchDays().stream().anyMatch(d -> Boolean.TRUE.equals(d.getIsPlayOff()))) return null;
         p.setIsActive(true);
         List<Match> changed = new ArrayList<>();

@@ -59,6 +59,9 @@ public class TeamServiceImpl implements TeamService {
     @Override
     @Transactional
     public TeamResponse createTeam(TeamRequest request) {
+        // "Free" es el rival de la fecha libre (equipo interno por usuario): ningun equipo real puede llamarse asi.
+        if (request.name() != null && request.name().trim().equalsIgnoreCase("free"))
+            throw new IllegalArgumentException("Ese nombre est\u00e1 reservado. Eleg\u00ed otro nombre para el equipo.");
         this.playerService.validatePlayers(request.players());
         UserEntity user = userService.findUserByEmail(getCurrentUserEmail());
         
@@ -167,7 +170,7 @@ public class TeamServiceImpl implements TeamService {
         if (!status) {
             // Plan 22/10 #2: baja en torneos en curso. Primero se valida todo (playoffs) y despues se aplica.
             List<TournamentParticipant> ongoing = participantRepository.findAllByTeamId(id).stream()
-                    .filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive())).toList();
+                    .filter(p -> DniRules.openTournament(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive())).toList(); // archivados/finalizados: solo lectura
             ongoing.forEach(TeamDisableRules::checkCanDisable);
             for (TournamentParticipant p : ongoing) {
                 List<Match> changed = TeamDisableRules.disableParticipant(p);
@@ -177,6 +180,7 @@ public class TeamServiceImpl implements TeamService {
         } else {
             // Plan 22/10 #2 (respuesta 2): vuelve a los torneos en curso donde estaba de baja.
             for (TournamentParticipant p : participantRepository.findAllByTeamId(id)) {
+                if (!DniRules.openTournament(p.getTournament())) continue; // archivados/finalizados: solo lectura
                 List<Match> changed = TeamDisableRules.enableParticipant(p);
                 if (changed == null) continue;
                 participantRepository.save(p);
@@ -202,9 +206,10 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public Team getTeamByName() {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        Optional<Team> team = this.teamRepository.findByNameAndUserId("free", user.getId());
-        if(team.isEmpty()) throw new ResourceNotFoundException("Equipo free no existe.");
-        return team.get();
+        // Busca exactamente el equipo interno "Free" (Match.isFreeParticipantTeam); si quedara un equipo viejo "FREE"/"free"
+        // del usuario, no se confunde con la fecha libre ni rompe por resultado duplicado.
+        return this.teamRepository.findAllByUser(user).stream().filter(Match::isFreeParticipantTeam).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Equipo free no existe."));
     }
 
     @Override

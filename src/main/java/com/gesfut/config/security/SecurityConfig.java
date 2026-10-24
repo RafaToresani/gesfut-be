@@ -47,7 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                                 "/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/signup", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token",
                                 "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
-                                "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification/*").permitAll()
+                                "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification", "/api/v1/auth/resend-verification/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/v1/tournaments/*", "/api/v1/tournaments/short/*",
                                 "/api/v1/tournaments/*/matches/*", "/api/v1/tournaments/*/top-scorers",

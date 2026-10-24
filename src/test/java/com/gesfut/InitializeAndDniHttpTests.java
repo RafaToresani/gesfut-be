@@ -143,4 +143,28 @@ class InitializeAndDniHttpTests {
         jdbc.update("UPDATE tournaments SET is_active=1, is_finished=1 WHERE name=?", prefix);
         assertEquals(409, call(put("/api/v1/team-participant/change-status/" + pp + "/false")).getResponse().getStatus());
     }
+    @Test void cincoEquiposInicializaConFree() throws Exception {
+        var r = initialize("A", "B", "C", "D", "E");
+        assertEquals(200, r.getResponse().getStatus(), body(r));
+        assertEquals(6, participants()); // 5 + Free
+    }
+
+    @Test void equipoLlamadoFreeSeRechaza() throws Exception {
+        for (String n : new String[]{"Free", " FREE ", "free"}) {
+            var r = call(post("/api/v1/teams/create").content("{\"name\":\"" + n + "\",\"color\":\"#000000\",\"players\":[]}"));
+            assertEquals(400, r.getResponse().getStatus(), body(r));
+            assertTrue(body(r).contains("reservado"), body(r));
+        }
+    }
+
+    @Test void deshabilitarYHabilitarEquipoNoTocaTorneoArchivado() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        jdbc.update("UPDATE tournaments SET is_active=0 WHERE name=?", prefix);
+        long tp = participantId("A");
+        Object before = jdbc.queryForObject("SELECT is_active FROM tournament_participants WHERE id=?", Object.class, tp);
+        assertEquals(200, call(put("/api/v1/teams/change-status-team/" + ids.get("A") + "/false")).getResponse().getStatus());
+        assertEquals(before, jdbc.queryForObject("SELECT is_active FROM tournament_participants WHERE id=?", Object.class, tp));
+        assertEquals(200, call(put("/api/v1/teams/change-status-team/" + ids.get("A") + "/true")).getResponse().getStatus());
+        assertEquals(before, jdbc.queryForObject("SELECT is_active FROM tournament_participants WHERE id=?", Object.class, tp));
+    }
 }

@@ -53,4 +53,39 @@ class AuthRateLimitFilterTests {
         f.doFilter(req, res, new MockFilterChain());
         assertTrue(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).contains("Probaste muchas veces"));
     }
+
+    private MockHttpServletResponse postBody(AuthRateLimitFilter f, String email, String ip, MockFilterChain chain) throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/resend-verification");
+        req.setRemoteAddr("127.0.0.1"); req.addHeader("CF-Connecting-IP", ip);
+        req.setContentType("application/json"); req.setContent(("{\"email\":\"" + email + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        f.doFilter(req, res, chain);
+        return res;
+    }
+
+    @Test
+    void resendConEmailEnElBodyLimitaPorCuentaYElControllerRecibeElBody() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < 3; i++) {
+            MockFilterChain chain = new MockFilterChain();
+            assertEquals(200, postBody(f, "body@x.com", "9.9.9." + i, chain).getStatus());
+            String seen = new String(chain.getRequest().getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(seen.contains("body@x.com"), "el body llega intacto al controller");
+        }
+        assertEquals(429, postBody(f, "BODY@x.com", "9.9.8.1", new MockFilterChain()).getStatus(), "por cuenta aunque cambie la IP");
+        assertEquals(429, post(f, "/api/v1/auth/resend-verification/body@x.com", "9.9.8.2"), "el alias viejo comparte el cupo");
+    }
+
+    @Test
+    void memoriaAcotadaYClavesQueVencen() {
+        SlidingWindowLimiter l = new SlidingWindowLimiter(100, 60_000);
+        long now = 1_000_000;
+        for (int i = 0; i < 1_000; i++) l.hit("k" + i, 5, 60_000, now + i);
+        assertTrue(l.size() <= 100, "nunca mas de maxKeys: " + l.size());
+        l.cleanup(now + 10_000_000);
+        assertEquals(0, l.size(), "las vencidas se limpian");
+        assertFalse(l.hit("x", 1, 60_000, now));
+        assertTrue(l.hit("x", 1, 60_000, now + 1));
+        assertFalse(l.hit("x", 1, 60_000, now + 60_002), "la ventana vence");
+    }
 }
