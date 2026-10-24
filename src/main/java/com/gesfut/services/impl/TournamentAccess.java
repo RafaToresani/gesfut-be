@@ -13,6 +13,9 @@ public class TournamentAccess {
     public void requireOpen(Tournament tournament) {
         if (Boolean.TRUE.equals(tournament.getIsFinished()))
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "El torneo est\u00e1 finalizado: ya no admite cambios.");
+        // Revision critica #13: un torneo archivado queda publico pero de solo lectura.
+        if (Boolean.FALSE.equals(tournament.getIsActive()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "El torneo est\u00e1 archivado: es solo lectura.");
     }
 
     public void requireOwner(Tournament tournament) {

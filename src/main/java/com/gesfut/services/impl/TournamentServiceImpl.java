@@ -538,7 +538,8 @@ public class TournamentServiceImpl implements TournamentService {
                 leagueChampion,
                 playoffChampion,
                 tournament.yellowLimit(),
-                tournament.redMatches()
+                tournament.redMatches(),
+                !Boolean.FALSE.equals(tournament.getIsActive())
         );
     }
 

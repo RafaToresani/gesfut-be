@@ -16,6 +16,8 @@ public record TournamentResponse(
         Long championOfLeagueId,
         Long championOfPlayoffsId,
         Integer yellowCardsToSuspend,
-        Integer redCardSuspensionMatches
+        Integer redCardSuspensionMatches,
+        // Revision critica #13: false = archivado (visible, solo lectura).
+        Boolean isActive
 ) {
 }

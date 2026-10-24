@@ -42,6 +42,7 @@ class ResultIntegrityIntegrationTests {
             JOIN teams ht ON ht.id=h.team_id JOIN teams at ON at.id=a.team_id
             JOIN player_participants pp ON pp.tournament_participant_id=h.id
             WHERE md.play_off=0 AND md.is_finished=0 AND m.is_finished=0 AND ht.name<>'Free' AND at.name<>'Free'
+            AND COALESCE(t.is_active,1)=1 AND COALESCE(t.is_finished,0)=0
             AND NOT EXISTS (SELECT 1 FROM match_days later WHERE later.tournament_id=t.id AND later.play_off=1 AND later.number_of_match_day>md.number_of_match_day)
             GROUP BY m.id, md.id, t.user_id ORDER BY m.id LIMIT 1
             """);
