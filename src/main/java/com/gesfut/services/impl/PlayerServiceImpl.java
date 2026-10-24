@@ -94,26 +94,22 @@ public class PlayerServiceImpl implements PlayerService {
 
     @Override
     public void validatePlayers(Set<PlayerRequest> players) {
+        if (players == null) return;
         Set<Integer> uniqueNumbers = new HashSet<>();
         boolean captainFound = false;
-        boolean goalKeeperFound = false;
 
         for (PlayerRequest player : players) {
-            if (!uniqueNumbers.add(player.number())) throw new IllegalArgumentException("El número " + player.number() + " ya está asignado a otro jugador.");
+            if (!uniqueNumbers.add(player.number())) throw new IllegalArgumentException("El dorsal " + player.number() + " est\u00e1 repetido en la lista.");
 
             if (player.isCaptain()) {
                 if (captainFound) {
-                    throw new IllegalArgumentException("Solo puede haber un capitán.");
+                    throw new IllegalArgumentException("Solo puede haber un capit\u00e1n.");
                 }
                 captainFound = true;
             }
-
-            if (player.isGoalKeeper()) goalKeeperFound = true;
         }
 
-        if (!captainFound) throw new IllegalArgumentException("Falta al menos un capitán.");
-
-        if (!goalKeeperFound) throw new IllegalArgumentException("Falta al menos un arquero.");
+        // C(b): capit\u00e1n y arquero ya no se exigen al crear; se piden al generar el fixture (TournamentServiceImpl.requireCompleteTeams).
     }
 
 }

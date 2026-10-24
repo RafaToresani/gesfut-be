@@ -71,9 +71,7 @@ public class TeamServiceImpl implements TeamService {
                 .status(true)
                 .build();
         Team newTeam = teamRepository.save(team);
-        request.players().forEach(playerRequest -> {
-            playerService.createPlayer(playerRequest, team);
-        });
+        if (request.players() != null) request.players().forEach(playerRequest -> playerService.createPlayer(playerRequest, team));
         return teamToResponse(newTeam);
     }
 

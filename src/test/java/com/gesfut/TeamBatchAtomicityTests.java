@@ -49,7 +49,7 @@ class TeamBatchAtomicityTests {
         int orphansBefore = orphanPlayers();
         var batch = List.of(
             new TeamRequest(prefix + " A", "#000000", players(true)),
-            new TeamRequest(prefix + " B", "#000000", players(false)),      // sin capitan: falla en el servicio
+            new TeamRequest(prefix + " B", "#000000", new LinkedHashSet<>(List.of(new PlayerRequest("Juan", "Perez", true, true, 7), new PlayerRequest("Pedro", "Gomez", false, false, 7)))), // dorsal repetido: falla en el servicio
             new TeamRequest("X", "#000000", players(true)),                 // nombre corto: falla la validacion
             new TeamRequest(prefix + " C", "#FFFFFF", players(true)));
         TeamImportResponse r = teams.createMultipleTeams(batch);
@@ -65,6 +65,12 @@ class TeamBatchAtomicityTests {
         assertEquals(2, r.createdCount());
         assertTrue(r.failed().isEmpty());
         assertEquals(2, count());
+    }
+    @Test void equipoSoloConNombreSeCrea() {
+        // C(b): el plantel minimo se pide al generar el fixture, no al crear.
+        var r = teams.createTeam(new TeamRequest(prefix + " F", "#000000", null));
+        assertEquals(prefix + " F", r.name());
+        assertEquals(1, count());
     }
     @Test void loteVacioOGrandeSeRechaza() {
         assertThrows(IllegalArgumentException.class, () -> teams.createMultipleTeams(List.of()));

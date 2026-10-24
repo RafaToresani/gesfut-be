@@ -77,7 +77,8 @@ public class AuthController {
                     "La contraseña debe contener al menos 8 caracteres. " +
                     "El nombre y el apellido deben contener entre 2 y 50 caracteres."
     )
-    @PostMapping("/sing-up")
+    // "/sing-up" queda como alias obsoleto (clientes viejos / PWA cacheada); el nuevo es "/signup".
+    @PostMapping({"/signup", "/sing-up"})
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponse singUp(@RequestBody @Valid RegisterRequest request, BindingResult bindingResult) throws BadRequestException {
         if(bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());

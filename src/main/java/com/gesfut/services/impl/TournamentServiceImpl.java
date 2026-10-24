@@ -182,10 +182,12 @@ public class TournamentServiceImpl implements TournamentService {
         if (request.teams() == null) return;
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         Map<String, String> dniToTeam = new HashMap<>();
+        List<Team> checked = new ArrayList<>();
         for (Long id : new LinkedHashSet<>(request.teams())) {
             Team team = this.checkTeamRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("El equipo no existe."));
             if (team.getUser() == null || !Objects.equals(team.getUser().getId(), user.getId()))
                 throw new org.springframework.security.access.AccessDeniedException("No ten\u00e9s permiso sobre ese equipo.");
+            checked.add(team);
             if (team.getPlayers() == null) continue;
             Set<String> seenInTeam = new HashSet<>();
             for (com.gesfut.models.team.Player p : team.getPlayers()) {
@@ -196,6 +198,24 @@ public class TournamentServiceImpl implements TournamentService {
                             + ". Un jugador no puede jugar el mismo torneo en dos equipos; sacalo de uno antes de generar.");
             }
         }
+        requireCompleteTeams(checked);
+    }
+
+    /** C(b): un equipo se puede crear solo con nombre; el plantel m\u00ednimo se exige al generar el fixture.
+     *  Cuenta solo jugadores activos: al menos 2, un capit\u00e1n y un arquero. Lista todos los incompletos juntos. */
+    public static void requireCompleteTeams(Collection<Team> teams) {
+        List<String> problems = new ArrayList<>();
+        for (Team team : teams) {
+            List<com.gesfut.models.team.Player> active = team.getPlayers() == null ? List.of()
+                    : team.getPlayers().stream().filter(p -> !Boolean.FALSE.equals(p.getStatus())).toList();
+            List<String> missing = new ArrayList<>();
+            if (active.size() < 2) missing.add("al menos 2 jugadores");
+            if (active.stream().noneMatch(p -> Boolean.TRUE.equals(p.getIsCaptain()))) missing.add("capit\u00e1n");
+            if (active.stream().noneMatch(p -> Boolean.TRUE.equals(p.getIsGoalKeeper()))) missing.add("arquero");
+            if (!missing.isEmpty()) problems.add(team.getName() + " (falta: " + String.join(", ", missing) + ")");
+        }
+        if (!problems.isEmpty())
+            throw new IllegalArgumentException("Antes de generar el fixture complet\u00e1 estos equipos: " + String.join("; ", problems) + ".");
     }
 
     private Long getIdDummyParticipant() {
@@ -210,6 +230,9 @@ public class TournamentServiceImpl implements TournamentService {
         if(tournament.isEmpty())  throw new ResourceNotFoundException("El torneo no existe" );
         verifyTournamentBelongsToManager(tournament.get(), user);
         access.requireOpen(tournament.get());
+        // C(b): sumar un equipo regenera el fixture, as\u00ed que tambi\u00e9n tiene que estar completo.
+        requireCompleteTeams(teams.stream().map(id -> this.checkTeamRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("El equipo no existe."))).toList());
         teams.forEach(team -> {
             addTeamToTournament(team, tournament.get());
         });

@@ -17,7 +17,7 @@ public record TeamRequest(
         @NotBlank(message = "Color es requerido")
         String color,
 
-        @Size(min = 1, message = "Debe tener al menos un jugador")
+        // C(b): se puede crear solo con nombre; el plantel m\u00ednimo se exige al generar el fixture.
         Set<PlayerRequest> players
 ) {
 }

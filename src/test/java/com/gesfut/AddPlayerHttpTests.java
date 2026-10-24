@@ -51,6 +51,17 @@ class AddPlayerHttpTests {
         assertEquals(before, jdbc.queryForObject("SELECT COUNT(*) FROM players", Long.class));
     }
 
+    @Test void mismoNombreConOtroDorsalDa400SinReutilizar() throws Exception {
+        // C(c): no se suma en silencio al jugador existente con otro dorsal.
+        long before = jdbc.queryForObject("SELECT COUNT(*) FROM player_participants", Long.class);
+        int other = ((Number) row.get("num")).intValue() == 98 ? 97 : 98;
+        var r = send("{\"name\":\"" + row.get("pname") + "\",\"lastName\":\"" + row.get("plast") + "\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":" + other + "}");
+        String body = r.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(400, r.getResponse().getStatus(), body);
+        assertTrue(body.contains("Ya existe") && body.contains("dorsal " + row.get("num")), body);
+        assertEquals(before, jdbc.queryForObject("SELECT COUNT(*) FROM player_participants", Long.class));
+    }
+
     @Test void dorsalDeJugadorActivoDa400() throws Exception {
         long before = jdbc.queryForObject("SELECT COUNT(*) FROM players", Long.class);
         var r = send("{\"name\":\"Nuevo Http\",\"lastName\":\"Prueba Dorsal\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":" + row.get("num") + "}");

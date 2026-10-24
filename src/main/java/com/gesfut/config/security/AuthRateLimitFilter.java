@@ -25,7 +25,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     static int limitFor(String path) {
         if (path.equals("/api/v1/auth/login")) return 10;
-        if (path.equals("/api/v1/auth/sing-up")) return 5;
+        if (path.equals("/api/v1/auth/signup")) return 5;
         if (path.startsWith("/api/v1/auth/reset-password/") || path.startsWith("/api/v1/auth/resend-verification/")) return 3;
         if (path.startsWith("/api/v1/auth/change-password")) return 10;
         return -1;
@@ -65,6 +65,8 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
+        // El alias viejo comparte cupo con el nuevo: no duplica el límite.
+        if (path.equals("/api/v1/auth/sing-up")) path = "/api/v1/auth/signup";
         int limit = "POST".equalsIgnoreCase(request.getMethod()) ? limitFor(path) : -1;
         if (limit < 0) { chain.doFilter(request, response); return; }
         String key = clientIp(request) + "|" + bucketFor(path);
