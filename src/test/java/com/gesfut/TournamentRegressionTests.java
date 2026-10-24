@@ -187,6 +187,19 @@ class TournamentRegressionTests {
         var top=response.participants().getFirst();
         assertEquals(a.getId(),top.idParticipant());assertEquals(3,top.statistics().points());assertEquals(2,top.statistics().goalsFor());
     }
+    /** Revision critica #6: la ronda de playoffs se genera con fecha y hora escalonada. */
+    @Test void playoffRoundGetsDateAndTime(){
+        MatchDay league=day(false,true);
+        Match last=match(league,a,b,3,0,true); match(league,c,d,1,0,true);
+        last.setDate(java.time.LocalDateTime.now().minusDays(1));
+        var start=java.time.LocalDate.now().plusDays(3).atTime(20,0);
+        assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),java.time.LocalDateTime.now().minusDays(2),60));
+        service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),start,60);
+        MatchDay po=tournament.getMatchDays().stream().filter(MatchDay::getIsPlayOff).findFirst().orElseThrow();
+        var dates=po.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).map(Match::getDate).toList();
+        assertEquals(List.of(start,start.plusMinutes(60)),dates);
+        assertFalse(po.getMatches().iterator().next().resultLoadableToday()); // regla del dia del partido
+    }
     void prepareResponseServices(){
         tournament.setUser(UserEntity.builder().name("Test").lastname("Owner").build());
         var participants=mock(TournamentParticipantService.class);

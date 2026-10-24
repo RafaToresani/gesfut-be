@@ -164,8 +164,12 @@ public class TournamentController {
     @PutMapping("/generate-playoffs/{code}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void generatePlayOffs(@PathVariable("code")String code, @RequestBody List<Long> temasQualify){
-        this.tournamentService.generatePlayOffs(code, temasQualify);
+    public void generatePlayOffs(@PathVariable("code")String code, @RequestBody List<Long> temasQualify,
+                                 @RequestParam(value = "startDate", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+                                 @RequestParam(value = "minutesPerMatch", required = false) Integer minutesPerMatch){
+        // Revision critica #6: la ronda se genera con fecha y hora.
+        if (startDate == null) throw new IllegalArgumentException("Indic\u00e1 la fecha y hora de la ronda.");
+        this.tournamentService.generatePlayOffs(code, temasQualify, startDate, minutesPerMatch);
     }
 
 

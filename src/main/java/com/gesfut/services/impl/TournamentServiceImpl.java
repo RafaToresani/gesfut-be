@@ -550,6 +550,35 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public void generatePlayOffs(String code, List<Long> qualifiedTeams) {
+        generatePlayOffs(code, qualifiedTeams, null, null);
+    }
+
+    /** Revision critica #6: cada ronda de playoffs se genera con fecha y hora; los partidos se escalonan cada minutesPerMatch. */
+    @Override
+    @Transactional
+    public void generatePlayOffs(String code, List<Long> qualifiedTeams, java.time.LocalDateTime startDate, Integer minutesPerMatch) {
+        if (startDate != null) {
+            if (startDate.isBefore(java.time.LocalDateTime.now().minusMinutes(1))) throw new IllegalArgumentException("Eleg\u00ed una fecha y hora futura para la ronda.");
+            if (minutesPerMatch != null && (minutesPerMatch < 0 || minutesPerMatch > 600)) throw new IllegalArgumentException("Los minutos entre partidos deben estar entre 0 y 600.");
+        }
+        doGeneratePlayOffs(code, qualifiedTeams);
+        if (startDate == null) return;
+        Tournament t = this.tournamentRepository.findByCode(UUID.fromString(code)).orElseThrow();
+        MatchDay round = t.getMatchDays().stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).orElseThrow();
+        java.time.LocalDateTime previousLast = t.getMatchDays().stream().filter(d -> d != round)
+                .flatMap(d -> d.getMatches().stream()).map(Match::getDate).filter(Objects::nonNull)
+                .max(Comparator.naturalOrder()).orElse(null);
+        if (previousLast != null && !startDate.isAfter(previousLast)) throw new IllegalArgumentException("La ronda debe empezar despu\u00e9s del \u00faltimo partido jugado.");
+        java.time.LocalDateTime next = startDate;
+        int step = minutesPerMatch == null ? 0 : minutesPerMatch;
+        for (Match m : round.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).toList()) {
+            m.setDate(next);
+            next = next.plusMinutes(step);
+        }
+        this.matchDayRepository.save(round);
+    }
+
+    private void doGeneratePlayOffs(String code, List<Long> qualifiedTeams) {
         Optional<Tournament> tournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         access.requireOwner(tournament.get());
