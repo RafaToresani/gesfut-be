@@ -181,7 +181,15 @@ public class MatchDayServiceImpl implements MatchDayService {
             throw new IllegalArgumentException("No se puede reabrir una jornada después de generar otra ronda.");
         // Revision critica #2: cerrar la ultima fecha ya no finaliza el torneo; eso es explicito ("Finalizar torneo").
 
-        matchDay.setMvpPlayer(playerMvP);
+        // Review 24/10: vacio = "Cerrar sin MVP"; si viene, tiene que ser uno de los MVP cargados en los partidos de esta fecha.
+        String mvp = playerMvP == null ? "" : playerMvP.trim();
+        if (!mvp.isEmpty()) {
+            boolean valid = matchDay.getMatches() != null && matchDay.getMatches().stream()
+                    .map(m -> m.getMvpPlayer() == null ? "" : m.getMvpPlayer().trim())
+                    .anyMatch(mvp::equals);
+            if (!valid) throw new IllegalArgumentException("El MVP elegido no es MVP de ning\u00fan partido de esta fecha. Eleg\u00ed uno de la lista o cerr\u00e1 sin MVP.");
+        }
+        matchDay.setMvpPlayer(mvp.isEmpty() ? playerMvP : mvp);
         matchDay.setIsFinished(status);
         this.matchDayRepository.save(matchDay);
     }

@@ -70,6 +70,10 @@ class InitializeAndDniHttpTests {
     @AfterEach void clean() {
         auth();
         jdbc.update("UPDATE tournaments SET is_active=1, is_finished=0 WHERE name=?", prefix);
+        // Datos de prueba de partidos jugados: se limpian para que el torneo se borre (y no quede archivado).
+        jdbc.update("DELETE e FROM events e JOIN matches m ON m.id=e.match_id JOIN match_days md ON md.id=m.match_day_id JOIN tournaments t ON t.id=md.tournament_id WHERE t.name=?", prefix);
+        jdbc.update("UPDATE matches m JOIN match_days md ON md.id=m.match_day_id JOIN tournaments t ON t.id=md.tournament_id SET m.is_finished=0, m.mvp_player=NULL WHERE t.name=?", prefix);
+        jdbc.update("DELETE p FROM prizes p JOIN tournaments t ON t.id=p.tournament_id WHERE t.name=?", prefix);
         try { tournaments.deleteTournament(code); } catch (Exception ignored) { }
         jdbc.update("DELETE pp FROM player_participants pp JOIN players p ON p.id=pp.player_id JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
         jdbc.update("DELETE p FROM players p JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
@@ -213,32 +217,84 @@ class InitializeAndDniHttpTests {
         assertEquals(ppStateBefore, jdbc.queryForList("SELECT CONCAT(id,':',COALESCE(is_active,'-')) FROM player_participants WHERE tournament_participant_id=? ORDER BY id", String.class, tp).toString());
     }
 
-    /** Recorre TODOS los GET permitAll de SecurityConfig, sin token, con un torneo inicializado y una fecha cerrada. */
+    /** Deja la fecha 1 jugada (todos los partidos cerrados, un MVP por partido) y devuelve su id. */
+    long playFirstRound() {
+        long md = jdbc.queryForObject("SELECT md.id FROM match_days md JOIN tournaments t ON t.id=md.tournament_id WHERE t.name=? ORDER BY md.number_of_match_day LIMIT 1", Long.class, prefix);
+        jdbc.update("UPDATE matches SET is_finished=1, goals_home_team=1, goals_away_team=0, mvp_player=CONCAT('MVP Test ', id) WHERE match_day_id=?", md);
+        // Un gol, una amarilla y una roja en el primer partido real (para goleadores/tarjetas).
+        long match = jdbc.queryForObject("SELECT id FROM matches WHERE match_day_id=? ORDER BY id LIMIT 1", Long.class, md);
+        long pp = jdbc.queryForObject("SELECT pp.id FROM player_participants pp JOIN matches m ON m.home_team_id=pp.tournament_participant_id WHERE m.id=? ORDER BY pp.id LIMIT 1", Long.class, match);
+        for (int type = 0; type <= 2; type++) // GOAL, YELLOW_CARD, RED_CARD (ordinal)
+            jdbc.update("INSERT INTO events (type, quantity, player_participant_id, match_id) VALUES (?, 1, ?, ?)", type, pp, match);
+        return md;
+    }
+    String firstMvp(long md) { return jdbc.queryForObject("SELECT mvp_player FROM matches WHERE match_day_id=? ORDER BY id LIMIT 1", String.class, md); }
+    MvcResult close(long md, String mvp) throws Exception {
+        var b = put("/api/v1/match-days/close").param("matchDayId", String.valueOf(md)).param("status", "true");
+        if (mvp != null) b = b.param("playerMvp", mvp);
+        return call(b);
+    }
+
+    @Test void cerrarFechaValidaElMvp() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        long md = playFirstRound();
+        var bad = close(md, "Cualquiera Inventado");
+        assertEquals(400, bad.getResponse().getStatus(), body(bad));
+        assertTrue(body(bad).contains("MVP"), body(bad));
+        assertEquals(0, count("SELECT COUNT(*) FROM match_days WHERE id=? AND is_finished=1", md));
+        var empty = close(md, "");
+        assertEquals(200, empty.getResponse().getStatus(), body(empty));
+        jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
+        var none = close(md, null);
+        assertEquals(200, none.getResponse().getStatus(), body(none));
+        jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
+        String mvp = firstMvp(md);
+        var ok = close(md, " " + mvp + " ");
+        assertEquals(200, ok.getResponse().getStatus(), body(ok));
+        assertEquals(mvp, jdbc.queryForObject("SELECT mvp_player FROM match_days WHERE id=?", String.class, md));
+        jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?", md);
+        assertEquals(400, close(md, mvp.toUpperCase().equals(mvp) ? mvp.toLowerCase() : mvp.toUpperCase()).getResponse().getStatus(), "distingue mayusculas");
+    }
+
+    /** Recorre TODOS los GET permitAll de SecurityConfig, sin token, con la fecha 1 jugada y cerrada con MVP. */
     @Test void vistaPublicaNoExponeDniNiEmails() throws Exception {
         assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
         jdbc.update("UPDATE players SET dni='40111222' WHERE team_id=? AND dni IS NOT NULL", ids.get("A"));
+        long md = playFirstRound();
+        assertEquals(200, close(md, firstMvp(md)).getResponse().getStatus());
+        var pr = call(post("/api/v1/prizes").content("{\"code\":\"" + code + "\",\"prizes\":[{\"type\":\"POSITION\",\"description\":\"Copa\",\"position\":1},{\"type\":\"FAIR_PLAY\",\"description\":\"Medalla\",\"position\":1},{\"type\":\"TOP_SCORER\",\"description\":\"Botin\",\"position\":1}]}"));
+        assertEquals(201, pr.getResponse().getStatus(), body(pr));
         String ownerEmail = owner.getUsername();
         long pid = participantId("A");
-        String[] urls = {
-            "/api/v1/tournaments/" + code, "/api/v1/tournaments/short/" + code,
-            "/api/v1/tournaments/" + code + "/matches/" + pid,
-            "/api/v1/tournaments/" + code + "/top-scorers", "/api/v1/tournaments/" + code + "/top-yellow-cards", "/api/v1/tournaments/" + code + "/top-red-cards",
-            "/api/v1/match-days/" + code, "/api/v1/match-days/" + code + "/lastPlayed",
-            "/api/v1/prizes/" + code, "/api/v1/prizes/" + code + "/POSITION", "/api/v1/prizes/" + code + "/FAIR_PLAY", "/api/v1/prizes/" + code + "/TOP_SCORER",
-            "/api/v1/team-participant/" + code + "/teams",
-            // Tambien caen en el comodin /tournaments/*: no deben filtrar nada sin token.
-            "/api/v1/tournaments/short", "/api/v1/tournaments/exist"
-        };
-        for (String url : urls) {
+        Map<String, Integer> urls = new LinkedHashMap<>();
+        for (String u : new String[]{
+                "/api/v1/tournaments/" + code, "/api/v1/tournaments/short/" + code,
+                "/api/v1/tournaments/" + code + "/matches/" + pid,
+                "/api/v1/tournaments/" + code + "/top-scorers", "/api/v1/tournaments/" + code + "/top-yellow-cards", "/api/v1/tournaments/" + code + "/top-red-cards",
+                "/api/v1/match-days/" + code, "/api/v1/match-days/" + code + "/lastPlayed",
+                "/api/v1/prizes/" + code, "/api/v1/prizes/" + code + "/POSITION", "/api/v1/prizes/" + code + "/FAIR_PLAY", "/api/v1/prizes/" + code + "/TOP_SCORER",
+                "/api/v1/team-participant/" + code + "/teams"}) urls.put(u, 200);
+        // Caen en el comodin GET /tournaments/* pero no son publicos: exigen sesion (401 sin token).
+        urls.put("/api/v1/tournaments/short", 401);
+        urls.put("/api/v1/tournaments/exist", 401);
+        for (var e : urls.entrySet()) {
+            String url = e.getKey();
             var r = mvc.perform(get(url)).andReturn(); // sin token
             String b = body(r), low = b.toLowerCase();
-            assertTrue(r.getResponse().getStatus() < 500, url + " " + r.getResponse().getStatus() + " " + b);
+            assertEquals(e.getValue(), r.getResponse().getStatus(), url + " " + b);
+            if (e.getValue() == 200) assertFalse(b.isBlank() || b.equals("[]"), "sin datos en " + url);
             assertFalse(low.contains("\"dni\"") || b.contains("40111222") || b.contains("40333444"), "DNI en " + url + ": " + b);
-            assertFalse(low.contains("email") || low.contains("mail\"") || b.contains(ownerEmail) || b.matches("(?s).*[\\w.+-]+@[\\w-]+\\.[\\w.]+.*"), "email en " + url + ": " + b);
-            assertFalse(low.contains("phone") || low.contains("telefono") || low.contains("password"), "telefono en " + url + ": " + b);
+            assertFalse(low.contains("email") || b.contains(ownerEmail) || b.matches("(?s).*[\\w.+-]+@[\\w-]+\\.[\\w.]+.*"), "email en " + url + ": " + b);
+            assertFalse(low.contains("phone") || low.contains("telefono") || low.contains("password") || low.contains("token"), "dato sensible en " + url + ": " + b);
         }
-        for (String url : new String[]{"/api/v1/tournaments/" + code, "/api/v1/tournaments/short/" + code, "/api/v1/match-days/" + code, "/api/v1/team-participant/" + code + "/teams"})
-            assertEquals(200, mvc.perform(get(url)).andReturn().getResponse().getStatus(), url);
+        assertTrue(body(mvc.perform(get("/api/v1/match-days/" + code + "/lastPlayed")).andReturn()).contains(firstMvp(md)), "lastPlayed devuelve la fecha jugada");
+    }
+
+    @Test void rutaPublicaConTokenBasuraSigueRespondiendo() throws Exception {
+        for (String t : new String[]{"Bearer basura.no.firmada", "Bearer ", "Basura"}) {
+            var r = mvc.perform(get("/api/v1/tournaments/" + code).header("Authorization", t)).andReturn();
+            assertEquals(200, r.getResponse().getStatus(), t + " " + body(r));
+        }
     }
 
     /** Review 24/10: sin token / token basura -> 401 (el front cierra sesion); con token valido pero sin permiso -> 403. */
@@ -249,11 +305,17 @@ class InitializeAndDniHttpTests {
         assertEquals(401, mvc.perform(get("/api/v1/teams").header("Authorization", forged)).andReturn().getResponse().getStatus());
         assertEquals(200, call(get("/api/v1/teams")).getResponse().getStatus());
         Long other = jdbc.query("SELECT id FROM teams WHERE user_id IS NOT NULL AND user_id<>? ORDER BY id LIMIT 1", rs -> rs.next() ? rs.getLong(1) : null, owner.getId());
-        if (other != null) assertEquals(403, call(get("/api/v1/teams/" + other)).getResponse().getStatus());
-        // publico y login siguen igual
+        Assumptions.assumeTrue(other != null, "La base de regresion no tiene equipos de otro usuario: no se puede probar el 403.");
+        assertEquals(403, call(get("/api/v1/teams/" + other)).getResponse().getStatus());
         assertEquals(200, mvc.perform(get("/api/v1/tournaments/" + code)).andReturn().getResponse().getStatus());
-        var login = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"nadie-test@example.invalid\",\"password\":\"x\"}")).andReturn();
-        assertNotEquals(500, login.getResponse().getStatus());
-        assertNotEquals(404, login.getResponse().getStatus());
+    }
+
+    @Test void loginConClaveIncorrectaDa401() throws Exception {
+        for (String email : new String[]{owner.getUsername(), "nadie-test@example.invalid"}) { // misma respuesta: no revela si la cuenta existe
+            var login = mvc.perform(post("/api/v1/auth/login").with(r -> { r.setRemoteAddr("10.9.9." + Math.abs(email.hashCode() % 200)); return r; })
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"" + email + "\",\"password\":\"Clave-Incorrecta-123\"}")).andReturn();
+            assertEquals(401, login.getResponse().getStatus(), body(login));
+            assertFalse(body(login).toLowerCase().contains("token"), body(login));
+        }
     }
 }

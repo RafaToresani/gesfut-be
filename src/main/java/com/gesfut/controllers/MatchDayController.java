@@ -42,7 +42,7 @@ public class MatchDayController {
     @PutMapping("/close")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
-    public void generateMatchDay(@RequestParam("matchDayId") Long id, @RequestParam("status") Boolean status, @RequestParam("playerMvp") String playerMvp){
+    public void generateMatchDay(@RequestParam("matchDayId") Long id, @RequestParam("status") Boolean status, @RequestParam(value = "playerMvp", required = false) String playerMvp){
         this.matchDayService.updateStatusMatchDay(id, status, playerMvp);
     }
 
