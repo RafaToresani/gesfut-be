@@ -248,6 +248,18 @@ class TournamentRegressionTests {
         assertEquals(Boolean.FALSE,tournament.getIsActive());
         verify(tournaments,never()).delete(any());
     }
+    /** Respuesta 2: una roja (3) pesa mas que dos amarillas (2). */
+    @Test void fairPlayRedWeighsThree(){
+        MatchDay league=day(false,true);
+        Match m1=match(league,a,b,1,0,true); Match m2=match(league,c,a,1,0,true); match(league,b,c,1,0,true);
+        var pa=com.gesfut.models.tournament.PlayerParticipant.builder().id(80L).tournamentParticipant(a).build();
+        var pb=com.gesfut.models.tournament.PlayerParticipant.builder().id(81L).tournamentParticipant(b).build();
+        m1.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(82L).type(com.gesfut.models.matchDay.EEventType.RED_CARD).quantity(1).playerParticipant(pa).match(m1).build());
+        m2.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(83L).type(com.gesfut.models.matchDay.EEventType.YELLOW_CARD).quantity(2).playerParticipant(pb).match(m2).build());
+        List<TournamentParticipant> ranked=new ArrayList<>(List.of(a,b,c));
+        ReflectionTestUtils.invokeMethod(service,"sortParticipants",ranked);
+        assertEquals(List.of("Beta","Alfa","Zulu"),ranked.stream().map(p->p.getTeam().getName()).toList());
+    }
     void prepareResponseServices(){
         tournament.setUser(UserEntity.builder().name("Test").lastname("Owner").build());
         var participants=mock(TournamentParticipantService.class);

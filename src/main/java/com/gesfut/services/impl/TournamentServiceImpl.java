@@ -734,8 +734,8 @@ public class TournamentServiceImpl implements TournamentService {
 
     /**
      * Revision critica #8: puntos, diferencia de gol, goles a favor; entre los que siguen empatados,
-     * enfrentamiento directo (puntos y luego diferencia entre ellos), luego fair play (menos tarjetas
-     * amarillas + rojas en la liga), luego nombre. Solo partidos de liga.
+     * enfrentamiento directo (puntos y luego diferencia entre ellos), luego fair play (menos puntos:
+     * amarilla 1, roja 3, en la liga), luego nombre. Solo partidos de liga.
      */
     void sortParticipants(List<TournamentParticipant> participants) {
         Map<Long, StatisticsResponse> st = new HashMap<>();
@@ -774,7 +774,9 @@ public class TournamentServiceImpl implements TournamentService {
                 if (m.getEvents() != null) for (var e : m.getEvents()) {
                     if (e.getType() != com.gesfut.models.matchDay.EEventType.YELLOW_CARD && e.getType() != com.gesfut.models.matchDay.EEventType.RED_CARD) continue;
                     var owner = e.getPlayerParticipant() == null ? null : e.getPlayerParticipant().getTournamentParticipant();
-                    if (owner != null && cards.containsKey(owner.getId())) cards.merge(owner.getId(), e.getQuantity() == null ? 1 : e.getQuantity(), Integer::sum);
+                    // Respuesta 2: fair play = amarilla 1 punto, roja 3 puntos (solo liga).
+                    int weight = e.getType() == com.gesfut.models.matchDay.EEventType.RED_CARD ? 3 : 1;
+                    if (owner != null && cards.containsKey(owner.getId())) cards.merge(owner.getId(), weight * (e.getQuantity() == null ? 1 : e.getQuantity()), Integer::sum);
                 }
                 if (!ids.contains(h) || !ids.contains(a)) continue;
                 int gh = m.getGoalsHomeTeam(), ga = m.getGoalsAwayTeam();
