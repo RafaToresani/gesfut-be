@@ -54,6 +54,7 @@ public class MatchServiceImpl implements MatchService {
         // Auditoria 22/10: un segundo envio del mismo resultado debe decir eso (409), no "el jugador no pertenece al partido".
         if (Boolean.TRUE.equals(match.getIsFinished())) throw new com.gesfut.exceptions.ResourceAlreadyExistsException("El resultado ya fue cargado. Us\u00e1 Editar resultado para cambiarlo.");
         validateResult(request, match);
+        checkSuspendedPlayers(request, match);
 
         long mvpCount = request.events().stream()
                 .filter(event -> event.type() == EEventType.MVP)
@@ -468,35 +469,44 @@ public class MatchServiceImpl implements MatchService {
             throw new IllegalArgumentException("El desempate solo corresponde a un cruce empatado.");
     }
 
-    private void rebuildDiscipline(Match changedMatch) {
-        var tournament = changedMatch.getMatchDay().getTournament();
-        List<Match> matches = tournament.getMatchDays().stream().flatMap(day -> day.getMatches().stream())
-            .filter(m -> Boolean.TRUE.equals(m.getIsFinished()))
-            .sorted(Comparator.comparingInt((Match m) -> m.getMatchDay().getNumberOfMatchDay()).thenComparing(Match::getId)).toList();
+    // Revision critica #3: limites de sancion (#4 los hace configurables por torneo).
+    int yellowLimit(com.gesfut.models.tournament.Tournament t) { return 2; }
+    int redMatches(com.gesfut.models.tournament.Tournament t) { return 1; }
+
+    private Map<Long, List<Event>> eventsOf(List<Match> matches) {
         Map<Long, List<Event>> eventMap = new HashMap<>();
         matches.forEach(m -> eventMap.put(m.getId(), eventRepository.findAllByMatchId(m.getId())));
+        return eventMap;
+    }
+
+    private void rebuildDiscipline(Match changedMatch) {
+        var tournament = changedMatch.getMatchDay().getTournament();
+        List<Match> matches = DisciplineRules.chronological(tournament, null);
+        var state = DisciplineRules.compute(tournament, matches, eventsOf(matches), yellowLimit(tournament), redMatches(tournament));
         for (var participant : tournament.getTeams()) {
             for (var player : participant.getPlayerParticipants()) {
-                int consecutive = 0;
-                boolean suspended = false;
-                for (Match m : matches) {
-                    if (!Objects.equals(m.getHomeTeam().getId(), participant.getId()) && !Objects.equals(m.getAwayTeam().getId(), participant.getId())) continue;
-                    if (m.isByeMatch()) continue;
-                    suspended = false; // Esta participación cumple la suspensión anterior.
-                    int yellows = 0, reds = 0;
-                    for (Event e : eventMap.get(m.getId())) {
-                        if (!Objects.equals(e.getPlayerParticipant().getId(), player.getId())) continue;
-                        if (e.getType() == EEventType.YELLOW_CARD) yellows += e.getQuantity();
-                        if (e.getType() == EEventType.RED_CARD) reds += e.getQuantity();
-                    }
-                    consecutive += yellows;
-                    if (reds > 0 || consecutive >= 2) { suspended = true; consecutive = 0; }
-                }
-                player.setConsecutiveCards(consecutive);
-                player.setIsSuspended(suspended);
+                var st = state.get(player.getId());
+                player.setConsecutiveCards(st == null ? 0 : st.yellows());
+                player.setIsSuspended(st != null && st.suspended());
                 playerParticipantRepository.save(player);
             }
         }
+    }
+
+    /** Revision critica #3: un jugador suspendido para este partido no puede tener goles, tarjetas ni MVP. */
+    void checkSuspendedPlayers(MatchRequest request, Match match) {
+        var tournament = match.getMatchDay().getTournament();
+        List<Match> before = DisciplineRules.chronological(tournament, match);
+        var state = DisciplineRules.compute(tournament, before, eventsOf(before), yellowLimit(tournament), redMatches(tournament));
+        Set<String> names = new TreeSet<>();
+        for (var e : request.events()) {
+            var st = state.get(e.playerParticipantId());
+            if (st == null || !st.suspended()) continue;
+            names.add(playerParticipantRepository.findById(e.playerParticipantId())
+                    .map(pp -> pp.getPlayer().getName() + " " + pp.getPlayer().getLastName()).orElse("Un jugador"));
+        }
+        if (!names.isEmpty()) throw new IllegalArgumentException((names.size() == 1 ? names.iterator().next() + " est\u00e1 suspendido" : String.join(", ", names) + " est\u00e1n suspendidos")
+                + " para este partido: no puede" + (names.size() == 1 ? "" : "n") + " tener goles, tarjetas ni MVP.");
     }
 
 }
