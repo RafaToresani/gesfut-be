@@ -21,4 +21,5 @@ public interface TournamentParticipantService {
     void changeStatusPlayerParticipant(Long idParticipantPlayer, Boolean status);
     List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id);
     ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player);
+    ParticipantResponse addPlayerFromRequest(String code, Long teamIdParticipant, com.gesfut.dtos.requests.PlayerRequest request);
 }

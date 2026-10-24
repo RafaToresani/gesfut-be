@@ -34,7 +34,7 @@ class AddPlayerHttpTests {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         row = jdbc.queryForMap("SELECT BIN_TO_UUID(t.code) code, tp.id pid, t.user_id uid, p.number num, p.name pname, p.last_name plast FROM tournament_participants tp " +
                 "JOIN tournaments t ON t.id=tp.tournament_id JOIN teams te ON te.id=tp.team_id JOIN players p ON p.team_id=te.id " +
-                "WHERE te.user_id=t.user_id AND t.code IS NOT NULL AND (p.status IS NULL OR p.status=1) AND LOWER(te.name)<>'free' ORDER BY tp.id LIMIT 1");
+                "WHERE te.user_id=t.user_id AND t.code IS NOT NULL AND t.is_active=1 AND t.is_finished=0 AND tp.is_active=1 AND (p.status IS NULL OR p.status=1) AND LOWER(te.name)<>'free' ORDER BY tp.id LIMIT 1");
         owner = users.findById(((Number) row.get("uid")).longValue()).orElseThrow();
     }
 

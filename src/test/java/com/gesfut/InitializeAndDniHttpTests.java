@@ -167,4 +167,42 @@ class InitializeAndDniHttpTests {
         assertEquals(200, call(put("/api/v1/teams/change-status-team/" + ids.get("A") + "/true")).getResponse().getStatus());
         assertEquals(before, jdbc.queryForObject("SELECT is_active FROM tournament_participants WHERE id=?", Object.class, tp));
     }
+
+    long playersOf(String key) { return jdbc.queryForObject("SELECT COUNT(*) FROM players WHERE team_id=?", Long.class, ids.get(key)); }
+
+    @Test void addPlayerEnTorneoFinalizadoNoEscribeNada() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        long before = playersOf("A");
+        jdbc.update("UPDATE tournaments SET is_finished=1 WHERE name=?", prefix);
+        var r = call(put("/api/v1/team-participant/" + code + "/add-player/" + participantId("A")).content("{\"name\":\"No\",\"lastName\":\"Debe\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":40,\"dni\":\"42111999\"}"));
+        assertTrue(r.getResponse().getStatus() >= 400 && r.getResponse().getStatus() < 500, body(r));
+        assertEquals(before, playersOf("A"), "no debe quedar el jugador en el equipo global");
+    }
+
+    @Test void addPlayerPorRutaDeEquipoDevuelveMensajeConDniYEquipo() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        var r = call(put("/api/v1/teams/add-player/" + ids.get("A")).content("{\"name\":\"Dup2\",\"lastName\":\"Dni\",\"isCaptain\":false,\"isGoalKeeper\":false,\"number\":42,\"dni\":\"40333444\"}"));
+        assertEquals(400, r.getResponse().getStatus(), body(r));
+        assertTrue(body(r).contains("\"error\"") && body(r).contains("40333444") && body(r).contains(prefix + " B"), body(r));
+    }
+
+    @Test void equipoConHistorialEnTorneoFinalizadoSePuedeDeshabilitar() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        jdbc.update("UPDATE tournaments SET is_finished=1 WHERE name=?", prefix);
+        var p = call(get("/api/v1/teams/" + ids.get("A") + "/delete-preview"));
+        assertEquals(200, p.getResponse().getStatus(), body(p));
+        assertFalse(body(p).contains("participa en el torneo"), body(p));
+        var d = call(put("/api/v1/teams/change-status-team/" + ids.get("A") + "/false"));
+        assertEquals(200, d.getResponse().getStatus(), body(d));
+    }
+
+    @Test void vistaPublicaNoExponeDniNiEmails() throws Exception {
+        assertEquals(200, initialize("A", "B", "C", "D").getResponse().getStatus());
+        for (String url : new String[]{"/api/v1/tournaments/" + code, "/api/v1/team-participant/" + code + "/teams"}) {
+            var r = mvc.perform(get(url)).andReturn(); // sin token
+            String b = body(r);
+            assertEquals(200, r.getResponse().getStatus(), url + " " + b);
+            assertFalse(b.toLowerCase().contains("dni") || b.contains("40111222") || b.contains("@") || b.toLowerCase().contains("phone") || b.toLowerCase().contains("email"), url + " " + b);
+        }
+    }
 }

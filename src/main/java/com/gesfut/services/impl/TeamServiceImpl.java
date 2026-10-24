@@ -140,13 +140,22 @@ public class TeamServiceImpl implements TeamService {
                 "Equipo '" + team.getName() + "' deshabilitado. Sus resultados se conservan." + regen);
     }
 
+    /** Si el equipo juega varios torneos, aclara de cual viene el bloqueo (eliminar/deshabilitar es global, afecta a todos). */
+    private static void explain(TournamentParticipant p, boolean several, Runnable check) {
+        try { check.run(); }
+        catch (IllegalArgumentException e) {
+            if (!several) throw e;
+            throw new IllegalArgumentException("Este equipo tambi\u00e9n participa en el torneo '" + p.getTournament().getName() + "': " + e.getMessage());
+        }
+    }
+
     /** Plan 22/10 #2: torneos sin jugar -> se quita y se regenera; si no queda otro historial se borra, si no se deshabilita. */
     private TeamDeletionResponse deletionPlan(Team team, String message) {
         List<TournamentParticipant> participations = participantRepository.findAllByTeamId(team.getId());
         List<TournamentParticipant> regen = participations.stream().filter(TeamDisableRules::regeneratesFixture).toList();
         List<TournamentParticipant> others = participations.stream().filter(p -> !regen.contains(p)).toList();
         String action = others.isEmpty() ? "DELETE" : "DISABLE";
-        List<String> ongoing = others.stream().filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
+        List<String> ongoing = others.stream().filter(p -> DniRules.openTournament(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
                 .map(p -> p.getTournament().getName()).distinct().toList();
         List<String> regenNames = regen.stream().map(p -> p.getTournament().getName()).distinct().toList();
         String blocked = null;
@@ -154,8 +163,11 @@ public class TeamServiceImpl implements TeamService {
         else if ("DISABLE".equals(action) && Boolean.FALSE.equals(team.getStatus())) blocked = "El equipo ya est\u00e1 deshabilitado.";
         else {
             try {
-                regen.forEach(TeamDisableRules::checkCanRemove);
-                others.stream().filter(p -> !Boolean.FALSE.equals(p.getIsActive())).forEach(TeamDisableRules::checkCanDisable);
+                // Solo torneos abiertos: los finalizados/archivados son historial y no se tocan (antes bloqueaban con mensajes de otro torneo).
+                boolean several = participations.stream().filter(p -> DniRules.openTournament(p.getTournament())).count() > 1;
+                for (TournamentParticipant p : regen) explain(p, several, () -> TeamDisableRules.checkCanRemove(p));
+                for (TournamentParticipant p : others) if (DniRules.openTournament(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
+                    explain(p, several, () -> TeamDisableRules.checkCanDisable(p));
             } catch (IllegalArgumentException e) { blocked = e.getMessage(); }
         }
         return new TeamDeletionResponse(team.getId(), team.getName(), action, ongoing, regenNames, blocked, message);

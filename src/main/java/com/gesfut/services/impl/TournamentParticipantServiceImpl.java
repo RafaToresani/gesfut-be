@@ -156,6 +156,34 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         return participantToResponse(this.participantRepository.save(optParticipant.get()));
     }
 
+    @Autowired @org.springframework.context.annotation.Lazy
+    private com.gesfut.services.TeamService teamServiceForAdd;
+
+    /** Alta de jugador desde "Torneo actual": todo en una transaccion. Primero se valida (torneo existe, es del usuario,
+     *  esta abierto, el participante es de ese torneo) y recien despues se crea/reusa el jugador; si falla, rollback. */
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public ParticipantResponse addPlayerFromRequest(String code, Long teamIdParticipant, com.gesfut.dtos.requests.PlayerRequest request) {
+        Tournament tournament = this.tournamentRepository.findByCode(UUID.fromString(code)).orElseThrow(() -> new ResourceNotFoundException("El torneo no existe."));
+        access.requireOwner(tournament);
+        access.requireOpen(tournament);
+        TournamentParticipant participant = this.participantRepository.findById(teamIdParticipant).orElseThrow(() -> new ResourceNotFoundException("El participante no existe."));
+        if (!Objects.equals(participant.getTournament().getId(), tournament.getId())) throw new IllegalArgumentException("El equipo no participa de este torneo.");
+        Long teamId = participant.getTeam().getId();
+        Player existing = this.teamServiceForAdd.getPlayerName(request.name(), request.lastName(), teamId);
+        if (existing != null) {
+            // C(c): solo se reutiliza un jugador ACTIVO con el MISMO dorsal.
+            String who = existing.getName() + " " + existing.getLastName();
+            if (Boolean.FALSE.equals(existing.getStatus()))
+                throw new IllegalArgumentException(who + " est\u00e1 dado de baja en el equipo; volv\u00e9 a habilitarlo antes de sumarlo al torneo.");
+            if (!Objects.equals(existing.getNumber(), request.number()))
+                throw new IllegalArgumentException("Ya existe " + who + " con el dorsal " + existing.getNumber() + "; editalo o us\u00e1 otro nombre.");
+            return addPlayerToTeamParticipant(code, teamIdParticipant, existing);
+        }
+        Player created = this.teamServiceForAdd.addPlayerToTeam(teamId, request);
+        return addPlayerToTeamParticipant(code, teamIdParticipant, created);
+    }
+
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ParticipantResponse> getParticipants(String code) {

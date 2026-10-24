@@ -20,7 +20,7 @@ final class SlidingWindowLimiter {
     /** true = bloqueado (ya llego al limite dentro de la ventana). */
     boolean hit(String key, int limit, long window, long now) {
         if (now - lastCleanup > cleanupEveryMs) cleanup(now);
-        if (!entries.containsKey(key) && entries.size() >= maxKeys) { cleanup(now); if (entries.size() >= maxKeys) evictOldest(); }
+        if (!entries.containsKey(key) && entries.size() >= maxKeys) { cleanup(now); if (entries.size() >= maxKeys) evictOldest(Math.max(1, maxKeys / 10)); }
         Entry e = entries.computeIfAbsent(key, k -> new Entry(new ArrayDeque<>(), window));
         synchronized (e) {
             Deque<Long> q = e.hits();
@@ -37,11 +37,13 @@ final class SlidingWindowLimiter {
             return q.isEmpty() || now - q.peekLast() > en.getValue().window(); } });
     }
 
-    private void evictOldest() {
-        String oldest = null; long t = Long.MAX_VALUE;
-        for (var en : entries.entrySet()) { Long last; synchronized (en.getValue()) { last = en.getValue().hits().peekLast(); }
-            long v = last == null ? Long.MIN_VALUE : last; if (v < t) { t = v; oldest = en.getKey(); } }
-        if (oldest != null) entries.remove(oldest);
+    /** Lleno: se descarta de una vez el 10% con uso mas viejo (un solo recorrido cada maxKeys/10 claves nuevas, no por cada una). */
+    private synchronized void evictOldest(int n) {
+        if (entries.size() < maxKeys) return;
+        java.util.List<java.util.Map.Entry<String, Long>> lasts = new java.util.ArrayList<>();
+        for (var en : entries.entrySet()) { Long last; synchronized (en.getValue()) { last = en.getValue().hits().peekLast(); } lasts.add(java.util.Map.entry(en.getKey(), last == null ? Long.MIN_VALUE : last)); }
+        lasts.sort(java.util.Map.Entry.comparingByValue());
+        for (int i = 0; i < n && i < lasts.size(); i++) entries.remove(lasts.get(i).getKey());
     }
 
     int size() { return entries.size(); }

@@ -52,19 +52,7 @@ public class TeamParticipantController {
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public ParticipantResponse addPlayerToTeam(@PathVariable String code, @PathVariable Long teamIdParticipant, @jakarta.validation.Valid @RequestBody PlayerRequest player){
-        ParticipantResponse participant = this.tournamentParticipantService.getOneParticipants(teamIdParticipant);
-        TeamResponse team = this.teamService.getTeamById(participant.idTeam());
-        Player playerAux = this.teamService.getPlayerName(player.name(),player.lastName(),team.id());
-        if(playerAux != null){
-          // C(c): solo se reutiliza un jugador ACTIVO con el MISMO dorsal; si no, se explica en vez de sumar a otro sin avisar.
-          String who = playerAux.getName() + " " + playerAux.getLastName();
-          if (Boolean.FALSE.equals(playerAux.getStatus()))
-              throw new IllegalArgumentException(who + " est\u00e1 dado de baja en el equipo; volv\u00e9 a habilitarlo antes de sumarlo al torneo.");
-          if (!java.util.Objects.equals(playerAux.getNumber(), player.number()))
-              throw new IllegalArgumentException("Ya existe " + who + " con el dorsal " + playerAux.getNumber() + "; editalo o us\u00e1 otro nombre.");
-          return this.tournamentParticipantService.addPlayerToTeamParticipant(code, teamIdParticipant, playerAux);
-        }
-        Player playerCreated = this.teamService.addPlayerToTeam(participant.idTeam(), player);
-        return this.tournamentParticipantService.addPlayerToTeamParticipant(code, teamIdParticipant, playerCreated);
+        // Atomico: valida torneo abierto y duenio ANTES de escribir; si algo falla no queda el jugador creado en el equipo.
+        return this.tournamentParticipantService.addPlayerFromRequest(code, teamIdParticipant, player);
     }
 }
