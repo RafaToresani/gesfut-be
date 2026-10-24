@@ -178,6 +178,15 @@ class TournamentRegressionTests {
         finalMatch.setTiebreakWinnerId(a.getId());
         assertEquals(a.getId(),service.tournamentToResponse(tournament).championOfPlayoffsId());
     }
+    /** Retest 24/10: cerrar la ultima fecha de liga no corona a nadie hasta finalizar el torneo (o jugar la final). */
+    @Test void leagueChampionOnlyAfterFinishOrFinal(){
+        prepareResponseServices();
+        MatchDay league=day(false,true);match(league,a,b,2,0,true);
+        tournament.setIsFinished(false);
+        assertNull(service.tournamentToResponse(tournament).championOfLeagueId());
+        tournament.setIsFinished(true);
+        assertEquals(a.getId(),service.tournamentToResponse(tournament).championOfLeagueId());
+    }
     @Test void playoffPointsNeverContaminateLeagueClassification(){
         prepareResponseServices();
         MatchDay league=day(false,true);match(league,a,b,2,0,true);

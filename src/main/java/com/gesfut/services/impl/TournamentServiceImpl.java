@@ -608,7 +608,7 @@ public class TournamentServiceImpl implements TournamentService {
             return new ParticipantResponse(response.idParticipant(), response.idTeam(), response.name(), response.isActive(), leagueStatistics(p), response.playerParticipants(), response.color());
         }).toList();
         List<MatchDay> leagueDays = tournament.getMatchDays().stream().filter(day -> !Boolean.TRUE.equals(day.getIsPlayOff())).toList();
-        Long leagueChampion = !ranked.isEmpty() && !leagueDays.isEmpty() && leagueDays.stream().allMatch(day -> Boolean.TRUE.equals(day.getIsFinished())) ? ranked.getFirst().getId() : null;
+        boolean leagueDone = !ranked.isEmpty() && !leagueDays.isEmpty() && leagueDays.stream().allMatch(day -> Boolean.TRUE.equals(day.getIsFinished()));
         Long playoffChampion = null;
         var lastDay = tournament.getMatchDays().stream().max(Comparator.comparingInt(MatchDay::getNumberOfMatchDay));
         if (lastDay.isPresent() && Boolean.TRUE.equals(lastDay.get().getIsPlayOff()) && Boolean.TRUE.equals(lastDay.get().getIsFinished()) && lastDay.get().getMatches().size() == 1) {
@@ -617,6 +617,9 @@ public class TournamentServiceImpl implements TournamentService {
                 if (!Objects.equals(finalMatch.getGoalsHomeTeam(), finalMatch.getGoalsAwayTeam()) || finalMatch.getTiebreakWinnerId() != null) playoffChampion = whoWin(finalMatch).getId();
             }
         }
+        // Retest 24/10: nadie es "campeon" antes de tiempo. El de liga (1ro de la tabla con todas las fechas de liga cerradas)
+        // se informa solo con el torneo finalizado o con la final de playoffs ya jugada.
+        Long leagueChampion = leagueDone && (Boolean.TRUE.equals(tournament.getIsFinished()) || playoffChampion != null) ? ranked.getFirst().getId() : null;
         return new TournamentResponse(
                 tournament.getName(),
                 tournament.getCode().toString(),
