@@ -21,6 +21,7 @@ public interface TournamentService {
     TournamentResponse findTournamentByCode(String code);
 
     void finishTournament(String code);
+    void updateDiscipline(String code, com.gesfut.dtos.requests.DisciplineRequest request);
 
     void initializeTournament(MatchDayRequest request, LocalDateTime startDate);
 

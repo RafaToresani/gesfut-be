@@ -8,6 +8,8 @@ public record TournamentShortResponse(
         LocalDate startDate,
         Boolean isFinished,
         Boolean isActive,
-        Boolean haveParticipants
+        Boolean haveParticipants,
+        Integer yellowCardsToSuspend,
+        Integer redCardSuspensionMatches
 ) {
 }

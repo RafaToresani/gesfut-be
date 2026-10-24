@@ -31,4 +31,6 @@ public interface MatchService {
     NewDateResponse updateMatchDateAndDescription(Long matchId, @Valid MatchDateRequest request);
 
     void updateMatchDescription(Long matchId, @Valid MatchDescriptionRequest request);
+    /** Revision critica #4: recalcula sanciones al cambiar las reglas del torneo. */
+    void rebuildDisciplineFor(com.gesfut.models.tournament.Tournament tournament);
 }

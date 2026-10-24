@@ -14,6 +14,8 @@ public record TournamentResponse(
         List<ParticipantResponse> participants,
         List<MatchDayResponse> matchDays,
         Long championOfLeagueId,
-        Long championOfPlayoffsId
+        Long championOfPlayoffsId,
+        Integer yellowCardsToSuspend,
+        Integer redCardSuspensionMatches
 ) {
 }

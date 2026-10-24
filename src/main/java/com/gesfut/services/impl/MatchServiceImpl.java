@@ -470,8 +470,13 @@ public class MatchServiceImpl implements MatchService {
     }
 
     // Revision critica #3: limites de sancion (#4 los hace configurables por torneo).
-    int yellowLimit(com.gesfut.models.tournament.Tournament t) { return 2; }
-    int redMatches(com.gesfut.models.tournament.Tournament t) { return 1; }
+    int yellowLimit(com.gesfut.models.tournament.Tournament t) { return t.yellowLimit(); }
+    int redMatches(com.gesfut.models.tournament.Tournament t) { return t.redMatches(); }
+
+    @Override
+    public void rebuildDisciplineFor(com.gesfut.models.tournament.Tournament tournament) {
+        tournament.getMatchDays().stream().flatMap(d -> d.getMatches().stream()).findFirst().ifPresent(this::rebuildDiscipline);
+    }
 
     private Map<Long, List<Event>> eventsOf(List<Match> matches) {
         Map<Long, List<Event>> eventMap = new HashMap<>();

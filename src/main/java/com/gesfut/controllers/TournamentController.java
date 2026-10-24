@@ -129,6 +129,14 @@ public class TournamentController {
     // ~~~~~~~~~~~~ DELETE ~~~~~~~~~~~~
     // Revision critica #2: se quita el toggle manual de "finalizado"; finalizar es explicito e irreversible.
     @Operation(summary = "Finaliza el torneo (requiere todo jugado). Irreversible.")
+    @Operation(summary = "Reglas de sancion del torneo: amarillas para suspender y fechas por roja.")
+    @PutMapping("/{code}/discipline")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void updateDiscipline(@PathVariable("code") String code, @jakarta.validation.Valid @RequestBody com.gesfut.dtos.requests.DisciplineRequest request) {
+        this.tournamentService.updateDiscipline(code, request);
+    }
+
     @PutMapping("/{code}/finish")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")

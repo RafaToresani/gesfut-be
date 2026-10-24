@@ -47,6 +47,10 @@ public class TournamentServiceImpl implements TournamentService {
     private TeamService teamService;
 
     @Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private MatchService disciplineMatchService;
+
+    @Autowired(required = false)
     private com.gesfut.repositories.MatchRepository byeMatchRepository;
 
     @Autowired
@@ -119,6 +123,18 @@ public class TournamentServiceImpl implements TournamentService {
         if (pending != null) throw new IllegalArgumentException(pending);
         t.setIsFinished(true);
         this.tournamentRepository.save(t);
+    }
+
+    @Override
+    @Transactional
+    public void updateDiscipline(String code, com.gesfut.dtos.requests.DisciplineRequest request) {
+        Tournament t = this.tournamentRepository.findByCode(UUID.fromString(code)).orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado."));
+        access.requireOwner(t);
+        access.requireOpen(t);
+        t.setYellowCardsToSuspend(request.yellowCardsToSuspend());
+        t.setRedCardSuspensionMatches(request.redCardSuspensionMatches());
+        this.tournamentRepository.save(t);
+        if (disciplineMatchService != null) disciplineMatchService.rebuildDisciplineFor(t);
     }
 
     /** Motivo por el que todavia no se puede finalizar, o null. */
@@ -481,7 +497,9 @@ public class TournamentServiceImpl implements TournamentService {
                 leagueParticipants,
                 tournament.getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).map(matchDay -> this.matchDayService.matchDayToResponse(matchDay)).collect(Collectors.toList()),
                 leagueChampion,
-                playoffChampion
+                playoffChampion,
+                tournament.yellowLimit(),
+                tournament.redMatches()
         );
     }
 
@@ -493,7 +511,9 @@ public class TournamentServiceImpl implements TournamentService {
                 tournament.getStartDate(),
                 tournament.getIsFinished(),
                 tournament.getIsActive(),
-                !tournament.getTeams().isEmpty()
+                !tournament.getTeams().isEmpty(),
+                tournament.yellowLimit(),
+                tournament.redMatches()
         );
     }
 

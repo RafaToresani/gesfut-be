@@ -27,6 +27,14 @@ public class Tournament {
     private Boolean isFinished;
     private Boolean isActive;
 
+    /** Revision critica #4: amarillas acumuladas para una fecha de suspension (null = 5). */
+    private Integer yellowCardsToSuspend;
+    /** Revision critica #4: fechas de suspension por roja (null = 1). */
+    private Integer redCardSuspensionMatches;
+
+    public int yellowLimit() { return yellowCardsToSuspend == null ? 5 : yellowCardsToSuspend; }
+    public int redMatches() { return redCardSuspensionMatches == null ? 1 : redCardSuspensionMatches; }
+
     @ManyToOne()
     @JoinColumn(name = "user_id")
     @JsonBackReference
