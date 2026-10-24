@@ -90,6 +90,27 @@ class PlayerEditIntegrationTests {
         assertTrue(ex.getMessage().contains("Pedro Gomez"));
     }
 
+    @Test void otroEquipoPuedeUsarElMismoDorsal() {
+        assertDoesNotThrow(() -> teams.createTeam(new TeamRequest(prefix + " C", "#000000", new LinkedHashSet<>(List.of(
+                new PlayerRequest("Luis", "Sosa", true, false, 10),
+                new PlayerRequest("Raul", "Vera", false, true, 1))))));
+        long teamC = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " C");
+        assertEquals(2L, jdbc.queryForObject("SELECT COUNT(*) FROM players WHERE team_id=? AND number IN (1,10)", Long.class, teamC));
+    }
+
+    @Test void loteContraJugadoresExistentesDelEquipo(@Autowired com.gesfut.services.PlayerService players) {
+        long teamId = jdbc.queryForObject("SELECT id FROM teams WHERE name=?", Long.class, prefix + " A");
+        var t = com.gesfut.models.team.Team.builder().id(teamId).players(new HashSet<>()).build();
+        // El lote valida la lista y cada alta valida contra la base: el 10 (Juan, activo) choca, el 11 no.
+        players.validatePlayers(new LinkedHashSet<>(List.of(new PlayerRequest("Ale", "Paz", true, true, 11), new PlayerRequest("Beto", "Gil", false, false, 10))));
+        assertDoesNotThrow(() -> players.createPlayer(new PlayerRequest("Ale", "Paz", false, false, 11), t));
+        var ex = assertThrows(IllegalArgumentException.class, () -> players.createPlayer(new PlayerRequest("Beto", "Gil", false, false, 10), t));
+        assertTrue(ex.getMessage().contains("Juan Perez"));
+        // Dado de baja: su dorsal queda libre tambien para este camino.
+        jdbc.update("UPDATE players SET status=0 WHERE id=?", juan);
+        assertDoesNotThrow(() -> players.createPlayer(new PlayerRequest("Beto", "Gil", false, false, 10), t));
+    }
+
     @Test void otroUsuarioNoPuede() {
         var other = UserEntity.builder().id(-1L).email("other@example.test").build();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(other, null, List.of()));
