@@ -546,7 +546,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .numberOfMatchDay(lastMatchDay.getNumberOfMatchDay() + 1)
                 .tournament(tournament)
                 .isFinished(false)
-                .matches(new HashSet<>())
+                .matches(new LinkedHashSet<>())
                 .mvpPlayer(null)
                 .isPlayOff(true)
                 .build();
@@ -656,15 +656,19 @@ public class TournamentServiceImpl implements TournamentService {
                 .numberOfMatchDay(lastMatchDay + 1)
                 .tournament(tournament)
                 .isFinished(false)
-                .matches(new HashSet<>())
+                .matches(new LinkedHashSet<>())
                 .mvpPlayer(null)
                 .isPlayOff(true)
                 .build();
 
-        for (int i = 0, j = qualifiedParticipants.size() - 1; i < j; i++, j--) {
+        // Revision critica #1: siembra clasica (1v8 y 4v5 en una mitad, 2v7 y 3v6 en la otra; 1 y 2 solo en la final).
+        // Los partidos se guardan en orden de cuadro (LinkedHashSet + IDENTITY): ids crecientes = orden de cuadro,
+        // y la ronda siguiente empareja (0,1), (2,3)... de forma determinista.
+        List<Integer> order = bracketSeedOrder(qualifiedParticipants.size());
+        for (int k = 0; k < order.size(); k += 2) {
             Match match = Match.builder()
-                    .homeTeam(qualifiedParticipants.get(i))
-                    .awayTeam(qualifiedParticipants.get(j))
+                    .homeTeam(qualifiedParticipants.get(order.get(k) - 1))
+                    .awayTeam(qualifiedParticipants.get(order.get(k + 1) - 1))
                     .goalsHomeTeam(0)
                     .goalsAwayTeam(0)
                     .isFinished(false)
@@ -681,6 +685,18 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.getMatchDays().add(matchDay);
         tournament.setIsFinished(false);
         this.tournamentRepository.save(tournament);
+    }
+
+    /** Orden de siembra en el cuadro para n = 2^k: n=8 -> [1,8,4,5,2,7,3,6]. */
+    static List<Integer> bracketSeedOrder(int n) {
+        List<Integer> order = new ArrayList<>(List.of(1, 2));
+        while (order.size() < n) {
+            int size = order.size() * 2;
+            List<Integer> next = new ArrayList<>();
+            for (int seed : order) { next.add(seed); next.add(size + 1 - seed); }
+            order = next;
+        }
+        return order;
     }
 
     private void setNextMatchPlayOff(MatchDay matchDay) {

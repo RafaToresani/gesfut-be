@@ -72,6 +72,21 @@ class TournamentRegressionTests {
         assertTrue(e.getMessage().contains("dados de baja"));
         assertTrue(tournament.getMatchDays().stream().noneMatch(MatchDay::getIsPlayOff));
     }
+    /** Revision critica #1: siembra clasica 1v8, 4v5 | 2v7, 3v6; 1 y 2 solo se cruzan en la final. */
+    @Test void eightTeamBracketUsesClassicSeeding(){
+        var e=participant(5L,"E"); var f=participant(6L,"F"); var g=participant(7L,"G"); var h=participant(8L,"H");
+        MatchDay league=day(false,true);
+        // a..d ganan con diferencia 5,4,3,2 -> ranking a,b,c,d,h,g,f,e
+        match(league,a,e,5,0,true); match(league,b,f,4,0,true); match(league,c,g,3,0,true); match(league,d,h,2,0,true);
+        service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L,5L,6L,7L,8L));
+        MatchDay po=tournament.getMatchDays().stream().filter(MatchDay::getIsPlayOff).findFirst().orElseThrow();
+        List<Match> ms=po.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).toList();
+        assertEquals(List.of("Zulu-E","Gamma-H","Alfa-F","Beta-G"), ms.stream().map(m->m.getHomeTeam().getTeam().getName()+"-"+m.getAwayTeam().getTeam().getName()).toList());
+        assertEquals(ms.get(1).getId(), ms.get(0).getVsMatchIdWhoWin()); // 1/8 contra 4/5
+        assertEquals(ms.get(3).getId(), ms.get(2).getVsMatchIdWhoWin()); // 2/7 contra 3/6
+        assertEquals(List.of(1,4,2,3), com.gesfut.services.impl.TournamentSeedAccess.order(4));
+        assertEquals(List.of(1,2), com.gesfut.services.impl.TournamentSeedAccess.order(2));
+    }
     @Test void sixQualifiersAreRejectedBeforeCreatingBrokenBracket(){
         day(false,true); participant(5L,"E");participant(6L,"F");
         assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L,5L,6L)));
