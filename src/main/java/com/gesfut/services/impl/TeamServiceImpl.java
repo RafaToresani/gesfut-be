@@ -40,6 +40,8 @@ public class TeamServiceImpl implements TeamService {
     private TournamentParticipantService tournamentParticipantService;
     @Autowired
     private PlayerRepository playerRepository;
+    @Autowired
+    private com.gesfut.repositories.PlayerParticipantRepository playerParticipantRepository;
 
     @Autowired
     private UserEntityService userService;
@@ -217,6 +219,43 @@ public class TeamServiceImpl implements TeamService {
             });
         }
         this.playerRepository.updatePlayerStatusById(idPlayer, status);
+    }
+
+    /**
+     * Editar jugador (solo el duenio). Cambia datos del plantel; goles/tarjetas siguen en el mismo
+     * jugador porque no se crea uno nuevo. Mismas validaciones que el alta y bloqueo de DNI entre equipos.
+     */
+    @Override
+    @Transactional
+    public com.gesfut.dtos.responses.PlayerResponse editPlayer(Long idPlayer, com.gesfut.dtos.requests.PlayerEditRequest request) {
+        Player player = this.playerRepository.findById(idPlayer).orElseThrow(() -> new ResourceNotFoundException("El jugador no existe."));
+        if (player.getTeam() == null) throw new ResourceNotFoundException("El jugador no existe.");
+        Team team = getTeamByIdSecured(player.getTeam().getId());
+        if (com.gesfut.models.matchDay.Match.isFreeParticipantTeam(team)) throw new IllegalArgumentException("No se puede editar este jugador.");
+        String name = request.name() == null ? null : request.name().trim();
+        String lastName = request.lastName() == null ? null : request.lastName().trim();
+        if (name == null || lastName == null || name.length() < 3 || lastName.length() < 3 || name.length() > 50 || lastName.length() > 50)
+            throw new IllegalArgumentException("Nombre y apellido deben tener entre 3 y 50 caracteres.");
+        if (request.number() == null || request.number() < 0 || request.number() > 99)
+            throw new IllegalArgumentException("El dorsal debe estar entre 0 y 99.");
+        String dni = com.gesfut.services.impl.DniRules.normalize(request.dni());
+        for (Player other : team.getPlayers()) {
+            if (other == player || java.util.Objects.equals(other.getId(), player.getId())) continue;
+            if (dni != null && dni.equals(other.getDni())) throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
+            if (!Boolean.FALSE.equals(other.getStatus()) && java.util.Objects.equals(other.getNumber(), request.number()))
+                throw new IllegalArgumentException("El dorsal " + request.number() + " ya lo usa " + other.getName() + " " + other.getLastName() + ".");
+        }
+        player.setName(name);
+        player.setLastName(lastName);
+        player.setNumber(request.number());
+        player.setDni(dni);
+        if (dni != null && team.getTournaments() != null) {
+            for (var participation : team.getTournaments()) {
+                if (participation.getTournament() == null || participation.getTournament().getId() == null) continue;
+                DniRules.requireNotInOtherTeam(this.playerParticipantRepository.findAllByTournamentParticipant_Tournament_IdAndPlayer_Dni(participation.getTournament().getId(), dni), player, team);
+            }
+        }
+        return this.playerService.playerToResponse(this.playerRepository.save(player));
     }
 
     @Override

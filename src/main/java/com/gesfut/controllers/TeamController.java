@@ -104,6 +104,14 @@ public class TeamController {
     }
 
     // ~~~~~~~~~~~~ PUT ~~~~~~~~~~~~
+    @Operation(summary = "Edita nombre, apellido, dorsal y DNI opcional de un jugador del plantel (solo el duenio).")
+    @PutMapping("/players/{idPlayer}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public com.gesfut.dtos.responses.PlayerResponse editPlayer(@PathVariable Long idPlayer, @Valid @RequestBody com.gesfut.dtos.requests.PlayerEditRequest request) {
+        return this.teamService.editPlayer(idPlayer, request);
+    }
+
     @PutMapping("/change-status-player/{idPlayer}/{status}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")

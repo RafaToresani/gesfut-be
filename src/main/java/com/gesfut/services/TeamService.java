@@ -23,6 +23,7 @@ public interface TeamService  {
     Player addPlayerToTeam(Long teamId, PlayerRequest request);
     Team getTeamByName();
     void changeStatusPlayer(Long idPlayer, Boolean status);
+    com.gesfut.dtos.responses.PlayerResponse editPlayer(Long idPlayer, com.gesfut.dtos.requests.PlayerEditRequest request);
     List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id);
     Player getPlayerNumber(Integer number, Long teamId);
     Player getPlayerName(String name, String lastName, Long teamId);
