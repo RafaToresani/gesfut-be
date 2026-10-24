@@ -132,7 +132,11 @@ class FixtureRegenerationTests {
         MatchDay pending = MatchDay.builder().id(ids++).numberOfMatchDay(1).isFinished(false).isPlayOff(false).tournament(t).matches(new HashSet<>()).build();
         Match futureBye = Match.builder().id(ids++).homeTeam(free).awayTeam(a).isFinished(false).matchDay(pending).build();
         pending.getMatches().add(futureBye); t.getMatchDays().add(pending);
-        Team nuevo = Team.builder().id(777L).name("TEST Nuevo").status(true).players(new HashSet<>()).tournaments(new HashSet<>()).build();
+        // C(b): para entrar tiene que estar completo (2 activos, capitan y arquero).
+        Team nuevo = Team.builder().id(777L).name("TEST Nuevo").status(true).players(new HashSet<>(java.util.List.of(
+                com.gesfut.models.team.Player.builder().name("A").lastName("B").number(1).isCaptain(true).isGoalKeeper(true).status(true).build(),
+                com.gesfut.models.team.Player.builder().name("C").lastName("D").number(2).isCaptain(false).isGoalKeeper(false).status(true).build())))
+                .tournaments(new HashSet<>()).build();
         when(teams.getTeamByIdSecured(777L)).thenReturn(nuevo);
 
         service.updateTournamentParticipants(add(777L));

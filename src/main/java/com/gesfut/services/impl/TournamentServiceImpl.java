@@ -181,23 +181,15 @@ public class TournamentServiceImpl implements TournamentService {
         access.requireOwner(tournament);
         if (request.teams() == null) return;
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
-        Map<String, String> dniToTeam = new HashMap<>();
         List<Team> checked = new ArrayList<>();
         for (Long id : new LinkedHashSet<>(request.teams())) {
             Team team = this.checkTeamRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("El equipo no existe."));
             if (team.getUser() == null || !Objects.equals(team.getUser().getId(), user.getId()))
                 throw new org.springframework.security.access.AccessDeniedException("No ten\u00e9s permiso sobre ese equipo.");
             checked.add(team);
-            if (team.getPlayers() == null) continue;
-            Set<String> seenInTeam = new HashSet<>();
-            for (com.gesfut.models.team.Player p : team.getPlayers()) {
-                if (p.getDni() == null || Boolean.FALSE.equals(p.getStatus()) || !seenInTeam.add(p.getDni())) continue;
-                String other = dniToTeam.putIfAbsent(p.getDni(), team.getName());
-                if (other != null)
-                    throw new IllegalArgumentException("El DNI " + p.getDni() + " est\u00e1 en dos equipos: " + other + " y " + team.getName()
-                            + ". Un jugador no puede jugar el mismo torneo en dos equipos; sacalo de uno antes de generar.");
-            }
         }
+        // Item 2: misma regla y misma normalizacion (DniRules.key) que add-team / add-player / editar jugador.
+        DniRules.requireNoDuplicateDni(checked);
         requireCompleteTeams(checked);
     }
 
@@ -206,6 +198,8 @@ public class TournamentServiceImpl implements TournamentService {
     public static void requireCompleteTeams(Collection<Team> teams) {
         List<String> problems = new ArrayList<>();
         for (Team team : teams) {
+            // El rival "Free" (fecha libre) no es un equipo real: no se le exige plantel (bug: torneos impares fallaban con 400).
+            if (com.gesfut.models.matchDay.Match.isFreeParticipantTeam(team)) continue;
             List<com.gesfut.models.team.Player> active = team.getPlayers() == null ? List.of()
                     : team.getPlayers().stream().filter(p -> !Boolean.FALSE.equals(p.getStatus())).toList();
             List<String> missing = new ArrayList<>();
@@ -216,6 +210,13 @@ public class TournamentServiceImpl implements TournamentService {
         }
         if (!problems.isEmpty())
             throw new IllegalArgumentException("Antes de generar el fixture complet\u00e1 estos equipos: " + String.join("; ", problems) + ".");
+    }
+
+    /** Equipos que entran a un torneo: completos (sin contar Free) y sin DNI repetido con los que ya juegan. */
+    private void requireTeamsCanJoin(Tournament t, List<Long> ids) {
+        List<Team> joining = ids.stream().map(id -> this.teamService.getTeamByIdSecured(id)).toList();
+        requireCompleteTeams(joining);
+        DniRules.requireNoDuplicateDni(t, joining);
     }
 
     private Long getIdDummyParticipant() {
@@ -231,8 +232,7 @@ public class TournamentServiceImpl implements TournamentService {
         verifyTournamentBelongsToManager(tournament.get(), user);
         access.requireOpen(tournament.get());
         // C(b): sumar un equipo regenera el fixture, as\u00ed que tambi\u00e9n tiene que estar completo.
-        requireCompleteTeams(teams.stream().map(id -> this.checkTeamRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("El equipo no existe."))).toList());
+        requireTeamsCanJoin(tournament.get(), teams);
         teams.forEach(team -> {
             addTeamToTournament(team, tournament.get());
         });
@@ -315,6 +315,7 @@ public class TournamentServiceImpl implements TournamentService {
         boolean odd = free.isPresent() && t.getTeams().stream().filter(p -> !Match.isFreeParticipant(p)).count() % 2 == 1;
         if (!odd) throw new IllegalArgumentException("El torneo ya empez\u00f3 y tiene cantidad par de equipos: no se pueden sumar equipos.");
         if (teams.size() != 1) throw new IllegalArgumentException("El torneo ya empez\u00f3: solo se puede sumar 1 equipo, que ocupa el lugar de la fecha libre.");
+        requireTeamsCanJoin(t, teams);
         addTeamToTournament(teams.get(0), t);
         TournamentParticipant added = this.participantRepository.findAllByTournament(t).stream()
                 .filter(p -> p.getTeam() != null && Objects.equals(p.getTeam().getId(), teams.get(0)))

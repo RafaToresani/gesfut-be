@@ -96,6 +96,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         if(optPlayer.isEmpty()) throw new ResourceNotFoundException("El id del participante no existe.");
 
         access.requireOwner(optPlayer.get().getTournamentParticipant().getTournament());
+        access.requireOpen(optPlayer.get().getTournamentParticipant().getTournament()); // Item 3: archivado = solo lectura
         if (status == null) throw new IllegalArgumentException("El estado es requerido.");
         if (status){
             if (!optPlayer.get().getPlayer().getStatus()){
@@ -125,6 +126,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
 
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public ParticipantResponse addPlayerToTeamParticipant(String code, Long teamIdParticipant, Player player) {
         Optional<Tournament> optTournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(optTournament.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
@@ -134,6 +136,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         Optional<TournamentParticipant> optParticipant = this.participantRepository.findById(teamIdParticipant);
         if(optParticipant.isEmpty()) throw new ResourceNotFoundException("El participante no existe.");
         if (!Objects.equals(optParticipant.get().getTournament().getId(), optTournament.get().getId()) || !Objects.equals(player.getTeam().getId(), optParticipant.get().getTeam().getId())) throw new IllegalArgumentException("El jugador o participante no pertenece al equipo y torneo indicado.");
+        DniRules.requireDniFreeInTournament(optTournament.get(), player.getDni(), player.getName() + " " + player.getLastName(), optParticipant.get().getTeam());
         if (player.getDni() != null) DniRules.requireNotInOtherTeam(
                 playerParticipantRepository.findAllByTournamentParticipant_Tournament_IdAndPlayer_Dni(optTournament.get().getId(), player.getDni()), player, optParticipant.get().getTeam());
         if (verifyPlayer(optParticipant.get().getPlayerParticipants(), player)) {

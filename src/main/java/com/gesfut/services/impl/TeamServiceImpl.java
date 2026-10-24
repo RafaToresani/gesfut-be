@@ -191,9 +191,11 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    @Transactional // Bug retest (A): sin transaccion, team.getPlayers() fallaba con LazyInitializationException (500) al mandar DNI.
     public Player addPlayerToTeam(Long teamId, PlayerRequest request) {
         Team team = getTeamByIdSecured(teamId);
         this.playerService.verifyPlayer(request, team);
+        DniRules.requireDniFreeInTournaments(request.dni(), request.name() + " " + request.lastName(), team);
        return this.playerService.createPlayer(request, team);
     }
 
@@ -212,7 +214,10 @@ public class TeamServiceImpl implements TeamService {
 
         getTeamByIdSecured(optPlayer.get().getTeam().getId());
         if (!status){
-            optPlayer.get().getPlayerParticipants().forEach(playerParticipant -> {
+            // Item 3: los torneos archivados/finalizados son solo lectura; su historial no se toca.
+            optPlayer.get().getPlayerParticipants().stream()
+                    .filter(pp -> pp.getTournamentParticipant() != null && DniRules.openTournament(pp.getTournamentParticipant().getTournament()))
+                    .forEach(playerParticipant -> {
                 this.tournamentParticipantService.changeStatusPlayerParticipant(playerParticipant.getId(), status);
             });
         }
@@ -239,10 +244,11 @@ public class TeamServiceImpl implements TeamService {
         String dni = com.gesfut.services.impl.DniRules.normalize(request.dni());
         for (Player other : team.getPlayers()) {
             if (other == player || java.util.Objects.equals(other.getId(), player.getId())) continue;
-            if (dni != null && dni.equals(other.getDni())) throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
+            if (dni != null && dni.equals(DniRules.key(other.getDni()))) throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
             if (!Boolean.FALSE.equals(other.getStatus()) && java.util.Objects.equals(other.getNumber(), request.number()))
                 throw new IllegalArgumentException("El dorsal " + request.number() + " ya lo usa " + other.getName() + " " + other.getLastName() + ".");
         }
+        DniRules.requireDniFreeInTournaments(dni, name + " " + lastName, team);
         player.setName(name);
         player.setLastName(lastName);
         player.setNumber(request.number());

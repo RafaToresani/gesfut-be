@@ -31,7 +31,7 @@ public class PlayerServiceImpl implements PlayerService {
         }
 
         String dni = com.gesfut.services.impl.DniRules.normalize(request.dni());
-        if (dni != null && team.getPlayers() != null && team.getPlayers().stream().anyMatch(p -> dni.equals(p.getDni())))
+        if (dni != null && team.getPlayers() != null && team.getPlayers().stream().anyMatch(p -> dni.equals(com.gesfut.services.impl.DniRules.key(p.getDni()))))
             throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
         // Regla unica de dorsal para cualquier alta (individual, por torneo o en lote): no repetir el de un jugador activo.
         if (team.getId() != null) {
