@@ -21,8 +21,6 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
     @Query("UPDATE Player p SET p.status = :newStatus WHERE p.id = :id")
     void updatePlayerStatusById(@Param("id") Long id, @Param("newStatus") Boolean newStatus);
 
-    Boolean existsByNumberAndTeamId(Integer number, Long teamId);
-
     /** Jugador activo (status null o true) del equipo que ya usa ese dorsal; los dados de baja no cuentan. */
     @Query("SELECT p FROM Player p WHERE p.team.id = :teamId AND p.number = :number AND (p.status IS NULL OR p.status = true)")
     java.util.List<Player> findActiveByNumberAndTeamId(@Param("number") Integer number, @Param("teamId") Long teamId);
