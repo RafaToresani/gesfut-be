@@ -54,7 +54,7 @@ public class MatchServiceImpl implements MatchService {
         List<Event> events = new ArrayList<>();
         Match match = getWritableMatch(request.matchId());
         // Auditoria 22/10: un segundo envio del mismo resultado debe decir eso (409), no "el jugador no pertenece al partido".
-        if (Boolean.TRUE.equals(match.getIsFinished())) throw new com.gesfut.exceptions.ResourceAlreadyExistsException("El resultado ya fue cargado. Us\u00e1 Editar resultado para cambiarlo.");
+        if (Boolean.TRUE.equals(match.getIsFinished())) throw new com.gesfut.exceptions.ResourceAlreadyExistsException("El resultado ya fue cargado. Us\u00e1 Corregir resultado para cambiarlo.");
         validateResult(request, match);
         checkSuspendedPlayers(request, match);
 

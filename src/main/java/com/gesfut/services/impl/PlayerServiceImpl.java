@@ -111,9 +111,9 @@ public class PlayerServiceImpl implements PlayerService {
             if (player.isGoalKeeper()) goalKeeperFound = true;
         }
 
-        if (!captainFound) throw new IllegalArgumentException("Debe haber al menos un capitán.");
+        if (!captainFound) throw new IllegalArgumentException("Falta al menos un capitán.");
 
-        if (!goalKeeperFound) throw new IllegalArgumentException("Debe haber al menos un portero.");
+        if (!goalKeeperFound) throw new IllegalArgumentException("Falta al menos un arquero.");
     }
 
 }
