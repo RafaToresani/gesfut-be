@@ -48,7 +48,7 @@ class FixtureHomeAwayTests {
             int max = teams.stream().mapToInt(p -> home.getOrDefault(p.getId(), 0)).max().orElseThrow();
             int min = teams.stream().mapToInt(p -> home.getOrDefault(p.getId(), 0)).min().orElseThrow();
             assertTrue(max - min <= 1, "n=" + n + " localias " + home);
-            seq.values().forEach(s -> assertFalse(s.toString().contains("HHH") || s.toString().contains("AAA"), "n=" + n + " racha en " + s));
+            for (StringBuilder s : seq.values()) assertFalse(s.toString().contains("HHH") || s.toString().contains("AAA"), "n=" + n + " racha en " + s);
         }
     }
 }
