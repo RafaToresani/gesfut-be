@@ -218,6 +218,20 @@ class TournamentRegressionTests {
         ReflectionTestUtils.invokeMethod(service,"sortParticipants",ranked);
         assertEquals(List.of("Alfa","Zulu","Beta"),ranked.stream().map(p->p.getTeam().getName()).toList());
     }
+    /** Revision critica #10: goleadores y tarjetas cuentan solo partidos de liga. */
+    @Test void scorersAndCardsCountLeagueOnly(){
+        when(tournaments.findDetailedByCode(tournament.getCode())).thenReturn(Optional.of(tournament));
+        var player=com.gesfut.models.tournament.PlayerParticipant.builder().id(70L).tournamentParticipant(a)
+            .player(com.gesfut.models.team.Player.builder().name("Juan").lastName("TEST").build()).goals(5).yellowCards(2).redCards(0).build();
+        MatchDay league=day(false,true); Match lm=match(league,a,b,2,0,true);
+        MatchDay po=day(true,true); po.setNumberOfMatchDay(1); Match pm=match(po,a,b,3,0,true);
+        lm.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(1L).type(com.gesfut.models.matchDay.EEventType.GOAL).quantity(2).playerParticipant(player).match(lm).build());
+        pm.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(2L).type(com.gesfut.models.matchDay.EEventType.GOAL).quantity(3).playerParticipant(player).match(pm).build());
+        pm.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(3L).type(com.gesfut.models.matchDay.EEventType.YELLOW_CARD).quantity(1).playerParticipant(player).match(pm).build());
+        var scorers=service.findTopScorersByTournament(tournament.getCode().toString());
+        assertEquals(1,scorers.size()); assertEquals(2,scorers.getFirst().goals());
+        assertTrue(service.findTopYellowCardsByTournament(tournament.getCode().toString()).isEmpty());
+    }
     void prepareResponseServices(){
         tournament.setUser(UserEntity.builder().name("Test").lastname("Owner").build());
         var participants=mock(TournamentParticipantService.class);

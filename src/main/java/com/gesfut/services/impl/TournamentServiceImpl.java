@@ -332,13 +332,9 @@ public class TournamentServiceImpl implements TournamentService {
         Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopScorersResponse> response = new ArrayList<>();
-        tournament.get().getTeams().forEach(team -> {
-            team.getPlayerParticipants().forEach(player -> {
-                if(player.getGoals() >= 1){
-                    response.add(new TopScorersResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getGoals()));
-                }
-            });
-        });
+        // Revision critica #10: solo partidos de liga.
+        leagueTotals(tournament.get(), com.gesfut.models.matchDay.EEventType.GOAL).forEach((player, total) ->
+                response.add(new TopScorersResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(), player.getTournamentParticipant().getTeam().getName(), total)));
         return response.stream()
                 .sorted(Comparator.comparingInt(TopScorersResponse::goals).reversed())
                 .collect(Collectors.toList());
@@ -350,13 +346,9 @@ public class TournamentServiceImpl implements TournamentService {
         Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopYellowCardsResponse> response = new ArrayList<>();
-        tournament.get().getTeams().forEach(team -> {
-            team.getPlayerParticipants().forEach(player -> {
-                if(player.getYellowCards() >= 1){
-                    response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getYellowCards()));
-                }
-            });
-        });
+        // Revision critica #10: solo partidos de liga.
+        leagueTotals(tournament.get(), com.gesfut.models.matchDay.EEventType.YELLOW_CARD).forEach((player, total) ->
+                response.add(new TopYellowCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(), player.getTournamentParticipant().getTeam().getName(), total)));
         return response.stream()
                 .sorted(Comparator.comparingInt(TopYellowCardsResponse::yellowCards).reversed())
                 .collect(Collectors.toList());
@@ -368,19 +360,30 @@ public class TournamentServiceImpl implements TournamentService {
         Optional<Tournament> tournament = this.tournamentRepository.findDetailedByCode(UUID.fromString(code));
         if(tournament.isEmpty()) throw new ResourceNotFoundException("Torneo no encontrado.");
         List<TopRedCardsResponse> response = new ArrayList<>();
-        tournament.get().getTeams().forEach(team -> {
-            team.getPlayerParticipants().forEach(player -> {
-                if(player.getRedCards() >= 1){
-                    response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(),player.getTournamentParticipant().getTeam().getName(), player.getRedCards()));
-                }
-            });
-        });
+        // Revision critica #10: solo partidos de liga.
+        leagueTotals(tournament.get(), com.gesfut.models.matchDay.EEventType.RED_CARD).forEach((player, total) ->
+                response.add(new TopRedCardsResponse(player.getPlayer().getName() + " " + player.getPlayer().getLastName(), player.getTournamentParticipant().getTeam().getName(), total)));
         return response.stream()
                 .sorted(Comparator.comparingInt(TopRedCardsResponse::redCards).reversed())
                 .collect(Collectors.toList());
     }
 
 
+
+    /** Revision critica #10: totales por jugador de un tipo de evento, solo en partidos de liga. */
+    static Map<PlayerParticipant, Integer> leagueTotals(Tournament t, com.gesfut.models.matchDay.EEventType type) {
+        Map<PlayerParticipant, Integer> totals = new LinkedHashMap<>();
+        t.getMatchDays().stream()
+                .filter(d -> !Boolean.TRUE.equals(d.getIsPlayOff()))
+                .sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay))
+                .flatMap(d -> d.getMatches().stream())
+                .filter(m -> Boolean.TRUE.equals(m.getIsFinished()) && m.getEvents() != null)
+                .flatMap(m -> m.getEvents().stream())
+                .filter(e -> e.getType() == type && e.getPlayerParticipant() != null)
+                .forEach(e -> totals.merge(e.getPlayerParticipant(), e.getQuantity() == null ? 0 : e.getQuantity(), Integer::sum));
+        totals.values().removeIf(v -> v < 1);
+        return totals;
+    }
 
     private Long replaceFreeParticipant(Long id,List<TournamentParticipant> tournamentParticipants){
         Team team = teamService.getTeamByIdSecured(id);
