@@ -236,6 +236,9 @@ public class TournamentServiceImpl implements TournamentService {
 
         boolean isOdd = tournamentParticipants.stream()
                 .anyMatch(particpant -> Match.isFreeParticipant(particpant));
+        // Respuesta 7 (Mateo): solo se suma un equipo si el torneo es impar; el nuevo ocupa el lugar de Libre.
+        if (!isOdd) throw new IllegalArgumentException("Solo se puede sumar un equipo si el torneo tiene cantidad impar de equipos: el nuevo ocupa el lugar de Libre.");
+        if (request.teams().size() != 1) throw new IllegalArgumentException("Con el torneo impar solo se puede sumar 1 equipo (ocupa el lugar de Libre).");
 
         boolean hasHistory = tournament.get().getMatchDays().stream().anyMatch(day -> Boolean.TRUE.equals(day.getIsFinished()));
         if (isOdd && !hasHistory){

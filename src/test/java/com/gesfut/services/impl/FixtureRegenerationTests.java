@@ -142,6 +142,14 @@ class FixtureRegenerationTests {
         verify(matchDays, never()).generateMatchDays(any(), any(), any(), any(), any());
     }
 
+    @Test void sinEmpezarYParTambienSeBloquea() {
+        withRepo();
+        p("TEST A"); p("TEST B");
+        var e = assertThrows(IllegalArgumentException.class, () -> service.updateTournamentParticipants(add(777L)));
+        assertTrue(e.getMessage().contains("impar"));
+        verify(matchDays, never()).reGenerateMatchDays(any(), any());
+    }
+
     @Test void empezadoParSeBloquea() {
         withRepo();
         var a = p("TEST A"); var b = p("TEST B");
