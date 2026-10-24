@@ -21,5 +21,5 @@ public record MatchDayRequest (
 
         @Positive(message = "La duración debe ser positiva") Integer minutesPerMatch,
 
-        @Positive(message = "El intervalo debe ser positivo") Integer dayBetweenMatchDay
+        @Positive(message = "El intervalo entre fechas tiene que ser de al menos 1 d\u00eda.") Integer dayBetweenMatchDay
     ){}

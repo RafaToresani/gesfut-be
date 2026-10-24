@@ -58,6 +58,15 @@ public class TournamentController {
         this.tournamentService.initializeTournament(request, request.startDate());
     }
 
+    @Operation(summary = "Revisar y generar: valida equipos (DNI repetido entre equipos) y programacion sin crear nada.")
+    @PostMapping("/check-teams")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public void checkTeams(@Valid @RequestBody MatchDayRequest request, BindingResult bindingResult) throws BadRequestException {
+        if (bindingResult.hasErrors()) throw new BadRequestException(bindingResult.getFieldError().getDefaultMessage());
+        this.tournamentService.checkTeams(request);
+    }
+
     @Operation(summary = "Recordatorio: rehacer endpoint entero.")
     @PostMapping("/{tournament-code}/add-team")
     @ResponseStatus(HttpStatus.OK)

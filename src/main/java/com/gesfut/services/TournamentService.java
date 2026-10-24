@@ -27,6 +27,7 @@ public interface TournamentService {
     void updateDiscipline(String code, com.gesfut.dtos.requests.DisciplineRequest request);
 
     void initializeTournament(MatchDayRequest request, LocalDateTime startDate);
+    void checkTeams(MatchDayRequest request);
 
     void addTeamToTournament(Long idTeam, Tournament tournament);
 

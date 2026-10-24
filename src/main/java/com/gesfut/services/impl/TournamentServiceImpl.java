@@ -46,6 +46,9 @@ public class TournamentServiceImpl implements TournamentService {
     @Autowired
     private TeamService teamService;
 
+    @Autowired
+    private com.gesfut.repositories.TeamRepository checkTeamRepository;
+
     @Autowired(required = false)
     @org.springframework.context.annotation.Lazy
     private MatchService disciplineMatchService;
@@ -150,6 +153,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Override
     public void initializeTournament(MatchDayRequest request, LocalDateTime startDate) {
+        checkTeams(request);
         if (request.teams() == null || request.teams().size() < 2 || new HashSet<>(request.teams()).size() != request.teams().size())
             throw new IllegalArgumentException("Seleccioná al menos dos equipos distintos.");
         if (request.startDate() != null && (request.minutesPerMatch() == null || request.dayBetweenMatchDay() == null))
@@ -159,6 +163,40 @@ public class TournamentServiceImpl implements TournamentService {
         matchDayService.generateMatchDays(tournamentParticipants, request.tournamentCode(), startDate, request.minutesPerMatch(), request.dayBetweenMatchDay());
     }
 
+
+    /**
+     * "Revisar y generar": valida antes de crear nada. Mismo DNI en dos equipos del torneo -> 400 con el DNI y ambos equipos.
+     * Tambien lo usa initializeTournament, asi que el backend lo exige aunque el front no lo llame.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public void checkTeams(MatchDayRequest request) {
+        if (request.tournamentCode() == null) throw new IllegalArgumentException("Falta el c\u00f3digo del torneo.");
+        if (request.dayBetweenMatchDay() != null && request.dayBetweenMatchDay() < 1)
+            throw new IllegalArgumentException("El intervalo entre fechas tiene que ser de al menos 1 d\u00eda.");
+        if (request.minutesPerMatch() != null && request.minutesPerMatch() < 1)
+            throw new IllegalArgumentException("La duraci\u00f3n de cada partido tiene que ser de al menos 1 minuto.");
+        Tournament tournament = this.tournamentRepository.findByCode(UUID.fromString(request.tournamentCode()))
+                .orElseThrow(() -> new ResourceNotFoundException("El torneo no existe"));
+        access.requireOwner(tournament);
+        if (request.teams() == null) return;
+        UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
+        Map<String, String> dniToTeam = new HashMap<>();
+        for (Long id : new LinkedHashSet<>(request.teams())) {
+            Team team = this.checkTeamRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("El equipo no existe."));
+            if (team.getUser() == null || !Objects.equals(team.getUser().getId(), user.getId()))
+                throw new org.springframework.security.access.AccessDeniedException("No ten\u00e9s permiso sobre ese equipo.");
+            if (team.getPlayers() == null) continue;
+            Set<String> seenInTeam = new HashSet<>();
+            for (com.gesfut.models.team.Player p : team.getPlayers()) {
+                if (p.getDni() == null || Boolean.FALSE.equals(p.getStatus()) || !seenInTeam.add(p.getDni())) continue;
+                String other = dniToTeam.putIfAbsent(p.getDni(), team.getName());
+                if (other != null)
+                    throw new IllegalArgumentException("El DNI " + p.getDni() + " est\u00e1 en dos equipos: " + other + " y " + team.getName()
+                            + ". Un jugador no puede jugar el mismo torneo en dos equipos; sacalo de uno antes de generar.");
+            }
+        }
+    }
 
     private Long getIdDummyParticipant() {
         Team team = this.teamService.getTeamByName();
