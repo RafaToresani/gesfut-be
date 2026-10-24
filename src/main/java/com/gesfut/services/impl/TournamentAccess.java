@@ -23,6 +23,9 @@ public class TournamentAccess {
         if (email == null || !email.equals(tournament.getUser().getEmail())) {
             throw new AccessDeniedException("No tenés permiso para modificar este torneo.");
         }
-        if (entityManager != null && entityManager.contains(tournament)) entityManager.lock(tournament, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        // Solo bloquea dentro de una transaccion de escritura: en lecturas sin transaccion el lock rompia con 500.
+        if (entityManager != null && org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
+                && !org.springframework.transaction.support.TransactionSynchronizationManager.isCurrentTransactionReadOnly()
+                && entityManager.contains(tournament)) entityManager.lock(tournament, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
     }
 }
