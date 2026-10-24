@@ -129,6 +129,7 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         Optional<Tournament> optTournament = this.tournamentRepository.findByCode(UUID.fromString(code));
         if(optTournament.isEmpty()) throw new ResourceNotFoundException("El torneo no existe.");
         access.requireOwner(optTournament.get());
+        access.requireOpen(optTournament.get());
 
         Optional<TournamentParticipant> optParticipant = this.participantRepository.findById(teamIdParticipant);
         if(optParticipant.isEmpty()) throw new ResourceNotFoundException("El participante no existe.");

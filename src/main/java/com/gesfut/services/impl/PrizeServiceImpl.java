@@ -36,7 +36,7 @@ public class PrizeServiceImpl implements PrizeService {
     public void createPrizes(PrizesRequest request) {
         Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(request.code()));
 
-        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get());
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get()); access.requireOpen(opt.get());
 
         List<Prize> prizes = new ArrayList<>();
         request.prizes().forEach(prize -> {
@@ -86,7 +86,7 @@ public class PrizeServiceImpl implements PrizeService {
         if (category == null || !isValidEnumValue(EPrizeType.valueOf(category)))
             throw new IllegalArgumentException("El tipo de premio no es válido: " + category);
         Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
-        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get());
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get()); access.requireOpen(opt.get());
 
         Optional<Prize> optionalPrize = this.prizeRepository.findByTournamentIdAndTypeAndPosition(opt.get().getId(), EPrizeType.valueOf(category), position);
         if(optionalPrize.isEmpty()) throw new ResourceNotFoundException("El premio no existe.");
@@ -106,7 +106,7 @@ public class PrizeServiceImpl implements PrizeService {
         if (request.type() == null || !isValidEnumValue(request.type()))
             throw new IllegalArgumentException("El tipo de premio no es válido: " + request.type());
         Optional<Tournament> opt = this.tournamentRepository.findByCode(UUID.fromString(code));
-        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get());
+        if(opt.isEmpty()) throw new ResourceNotFoundException("El torneo no existe."); access.requireOwner(opt.get()); requireNotFinished(opt.get()); access.requireOpen(opt.get());
 
         Optional<Prize> optionalPrize = this.prizeRepository.findByTournamentIdAndTypeAndPosition(opt.get().getId(), request.type(), request.position());
         if(optionalPrize.isEmpty()) throw new ResourceNotFoundException("El premio no existe.");

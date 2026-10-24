@@ -209,6 +209,7 @@ public class TournamentServiceImpl implements TournamentService {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         if(tournament.isEmpty())  throw new ResourceNotFoundException("El torneo no existe" );
         verifyTournamentBelongsToManager(tournament.get(), user);
+        access.requireOpen(tournament.get());
         teams.forEach(team -> {
             addTeamToTournament(team, tournament.get());
         });
@@ -320,6 +321,7 @@ public class TournamentServiceImpl implements TournamentService {
         UserEntity user = this.userService.findUserByEmail(SecurityUtils.getCurrentUserEmail());
         if (tournament.isEmpty()) return false;
         verifyTournamentBelongsToManager(tournament.get(), user);
+        access.requireOpen(tournament.get()); // archivado/finalizado: solo lectura
         tournament.get().setName(name);
         this.tournamentRepository.save(tournament.get());
         return true;
