@@ -33,4 +33,6 @@ public interface MatchService {
     void updateMatchDescription(Long matchId, @Valid MatchDescriptionRequest request);
     /** Revision critica #4: recalcula sanciones al cambiar las reglas del torneo. */
     void rebuildDisciplineFor(com.gesfut.models.tournament.Tournament tournament);
+    /** Revision critica #5: auditoria de correcciones del partido (solo duenio). */
+    List<com.gesfut.models.audit.ResultCorrection> getCorrections(Long matchId);
 }

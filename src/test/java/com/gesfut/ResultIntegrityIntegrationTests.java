@@ -114,4 +114,19 @@ class ResultIntegrityIntegrationTests {
             assertEquals(1,jdbc.queryForObject("SELECT goals_home_team FROM matches WHERE id=?",Integer.class,matchId));
         } finally {pool.shutdownNow();}
     }
+    @Test void correctionOnClosedDayRecalculatesAndIsAudited() throws Exception {
+        service.loadMatchResult(validResult(1));
+        long dayId=jdbc.queryForObject("SELECT match_day_id FROM matches WHERE id=?",Long.class,matchId);
+        jdbc.update("UPDATE match_days SET is_finished=1 WHERE id=?",dayId);
+        try {
+            int audits=jdbc.queryForObject("SELECT COUNT(*) FROM result_corrections WHERE match_id=?",Integer.class,matchId);
+            service.updateMatchResult(validResult(3));
+            assertEquals(3,jdbc.queryForObject("SELECT goals_home_team FROM matches WHERE id=?",Integer.class,matchId));
+            assertEquals(audits+1,jdbc.queryForObject("SELECT COUNT(*) FROM result_corrections WHERE match_id=?",Integer.class,matchId));
+            var audit=jdbc.queryForMap("SELECT old_result,new_result,user_email FROM result_corrections WHERE match_id=? ORDER BY id DESC LIMIT 1",matchId);
+            assertTrue(audit.get("old_result").toString().contains(" 1-0 "),audit.toString());
+            assertTrue(audit.get("new_result").toString().contains(" 3-0 "),audit.toString());
+            assertNotNull(audit.get("user_email"));
+        } finally { jdbc.update("UPDATE match_days SET is_finished=0 WHERE id=?",dayId); }
+    }
 }

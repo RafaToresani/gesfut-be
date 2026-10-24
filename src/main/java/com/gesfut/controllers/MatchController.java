@@ -47,6 +47,13 @@ public class MatchController {
         return this.matchService.getDetailedMatchById(id);
     }
 
+    /** Revision critica #5: historial de correcciones del partido (solo el duenio). */
+    @GetMapping("/{id}/corrections")
+    @PreAuthorize("hasAnyAuthority('MANAGER')")
+    public java.util.List<com.gesfut.models.audit.ResultCorrection> getCorrections(@PathVariable("id") Long id) {
+        return this.matchService.getCorrections(id);
+    }
+
     @PutMapping("/update-result")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyAuthority('MANAGER')")

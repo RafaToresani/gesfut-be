@@ -45,6 +45,8 @@ public class MatchServiceImpl implements MatchService {
     @Autowired
     private EventService eventService;
     @Autowired
+    private com.gesfut.repositories.ResultCorrectionRepository resultCorrectionRepository;
+    @Autowired
     private TournamentParticipantService tournamentParticipantService;
 
     @Override
@@ -65,6 +67,11 @@ public class MatchServiceImpl implements MatchService {
         if (match.isByeMatch()) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
         // Plan 22/10 #9: no se carga un resultado antes del dia del partido.
         if (!match.resultLoadableToday()) throw new IllegalArgumentException("Todav\u00eda no es el d\u00eda del partido: el resultado se carga desde ese d\u00eda.");
+        return applyResult(request, match);
+    }
+
+    /** Guarda eventos, estadisticas y cierre del partido (carga inicial o correccion). */
+    private String applyResult(MatchRequest request, Match match) {
 
         // Las sanciones se reconstruyen cronológicamente después de guardar.
 
@@ -266,20 +273,76 @@ public class MatchServiceImpl implements MatchService {
         long mvpCount = request.events().stream()
                 .filter(event -> event.type() == EEventType.MVP)
                 .count();
-        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber más de un MVP en el mismo partido");
+        if (mvpCount > 1) throw new IllegalArgumentException("No pueden haber m\u00e1s de un MVP en el mismo partido");
+        if (!Boolean.TRUE.equals(match.getIsFinished())) throw new BadRequestException("Error: el partido no termin\u00f3");
+        checkSuspendedPlayers(request, match);
 
-        if(!match.getIsFinished()) throw new BadRequestException("Error: el partido no terminó");
-        if(match.getMatchDay().getIsFinished()) throw new BadRequestException("Error: La jornada ya cerró.");
-
-        /*Eliminar todos los eventos asociados a este partido
-        * Actualizar las statistics de los equipos
-        * Actualizar las tabla jugadoresxequipoxtorneo*/
-
-        if (match.getMatchDay().getTournament().getMatchDays().stream().anyMatch(day -> day.getNumberOfMatchDay() > match.getMatchDay().getNumberOfMatchDay() && Boolean.TRUE.equals(day.getIsPlayOff()))) {
-            throw new BadRequestException("No se puede cambiar un resultado después de generar la siguiente ronda.");
+        // Revision critica #5: se corrige aunque la jornada este cerrada. En playoffs, solo si la
+        // ronda siguiente no tiene resultados; si cambia el ganador, se actualiza el cruce siguiente.
+        Match nextRoundMatch = null;
+        TournamentParticipant oldWinner = null;
+        if (Boolean.TRUE.equals(match.getMatchDay().getIsPlayOff())) {
+            int number = match.getMatchDay().getNumberOfMatchDay();
+            var nextDay = match.getMatchDay().getTournament().getMatchDays().stream()
+                    .filter(day -> Boolean.TRUE.equals(day.getIsPlayOff()) && day.getNumberOfMatchDay() > number)
+                    .min(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).orElse(null);
+            if (nextDay != null) {
+                if (nextDay.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished())))
+                    throw new BadRequestException("No se puede corregir: la ronda siguiente ya tiene resultados cargados.");
+                oldWinner = winnerOf(match);
+                final TournamentParticipant previous = oldWinner;
+                nextRoundMatch = nextDay.getMatches().stream()
+                        .filter(m -> m.getHomeTeam() == previous || m.getAwayTeam() == previous
+                                || Objects.equals(m.getHomeTeam().getId(), previous.getId()) || Objects.equals(m.getAwayTeam().getId(), previous.getId()))
+                        .findFirst().orElse(null);
+            }
         }
+
+        String before = summarize(match, this.eventRepository.findAllByMatchId(match.getId()));
         deleteAllRelationsFromMatch(match);
-        loadMatchResult(request);
+        applyResult(request, match);
+        String after = summarize(match, this.eventRepository.findAllByMatchId(match.getId()));
+
+        if (nextRoundMatch != null) {
+            TournamentParticipant newWinner = winnerOf(match);
+            if (!Objects.equals(newWinner.getId(), oldWinner.getId())) {
+                if (Objects.equals(nextRoundMatch.getHomeTeam().getId(), oldWinner.getId())) nextRoundMatch.setHomeTeam(newWinner);
+                else nextRoundMatch.setAwayTeam(newWinner);
+                matchRepository.save(nextRoundMatch);
+            }
+        }
+        resultCorrectionRepository.save(com.gesfut.models.audit.ResultCorrection.builder()
+                .matchId(match.getId())
+                .userEmail(com.gesfut.config.security.SecurityUtils.getCurrentUserEmail())
+                .correctedAt(LocalDateTime.now())
+                .oldResult(before)
+                .newResult(after)
+                .build());
+    }
+
+    @Override
+    public List<com.gesfut.models.audit.ResultCorrection> getCorrections(Long matchId) {
+        Match match = matchRepository.findById(matchId).orElseThrow(() -> new ResourceNotFoundException("El partido no existe."));
+        access.requireOwner(match.getMatchDay().getTournament());
+        return resultCorrectionRepository.findAllByMatchIdOrderByCorrectedAtDesc(matchId);
+    }
+
+    private static TournamentParticipant winnerOf(Match match) {
+        if (match.getGoalsHomeTeam() > match.getGoalsAwayTeam()) return match.getHomeTeam();
+        if (match.getGoalsAwayTeam() > match.getGoalsHomeTeam()) return match.getAwayTeam();
+        if (Objects.equals(match.getTiebreakWinnerId(), match.getAwayTeam().getId())) return match.getAwayTeam();
+        return match.getHomeTeam();
+    }
+
+    static String summarize(Match match, List<Event> events) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(match.getHomeTeam().getTeam().getName()).append(' ').append(match.getGoalsHomeTeam())
+          .append('-').append(match.getGoalsAwayTeam()).append(' ').append(match.getAwayTeam().getTeam().getName());
+        if (match.getTiebreakWinnerId() != null) sb.append(" | desempate: ").append(match.getTiebreakWinnerId());
+        events.stream()
+              .map(e -> e.getType() + " " + e.getPlayerParticipant().getPlayer().getName() + " " + e.getPlayerParticipant().getPlayer().getLastName() + " x" + e.getQuantity())
+              .sorted().forEach(x -> sb.append(" | ").append(x));
+        return sb.toString();
     }
 
     @Override
