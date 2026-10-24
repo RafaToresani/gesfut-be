@@ -174,6 +174,14 @@ public class TeamServiceImpl implements TeamService {
                 participantRepository.save(p);
                 matchRepository.saveAll(changed);
             }
+        } else {
+            // Plan 22/10 #2 (respuesta 2): vuelve a los torneos en curso donde estaba de baja.
+            for (TournamentParticipant p : participantRepository.findAllByTeamId(id)) {
+                List<Match> changed = TeamDisableRules.enableParticipant(p);
+                if (changed == null) continue;
+                participantRepository.save(p);
+                matchRepository.saveAll(changed);
+            }
         }
         this.teamRepository.updateTeamStatus(id, status);
         this.playerService.updateStatusPlayersByTeam(id, status);

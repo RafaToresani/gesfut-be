@@ -239,4 +239,35 @@ class TeamDeleteDisableTests {
         verify(tournamentService, never()).removeParticipantAndRegenerate(any());
         verify(teams, never()).delete(any());
     }
+
+    // ---- respuesta 2: al rehabilitar vuelve al torneo en curso ----
+    @Test void rehabilitarVuelveAlTorneoYJuegaLoQueFalta() {
+        Tournament tor = tournament();
+        Team a = team("TEST A"), b = team("TEST B"), c = team("TEST C"), d = team("TEST D");
+        List<TournamentParticipant> ps = List.of(join(a, tor), join(b, tor), join(c, tor), join(d, tor));
+        fixture(tor, ps, false);
+        playFirstDay(tor);
+        service.disableTeam(a.getId(), false);
+        // la fecha 2 se cierra mientras A esta de baja
+        MatchDay second = tor.getMatchDays().stream().filter(x -> x.getNumberOfMatchDay() == 1).findFirst().orElseThrow();
+        second.getMatches().forEach(m -> m.setIsFinished(true)); second.setIsFinished(true);
+        service.disableTeam(a.getId(), true);
+        assertTrue(ps.get(0).getIsActive());
+        for (Match m : matchesOf(tor, ps.get(0))) {
+            int n = m.getMatchDay().getNumberOfMatchDay();
+            if (n == 1) assertTrue(m.isByeMatch(), "fecha pasada sigue libre");
+            if (n == 2) assertFalse(m.isByeMatch(), "fecha pendiente se vuelve a jugar");
+        }
+    }
+
+    @Test void rehabilitarEnPlayoffsNoVuelve() {
+        Tournament tor = tournament();
+        Team a = team("TEST A"), b = team("TEST B");
+        List<TournamentParticipant> ps = List.of(join(a, tor), join(b, tor));
+        fixture(tor, ps, true);
+        ps.get(0).setIsActive(false);
+        service.disableTeam(a.getId(), true);
+        assertFalse(ps.get(0).getIsActive());
+        verify(teams).updateTeamStatus(a.getId(), true);
+    }
 }

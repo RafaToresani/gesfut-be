@@ -63,6 +63,15 @@ class TournamentRegressionTests {
         verify(access).requireOwner(tournament);
         assertFalse(tournament.getIsFinished());
     }
+    /** Plan 22/10 #2 (respuesta 3): un equipo dado de baja no clasifica a playoffs. */
+    @Test void inactiveParticipantCannotQualify(){
+        MatchDay league=day(false,true);
+        match(league,a,b,3,0,true); match(league,c,d,1,0,true);
+        a.setIsActive(false);
+        var e=assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L)));
+        assertTrue(e.getMessage().contains("dados de baja"));
+        assertTrue(tournament.getMatchDays().stream().noneMatch(MatchDay::getIsPlayOff));
+    }
     @Test void sixQualifiersAreRejectedBeforeCreatingBrokenBracket(){
         day(false,true); participant(5L,"E");participant(6L,"F");
         assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L,5L,6L)));

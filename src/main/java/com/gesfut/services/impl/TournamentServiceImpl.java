@@ -594,6 +594,10 @@ public class TournamentServiceImpl implements TournamentService {
         List<TournamentParticipant> qualifiedParticipants = getQualifiedParticipants(tournament, qualifiedTeams);
         if (qualifiedParticipants.size() != qualifiedTeams.size() || qualifiedParticipants.stream().anyMatch(p -> Match.isFreeParticipant(p)))
             throw new IllegalArgumentException("Hay participantes que no pertenecen al torneo o son fechas libres.");
+        // Plan 22/10 #2 (respuesta 3): un equipo dado de baja no clasifica.
+        var inactive = qualifiedParticipants.stream().filter(Match::isInactiveParticipant).map(p -> p.getTeam().getName()).toList();
+        if (!inactive.isEmpty())
+            throw new IllegalArgumentException("No pueden clasificar a playoffs equipos dados de baja: " + String.join(", ", inactive) + ".");
         sortParticipants(qualifiedParticipants);
         validateQualifiedParticipants(qualifiedParticipants);
         createPlayoffMatches(tournament, qualifiedParticipants);
