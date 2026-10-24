@@ -22,5 +22,12 @@ public record PlayerRequest(
         @NotNull(message = "Dorsal es requerido")
         @Min(value = 0, message = "El número debe ser mayor a 0")
         @Max(value = 99, message = "El número debe ser menor a 100")
-        Integer number
-){}
+        Integer number,
+        @Schema(description = "DNI opcional (7 u 8 digitos)", example = "30123456")
+        @jakarta.validation.constraints.Pattern(regexp = "^$|^[0-9. ]{7,12}$", message = "El DNI debe tener 7 u 8 d\u00edgitos.")
+        String dni
+){
+    public PlayerRequest(String name, String lastName, Boolean isCaptain, Boolean isGoalKeeper, Integer number) {
+        this(name, lastName, isCaptain, isGoalKeeper, number, null);
+    }
+}

@@ -453,6 +453,10 @@ public class TournamentServiceImpl implements TournamentService {
     public HashSet<PlayerParticipant> createPlayerParticipants(Team team, TournamentParticipant participant){
         HashSet<PlayerParticipant> playerParticipants = new HashSet<>();
         team.getPlayers().forEach(player -> {
+            if (player.getDni() != null && participant.getTournament() != null && participant.getTournament().getId() != null)
+                DniRules.requireNotInOtherTeam(playerParticipantRepository.findAllByTournamentParticipant_Tournament_IdAndPlayer_Dni(participant.getTournament().getId(), player.getDni()), player, team);
+        });
+        team.getPlayers().forEach(player -> {
             playerParticipants.add(
                     PlayerParticipant
                             .builder()

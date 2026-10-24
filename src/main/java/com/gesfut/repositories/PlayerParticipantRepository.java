@@ -26,4 +26,5 @@ public interface PlayerParticipantRepository extends JpaRepository <PlayerPartic
     @Transactional
     @Query("UPDATE PlayerParticipant p SET p.isSuspended = :isSuspended WHERE p.id = :id")
     void changeIsSuspended(@Param("id") Long id, @Param("isSuspended") boolean isSuspended);
+    java.util.List<com.gesfut.models.tournament.PlayerParticipant> findAllByTournamentParticipant_Tournament_IdAndPlayer_Dni(Long tournamentId, String dni);
 }

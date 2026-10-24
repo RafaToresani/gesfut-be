@@ -30,7 +30,11 @@ public class PlayerServiceImpl implements PlayerService {
             throw new IllegalArgumentException("Nombre y apellido no pueden estar vacios.");
         }
 
+        String dni = com.gesfut.services.impl.DniRules.normalize(request.dni());
+        if (dni != null && team.getPlayers() != null && team.getPlayers().stream().anyMatch(p -> dni.equals(p.getDni())))
+            throw new IllegalArgumentException("Ya hay un jugador con DNI " + dni + " en este equipo.");
       return playerRepository.save(Player.builder()
+                .dni(dni)
                 .name(request.name())
                 .lastName(request.lastName())
                 .number(request.number())
@@ -53,7 +57,8 @@ public class PlayerServiceImpl implements PlayerService {
                 player.getNumber(),
                 player.getIsCaptain(),
                 player.getIsGoalKeeper(),
-                player.getStatus()
+                player.getStatus(),
+                player.getDni()
         );
     }
 

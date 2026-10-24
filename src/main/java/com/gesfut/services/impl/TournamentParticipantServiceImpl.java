@@ -133,6 +133,8 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
         Optional<TournamentParticipant> optParticipant = this.participantRepository.findById(teamIdParticipant);
         if(optParticipant.isEmpty()) throw new ResourceNotFoundException("El participante no existe.");
         if (!Objects.equals(optParticipant.get().getTournament().getId(), optTournament.get().getId()) || !Objects.equals(player.getTeam().getId(), optParticipant.get().getTeam().getId())) throw new IllegalArgumentException("El jugador o participante no pertenece al equipo y torneo indicado.");
+        if (player.getDni() != null) DniRules.requireNotInOtherTeam(
+                playerParticipantRepository.findAllByTournamentParticipant_Tournament_IdAndPlayer_Dni(optTournament.get().getId(), player.getDni()), player, optParticipant.get().getTeam());
         if (verifyPlayer(optParticipant.get().getPlayerParticipants(), player)) {
             throw new ResourceAlreadyExistsException("Ese jugador ya está jugando este torneo.");
         }

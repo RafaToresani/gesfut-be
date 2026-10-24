@@ -28,6 +28,9 @@ public class Player {
     private Boolean isCaptain;
     private Boolean isGoalKeeper;
 
+    /** DNI opcional (solo digitos). Si esta cargado, identifica al jugador entre equipos. */
+    private String dni;
+
     @ManyToOne
     @JoinColumn(name = "team_id")
     @JsonBackReference
