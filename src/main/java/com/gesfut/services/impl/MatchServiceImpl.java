@@ -72,6 +72,7 @@ public class MatchServiceImpl implements MatchService {
 
     /** Guarda eventos, estadisticas y cierre del partido (carga inicial o correccion). */
     private String applyResult(MatchRequest request, Match match) {
+        List<Event> events = new ArrayList<>();
 
         // Las sanciones se reconstruyen cronológicamente después de guardar.
 
