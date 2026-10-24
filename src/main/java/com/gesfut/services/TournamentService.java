@@ -27,6 +27,8 @@ public interface TournamentService {
     void addTeamToTournament(Long idTeam, Tournament tournament);
 
     void disableTeamFromTournament(TournamentParticipant tournamentParticipant);
+    /** Plan 22/10 #2: quita al equipo de un torneo sin partidos jugados y regenera el fixture. */
+    void removeParticipantAndRegenerate(TournamentParticipant tournamentParticipant);
 
     HashSet<TournamentParticipant> addTeamsToTournament(String code, List<Long> teams);
 

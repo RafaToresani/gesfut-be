@@ -50,6 +50,10 @@ public class TeamServiceImpl implements TeamService {
     @Autowired
     private MatchRepository matchRepository;
 
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.gesfut.services.TournamentService tournamentService;
+
     @Override
     @Transactional
     public TeamResponse createTeam(TeamRequest request) {
@@ -116,31 +120,42 @@ public class TeamServiceImpl implements TeamService {
         Team team = getTeamByIdSecured(id);
         TeamDeletionResponse plan = deletionPlan(team, null);
         if (plan.blockedReason() != null) throw new IllegalArgumentException(plan.blockedReason());
+        // Plan 22/10 #2: torneos sin partidos jugados -> se lo quita y se regenera el fixture.
+        for (TournamentParticipant p : participantRepository.findAllByTeamId(id)) {
+            if (TeamDisableRules.regeneratesFixture(p)) tournamentService.removeParticipantAndRegenerate(p);
+        }
+        String regen = plan.regeneratedTournaments().isEmpty() ? "" : " Se regener\u00f3 el fixture de: " + String.join(", ", plan.regeneratedTournaments()) + ".";
         if ("DELETE".equals(plan.action())) {
             // El usuario tiene cascade ALL sobre sus equipos: si sigue en la coleccion, Hibernate cancela el borrado.
             if (team.getUser() != null && team.getUser().getTeams() != null) team.getUser().getTeams().remove(team);
             teamRepository.delete(team);
-            return deletionPlan(team, "Equipo '" + team.getName() + "' eliminado.");
+            return new TeamDeletionResponse(team.getId(), team.getName(), "DELETE", plan.ongoingTournaments(), plan.regeneratedTournaments(), null,
+                    "Equipo '" + team.getName() + "' eliminado." + regen);
         }
         disableTeam(id, false);
-        return new TeamDeletionResponse(team.getId(), team.getName(), "DISABLE", plan.ongoingTournaments(), null,
-                "Equipo '" + team.getName() + "' deshabilitado. Sus resultados se conservan.");
+        return new TeamDeletionResponse(team.getId(), team.getName(), "DISABLE", plan.ongoingTournaments(), plan.regeneratedTournaments(), null,
+                "Equipo '" + team.getName() + "' deshabilitado. Sus resultados se conservan." + regen);
     }
 
-    /** Plan 22/10 #2: si nunca estuvo en un torneo se borra; si tiene historial (jugo o esta inscripto) se deshabilita. */
+    /** Plan 22/10 #2: torneos sin jugar -> se quita y se regenera; si no queda otro historial se borra, si no se deshabilita. */
     private TeamDeletionResponse deletionPlan(Team team, String message) {
         List<TournamentParticipant> participations = participantRepository.findAllByTeamId(team.getId());
-        String action = participations.isEmpty() ? "DELETE" : "DISABLE";
-        List<String> ongoing = participations.stream().filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
+        List<TournamentParticipant> regen = participations.stream().filter(TeamDisableRules::regeneratesFixture).toList();
+        List<TournamentParticipant> others = participations.stream().filter(p -> !regen.contains(p)).toList();
+        String action = others.isEmpty() ? "DELETE" : "DISABLE";
+        List<String> ongoing = others.stream().filter(p -> TeamDisableRules.isOngoing(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive()))
                 .map(p -> p.getTournament().getName()).distinct().toList();
+        List<String> regenNames = regen.stream().map(p -> p.getTournament().getName()).distinct().toList();
         String blocked = null;
         if (Match.isFreeParticipantTeam(team)) blocked = "La fecha libre no se puede eliminar.";
         else if ("DISABLE".equals(action) && Boolean.FALSE.equals(team.getStatus())) blocked = "El equipo ya est\u00e1 deshabilitado.";
-        else if ("DISABLE".equals(action)) {
-            try { participations.stream().filter(p -> !Boolean.FALSE.equals(p.getIsActive())).forEach(TeamDisableRules::checkCanDisable); }
-            catch (IllegalArgumentException e) { blocked = e.getMessage(); }
+        else {
+            try {
+                regen.forEach(TeamDisableRules::checkCanRemove);
+                others.stream().filter(p -> !Boolean.FALSE.equals(p.getIsActive())).forEach(TeamDisableRules::checkCanDisable);
+            } catch (IllegalArgumentException e) { blocked = e.getMessage(); }
         }
-        return new TeamDeletionResponse(team.getId(), team.getName(), action, ongoing, blocked, message);
+        return new TeamDeletionResponse(team.getId(), team.getName(), action, ongoing, regenNames, blocked, message);
     }
 
     @Override

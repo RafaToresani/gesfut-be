@@ -403,6 +403,51 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
 
+    @Override
+    @Transactional
+    public void removeParticipantAndRegenerate(TournamentParticipant p) {
+        Tournament t = p.getTournament();
+        access.requireOwner(t);
+        if (TeamDisableRules.hasStarted(t)) throw new IllegalArgumentException("El torneo '" + t.getName() + "' ya empez\u00f3: no se puede regenerar el fixture.");
+        TeamDisableRules.checkCanRemove(p);
+        // Se conserva la programacion original (inicio, minutos entre partidos y dias entre fechas) si la habia.
+        List<MatchDay> ordered = t.getMatchDays().stream().sorted(Comparator.comparingInt(MatchDay::getNumberOfMatchDay)).toList();
+        LocalDateTime start = null; Integer minutes = null, days = null;
+        if (!ordered.isEmpty()) {
+            List<LocalDateTime> first = ordered.get(0).getMatches().stream().filter(m -> !m.isByeMatch()).map(Match::getDate).filter(Objects::nonNull).sorted().toList();
+            if (!first.isEmpty()) {
+                start = first.get(0);
+                minutes = first.size() > 1 ? (int) java.time.Duration.between(first.get(0), first.get(1)).toMinutes() : 60;
+                if (minutes <= 0) minutes = 60;
+                days = 7;
+                if (ordered.size() > 1) {
+                    var second = ordered.get(1).getMatches().stream().map(Match::getDate).filter(Objects::nonNull).min(Comparator.naturalOrder());
+                    if (second.isPresent()) { long d = java.time.Duration.between(start.toLocalDate().atStartOfDay(), second.get().toLocalDate().atStartOfDay()).toDays(); if (d > 0) days = (int) d; }
+                }
+            }
+        }
+        var oldDays = new ArrayList<>(t.getMatchDays());
+        t.getMatchDays().clear();
+        matchDayRepository.deleteAll(oldDays);
+        t.getTeams().remove(p);
+        if (p.getTeam() != null && p.getTeam().getTournaments() != null) p.getTeam().getTournaments().remove(p);
+        participantRepository.delete(p);
+        List<TournamentParticipant> real = new ArrayList<>(t.getTeams().stream().filter(x -> !Match.isFreeParticipant(x)).toList());
+        var free = t.getTeams().stream().filter(Match::isFreeParticipant).findFirst();
+        if (real.size() % 2 != 0) {
+            if (free.isEmpty()) {
+                addTeamToTournament(getIdDummyParticipant(), t);
+                free = participantRepository.findAllByTournament(t).stream().filter(Match::isFreeParticipant).findFirst();
+            }
+            real.add(free.orElseThrow());
+        } else if (free.isPresent()) {
+            t.getTeams().remove(free.get());
+            participantRepository.delete(free.get());
+        }
+        matchDayRepository.flush();
+        matchDayService.generateMatchDays(new HashSet<>(real), t.getCode().toString(), start, minutes, days);
+    }
+
     public TournamentResponse tournamentToResponse(Tournament tournament){
         List<TournamentParticipant> ranked = new ArrayList<>(tournament.getTeams().stream().filter(p -> !Match.isFreeParticipant(p)).toList());
         sortParticipants(ranked);

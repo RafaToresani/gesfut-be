@@ -8,6 +8,8 @@ public record TeamDeletionResponse(
         String teamName,
         String action,
         List<String> ongoingTournaments,
+        /** Torneos sin partidos jugados: se quita al equipo y se regenera el fixture. */
+        List<String> regeneratedTournaments,
         String blockedReason,
         String message
 ) { }

@@ -37,6 +37,7 @@ class TeamDeleteDisableTests {
     @Mock MatchRepository matches;
     @Mock UserEntityService users;
     @Mock PlayerService players;
+    @Mock com.gesfut.services.TournamentService tournamentService;
     @InjectMocks TeamServiceImpl service;
 
     UserEntity owner;
@@ -202,5 +203,40 @@ class TeamDeleteDisableTests {
     @Test void freeNoSeElimina() {
         Team t = team("Free");
         assertThrows(IllegalArgumentException.class, () -> service.deleteTeam(t.getId()));
+    }
+
+    // ---- Plan 22/10 #2 (respuesta 1): torneo sin partidos jugados -> se quita y se regenera el fixture ----
+    @Test void torneoSinJugarSeQuitaYRegeneraYSeBorra() {
+        Tournament tor = tournament();
+        Team a = team("TEST A"), b = team("TEST B"), c = team("TEST C");
+        List<TournamentParticipant> ps = List.of(join(a, tor), join(b, tor), join(c, tor));
+        fixture(tor, ps, false);
+        TeamDeletionResponse preview = service.previewDeleteTeam(a.getId());
+        assertEquals("DELETE", preview.action());
+        assertEquals(List.of("TEST torneo"), preview.regeneratedTournaments());
+        service.deleteTeam(a.getId());
+        verify(tournamentService).removeParticipantAndRegenerate(ps.get(0));
+        verify(teams).delete(a);
+    }
+
+    @Test void torneoSinJugarConOtroHistorialSeDeshabilita() {
+        Tournament nuevo = tournament(), viejo = tournament(); viejo.setIsFinished(true);
+        Team a = team("TEST A"), b = team("TEST B"), c = team("TEST C");
+        TournamentParticipant pa = join(a, nuevo); join(b, nuevo); join(c, nuevo); join(a, viejo);
+        TeamDeletionResponse r = service.deleteTeam(a.getId());
+        assertEquals("DISABLE", r.action());
+        verify(tournamentService).removeParticipantAndRegenerate(pa);
+        verify(teams, never()).delete(any());
+        verify(teams).updateTeamStatus(a.getId(), false);
+    }
+
+    @Test void torneoSinJugarNoBajaDeDosEquipos() {
+        Tournament tor = tournament();
+        Team a = team("TEST A"), b = team("TEST B"), free = team("Free");
+        join(a, tor); join(b, tor); join(free, tor);
+        assertNotNull(service.previewDeleteTeam(a.getId()).blockedReason());
+        assertThrows(IllegalArgumentException.class, () -> service.deleteTeam(a.getId()));
+        verify(tournamentService, never()).removeParticipantAndRegenerate(any());
+        verify(teams, never()).delete(any());
     }
 }

@@ -17,6 +17,26 @@ public final class TeamDisableRules {
         return t != null && !Boolean.TRUE.equals(t.getIsFinished());
     }
 
+    /** Plan 22/10 #2: el torneo ya arranco si hay algun partido jugado, una fecha cerrada o playoffs. */
+    public static boolean hasStarted(Tournament t) {
+        if (t == null || t.getMatchDays() == null) return false;
+        return t.getMatchDays().stream().anyMatch(d -> Boolean.TRUE.equals(d.getIsFinished()) || Boolean.TRUE.equals(d.getIsPlayOff())
+                || (d.getMatches() != null && d.getMatches().stream().anyMatch(m -> Boolean.TRUE.equals(m.getIsFinished()) && !m.isByeMatch())));
+    }
+
+    /** Torneo en curso que todavia no arranco: se quita al equipo y se regenera el fixture. */
+    public static boolean regeneratesFixture(TournamentParticipant p) {
+        return isOngoing(p.getTournament()) && !hasStarted(p.getTournament()) && !Boolean.FALSE.equals(p.getIsActive());
+    }
+
+    /** Minimo 2 equipos reales despues de quitarlo. */
+    public static void checkCanRemove(TournamentParticipant p) {
+        Tournament t = p.getTournament();
+        long rest = t.getTeams() == null ? 0 : t.getTeams().stream().filter(x -> x != p && !Objects.equals(x.getId(), p.getId()) && !Match.isFreeParticipant(x)).count();
+        if (rest < 2) throw new IllegalArgumentException("No se puede quitar a '" + p.getTeam().getName() + "' del torneo '" + t.getName()
+                + "': quedar\u00eda con menos de 2 equipos.");
+    }
+
     /** En playoffs no se sabe que hacer con el cruce: se bloquea con un mensaje claro. */
     public static void checkCanDisable(TournamentParticipant p) {
         Tournament t = p.getTournament();
