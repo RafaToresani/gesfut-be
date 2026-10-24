@@ -702,11 +702,61 @@ public class TournamentServiceImpl implements TournamentService {
         return qualifiedParticipants;
     }
 
-    private void sortParticipants(List<TournamentParticipant> participants) {
-        participants.sort(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).points()).reversed()
-            .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).goalsFor() - leagueStatistics(p).goalsAgainst()).reversed())
-            .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> leagueStatistics(p).goalsFor()).reversed())
-            .thenComparing(p -> p.getTeam().getName(), String.CASE_INSENSITIVE_ORDER).thenComparing(TournamentParticipant::getId));
+    /**
+     * Revision critica #8: puntos, diferencia de gol, goles a favor; entre los que siguen empatados,
+     * enfrentamiento directo (puntos y luego diferencia entre ellos), luego fair play (menos tarjetas
+     * amarillas + rojas en la liga), luego nombre. Solo partidos de liga.
+     */
+    void sortParticipants(List<TournamentParticipant> participants) {
+        Map<Long, StatisticsResponse> st = new HashMap<>();
+        participants.forEach(p -> st.put(p.getId(), leagueStatistics(p)));
+        Comparator<TournamentParticipant> primary = Comparator
+                .comparingInt((TournamentParticipant p) -> st.get(p.getId()).points()).reversed()
+                .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> st.get(p.getId()).goalsFor() - st.get(p.getId()).goalsAgainst()).reversed())
+                .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> st.get(p.getId()).goalsFor()).reversed());
+        participants.sort(primary);
+        List<TournamentParticipant> result = new ArrayList<>();
+        int i = 0;
+        while (i < participants.size()) {
+            int j = i + 1;
+            while (j < participants.size() && primary.compare(participants.get(i), participants.get(j)) == 0) j++;
+            List<TournamentParticipant> group = new ArrayList<>(participants.subList(i, j));
+            if (group.size() > 1) resolveTie(group);
+            result.addAll(group);
+            i = j;
+        }
+        participants.clear();
+        participants.addAll(result);
+    }
+
+    private void resolveTie(List<TournamentParticipant> group) {
+        Set<Long> ids = new HashSet<>();
+        group.forEach(p -> ids.add(p.getId()));
+        Map<Long, int[]> h2h = new HashMap<>(); // [puntos, diferencia]
+        Map<Long, Integer> cards = new HashMap<>();
+        group.forEach(p -> { h2h.put(p.getId(), new int[2]); cards.put(p.getId(), 0); });
+        Tournament t = group.getFirst().getTournament();
+        for (MatchDay day : t.getMatchDays()) {
+            if (Boolean.TRUE.equals(day.getIsPlayOff())) continue;
+            for (Match m : day.getMatches()) {
+                if (!Boolean.TRUE.equals(m.getIsFinished()) || m.isByeMatch()) continue;
+                Long h = m.getHomeTeam().getId(), a = m.getAwayTeam().getId();
+                if (m.getEvents() != null) for (var e : m.getEvents()) {
+                    if (e.getType() != com.gesfut.models.matchDay.EEventType.YELLOW_CARD && e.getType() != com.gesfut.models.matchDay.EEventType.RED_CARD) continue;
+                    var owner = e.getPlayerParticipant() == null ? null : e.getPlayerParticipant().getTournamentParticipant();
+                    if (owner != null && cards.containsKey(owner.getId())) cards.merge(owner.getId(), e.getQuantity() == null ? 1 : e.getQuantity(), Integer::sum);
+                }
+                if (!ids.contains(h) || !ids.contains(a)) continue;
+                int gh = m.getGoalsHomeTeam(), ga = m.getGoalsAwayTeam();
+                h2h.get(h)[1] += gh - ga; h2h.get(a)[1] += ga - gh;
+                if (gh > ga) h2h.get(h)[0] += 3; else if (ga > gh) h2h.get(a)[0] += 3; else { h2h.get(h)[0]++; h2h.get(a)[0]++; }
+            }
+        }
+        group.sort(Comparator.comparingInt((TournamentParticipant p) -> h2h.get(p.getId())[0]).reversed()
+                .thenComparing(Comparator.comparingInt((TournamentParticipant p) -> h2h.get(p.getId())[1]).reversed())
+                .thenComparingInt(p -> cards.get(p.getId()))
+                .thenComparing(p -> p.getTeam().getName(), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(TournamentParticipant::getId));
     }
 
     private StatisticsResponse leagueStatistics(TournamentParticipant p) {

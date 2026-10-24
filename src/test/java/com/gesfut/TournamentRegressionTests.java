@@ -200,6 +200,24 @@ class TournamentRegressionTests {
         assertEquals(List.of(start,start.plusMinutes(60)),dates);
         assertFalse(po.getMatches().iterator().next().resultLoadableToday()); // regla del dia del partido
     }
+    /** Revision critica #8: empate en puntos/DG/GF -> enfrentamiento directo -> fair play -> nombre. */
+    @Test void tiebreakUsesHeadToHeadThenFairPlayThenName(){
+        MatchDay league=day(false,true);
+        match(league,a,b,1,0,true); match(league,d,a,1,0,true); match(league,b,c,1,0,true);
+        // a (Zulu) y b (Alfa): 3 pts, DG 0, GF 1; a le gano a b -> a primero aunque el nombre ordene al reves
+        List<TournamentParticipant> ranked=new ArrayList<>(List.of(b,a));
+        ReflectionTestUtils.invokeMethod(service,"sortParticipants",ranked);
+        assertSame(a,ranked.get(0)); assertSame(b,ranked.get(1));
+    }
+    @Test void circularTieFallsBackToFewerCardsThenName(){
+        MatchDay league=day(false,true);
+        match(league,a,b,1,0,true); Match m=match(league,c,a,1,0,true); match(league,b,c,1,0,true);
+        var pp=com.gesfut.models.tournament.PlayerParticipant.builder().id(90L).tournamentParticipant(c).build();
+        m.getEvents().add(com.gesfut.models.matchDay.Event.builder().id(91L).type(com.gesfut.models.matchDay.EEventType.YELLOW_CARD).quantity(1).playerParticipant(pp).match(m).build());
+        List<TournamentParticipant> ranked=new ArrayList<>(List.of(c,a,b));
+        ReflectionTestUtils.invokeMethod(service,"sortParticipants",ranked);
+        assertEquals(List.of("Alfa","Zulu","Beta"),ranked.stream().map(p->p.getTeam().getName()).toList());
+    }
     void prepareResponseServices(){
         tournament.setUser(UserEntity.builder().name("Test").lastname("Owner").build());
         var participants=mock(TournamentParticipantService.class);
