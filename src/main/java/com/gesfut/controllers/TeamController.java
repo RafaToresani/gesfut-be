@@ -73,6 +73,7 @@ public class TeamController {
     @Operation(summary = "Retorna un equipo en base a su id..")
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')") // Revision critica #14
     public TeamResponse getTeamById(@PathVariable Long id) {
        return this.teamService.getTeamById(id);
     }
@@ -80,6 +81,7 @@ public class TeamController {
     @Operation(summary = "Retorna todas las participaciones de un equipo en torneos.")
     @GetMapping("/{idTeam}/tournaments")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')") // Revision critica #14
     public List<ParticipantShortResponse> getTeamTournaments(@PathVariable Long idTeam){
         return this.teamService.getTeamTournamentsParticipations(idTeam);
     }
@@ -87,6 +89,7 @@ public class TeamController {
     @Operation(summary = "Retorna estaidistcas de todos los jugadores ya esten o no jugando un torneo")
     @GetMapping("/{idTeam}/players-stats")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')") // Revision critica #14
     public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(@PathVariable Long idTeam){
         return this.teamService.getAllPlayerStatsByTeam(idTeam);
     }

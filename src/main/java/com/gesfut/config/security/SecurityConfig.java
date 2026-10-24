@@ -54,9 +54,8 @@ public class SecurityConfig {
                                 "/api/v1/tournaments/*/top-yellow-cards", "/api/v1/tournaments/*/top-red-cards",
                                 "/api/v1/match-days/*", "/api/v1/match-days/*/lastPlayed",
                                 "/api/v1/prizes/*", "/api/v1/prizes/*/*",
-                                "/api/v1/team-participant/*/teams", "/api/v1/team-participant/teams/*",
-                                "/api/v1/matches/*", "/api/v1/matches/detailed/*",
-                                "/api/v1/teams/*", "/api/v1/teams/*/tournaments", "/api/v1/teams/*/players-stats").permitAll()
+                                // Revision critica #14: solo lo que cuelga de un codigo de torneo; nada por id numerico.
+                                "/api/v1/team-participant/*/teams").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authProvider)

@@ -109,6 +109,7 @@ public class MatchServiceImpl implements MatchService {
     public MatchResponse getMatchById(Long id) {
         Optional<Match> match = this.matchRepository.findById(id);
         if(match.isEmpty()) throw new ResourceNotFoundException("El partido no existe.");
+        access.requireOwner(match.get().getMatchDay().getTournament()); // Revision critica #14
         return matchToResponse(match.get());
     }
 
@@ -352,6 +353,7 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public MatchDetailedResponse getDetailedMatchById(Long id) {
         Match match = this.getMatch(id);
+        access.requireOwner(match.getMatchDay().getTournament()); // Revision critica #14
         return this.matchDetailedToResponse(match);
     }
 

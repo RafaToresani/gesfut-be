@@ -514,7 +514,7 @@ public class TournamentServiceImpl implements TournamentService {
         sortParticipants(ranked);
         List<ParticipantResponse> leagueParticipants = ranked.stream().map(p -> {
             ParticipantResponse response = participantService.participantToResponse(p);
-            return new ParticipantResponse(response.idParticipant(), response.idTeam(), response.name(), response.isActive(), leagueStatistics(p), response.playerParticipants());
+            return new ParticipantResponse(response.idParticipant(), response.idTeam(), response.name(), response.isActive(), leagueStatistics(p), response.playerParticipants(), response.color());
         }).toList();
         List<MatchDay> leagueDays = tournament.getMatchDays().stream().filter(day -> !Boolean.TRUE.equals(day.getIsPlayOff())).toList();
         Long leagueChampion = !ranked.isEmpty() && !leagueDays.isEmpty() && leagueDays.stream().allMatch(day -> Boolean.TRUE.equals(day.getIsFinished())) ? ranked.getFirst().getId() : null;

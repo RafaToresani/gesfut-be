@@ -37,12 +37,14 @@ public class MatchController {
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')") // Revision critica #14
     public MatchResponse getMatchById(@PathVariable Long id){
         return this.matchService.getMatchById(id);
     }
 
     @GetMapping("/detailed/{id}")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyAuthority('MANAGER')") // Revision critica #14
     public MatchDetailedResponse getMatchDetailedById(@PathVariable Long id){
         return this.matchService.getDetailedMatchById(id);
     }

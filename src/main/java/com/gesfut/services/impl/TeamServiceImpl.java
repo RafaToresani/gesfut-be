@@ -95,7 +95,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     @Transactional(readOnly = true)
     public TeamResponse getTeamById(Long id) {
-        Team team = teamById(id);
+        Team team = getTeamByIdSecured(id); // Revision critica #14: solo el duenio
         return teamToResponse(team);
     }
 
@@ -222,6 +222,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     @Transactional(readOnly = true)
     public List<ParticipantShortResponse> getTeamTournamentsParticipations(Long id) {
+        getTeamByIdSecured(id); // Revision critica #14: solo el duenio
         return this.tournamentParticipantService.getTeamTournamentsParticipations(id);
     }
 
@@ -238,10 +239,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     @Transactional(readOnly = true)
     public TeamWithAllStatsPlayerResponse getAllPlayerStatsByTeam(Long idTeam) {
-        Optional<Team> teamFound = this.teamRepository.findById(idTeam);
-        if (teamFound.isEmpty()) {
-            throw new ResourceNotFoundException("Equipo no encontrado");
-        }
+        Optional<Team> teamFound = Optional.of(getTeamByIdSecured(idTeam)); // Revision critica #14: solo el duenio
 
         Team team = teamFound.get();
         TeamWithAllStatsPlayerResponse response = new TeamWithAllStatsPlayerResponse(

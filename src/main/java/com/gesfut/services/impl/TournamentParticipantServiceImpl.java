@@ -74,7 +74,8 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
                                 playerParticipant.getPlayer().getIsGoalKeeper(),
                                 playerParticipant.getPlayer().getStatus()
                         ))
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                participant.getTeam().getColor()
         );
     }
 
@@ -158,7 +159,11 @@ public class TournamentParticipantServiceImpl implements TournamentParticipantSe
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ParticipantResponse getOneParticipants(Long teamId) {
-        return participantToResponse(this.participantRepository.findById(teamId).orElse(null));
+        // Revision critica #14: por id numerico solo el duenio del torneo.
+        TournamentParticipant participant = this.participantRepository.findById(teamId)
+                .orElseThrow(() -> new com.gesfut.exceptions.ResourceNotFoundException("Participante no encontrado."));
+        access.requireOwner(participant.getTournament());
+        return participantToResponse(participant);
     }
 
 
