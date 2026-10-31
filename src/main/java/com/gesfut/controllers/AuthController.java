@@ -92,7 +92,14 @@ public class AuthController {
     @PostMapping("/reset-password/{email}")
     @ResponseStatus(HttpStatus.OK)
     public void resetPassword(@PathVariable String email) {
-        this.authService.resetPasswordSendEmail(email);
+        // A4 #4: respuesta inmediata e identica exista o no el mail; la busqueda y el envio corren en otro hilo
+        // (el tiempo de respuesta no revela si la cuenta existe). El log nunca lleva el mail ni el token.
+        if (email == null || email.isBlank()) return;
+        String target = email.trim().toLowerCase(java.util.Locale.ROOT);
+        mailExecutor.execute(() -> {
+            try { this.authService.resetPasswordSendEmail(target); }
+            catch (RuntimeException e) { log.error("Fallo la recuperacion de contrasena: {}", e.getClass().getSimpleName()); }
+        });
     }
 
     @Operation(

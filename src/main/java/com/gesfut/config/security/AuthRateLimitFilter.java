@@ -35,7 +35,19 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     static boolean isResend(String path) { return path.equals(RESEND_BODY) || path.startsWith(RESEND); }
 
     /** Reenviar mail: 3 por hora por IP y tambien por cuenta (email), aunque cambie la IP. */
-    static long windowFor(String path) { return isResend(path) ? RESEND_WINDOW_MS : WINDOW_MS; }
+    static long windowFor(String path) { return isResend(path) || isReset(path) ? RESEND_WINDOW_MS : WINDOW_MS; }
+
+    /** A4 #4 (31/10): recuperar contrasena, 3 por hora por IP y tambien por mail (normalizado), contado ANTES de mirar si el mail existe. */
+    static final String RESET = "/api/v1/auth/reset-password/";
+    static boolean isReset(String path) { return path.startsWith(RESET); }
+
+    /** Mail normalizado (trim + minusculas) para la clave del limite; null si no se puede leer. Nunca se loguea. */
+    static String normalizedEmailFromPath(String path, String prefix) {
+        try {
+            String e = java.net.URLDecoder.decode(path.substring(prefix.length()), java.nio.charset.StandardCharsets.UTF_8).trim().toLowerCase(java.util.Locale.ROOT);
+            return e.isEmpty() ? null : e;
+        } catch (IllegalArgumentException ex) { return null; }
+    }
 
     private boolean hit(String key, int limit, long window, long now) { return limiter.hit(key, limit, window, now); }
 
@@ -77,11 +89,15 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             }
             if (email != null && !email.isBlank()) blocked = hit("email|" + email.trim().toLowerCase(), limit, window, now);
         }
+        if (!blocked && isReset(path)) {
+            String email = normalizedEmailFromPath(path, RESET);
+            if (email != null) blocked = hit("reset-email|" + email, limit, window, now);
+        }
         if (blocked) {
             response.setStatus(429);
             response.setHeader("Retry-After", String.valueOf(window / 1000));
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(isResend(path)
+            response.getWriter().write(isResend(path) || isReset(path)
                     ? "{\"error\":\"Probaste muchas veces. Esper\u00e1 un rato e intent\u00e1 de nuevo.\"}"
                     : "{\"error\":\"Demasiados intentos. Esper\u00e1 un minuto y prob\u00e1 de nuevo.\"}");
             return;

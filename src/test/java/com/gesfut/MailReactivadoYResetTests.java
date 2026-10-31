@@ -52,12 +52,14 @@ class MailReactivadoYResetTests {
 
     @Test void resetConSmtpCaidoResponde200NeutroIgualQueMailInexistente() throws Exception {
         String email = nuevaCuenta();
+        clearInvocations(emailService); // el registro ya mando el mail de verificacion; se espera el de recuperacion (asincrono)
         doThrow(new MailAuthenticationException("auth failed")).when(emailService).sendEmail(anyString(), anyString(), anyString());
         var ok = mvc.perform(post("/api/v1/auth/reset-password/" + email).header("CF-Connecting-IP", "10.9.0.1")).andReturn().getResponse();
         var nadie = mvc.perform(post("/api/v1/auth/reset-password/nadie-" + UUID.randomUUID() + "@example.test").header("CF-Connecting-IP", "10.9.0.2")).andReturn().getResponse();
         assertEquals(200, ok.getStatus());
         assertEquals(200, nadie.getStatus());
         assertEquals(nadie.getContentAsString(StandardCharsets.UTF_8), ok.getContentAsString(StandardCharsets.UTF_8));
+        verify(emailService, timeout(5000)).sendEmail(eq(email), anyString(), anyString());
         assertTrue(jdbc.queryForObject("SELECT reset_token FROM users WHERE email=?", String.class, email).startsWith("reset:"));
         assertDoesNotThrow(() -> auth.resetPasswordSendEmail(email));
     }

@@ -209,8 +209,9 @@ class TokensOpacosTests {
         assertEquals(existe.getStatus(), nadie.getStatus());
         assertEquals(200, existe.getStatus());
         assertEquals(nadie.getContentAsString(StandardCharsets.UTF_8), existe.getContentAsString(StandardCharsets.UTF_8));
-        verify(emailService, atLeastOnce()).sendEmail(eq(r[0]), anyString(), body.capture());
+        verify(emailService, timeout(5000).atLeastOnce()).sendEmail(eq(r[0]), anyString(), body.capture());
         String tok = after(body.getValue(), "/auth/reset-password/");
+        for (int i = 0; i < 100 && !out.getAll().contains("No se pudo enviar el mail de recuperacion"); i++) Thread.sleep(50);
         assertTrue(out.getAll().contains("No se pudo enviar el mail de recuperacion"));
         assertFalse(out.getAll().contains(tok), "el log no contiene el token");
         assertFalse(out.getAll().contains(r[0]), "el log no contiene el mail");

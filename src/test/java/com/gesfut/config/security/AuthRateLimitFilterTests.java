@@ -34,6 +34,26 @@ class AuthRateLimitFilterTests {
     }
 
     @Test
+    void resetPasswordLimitaPorMailNormalizadoAunqueCambieLaIpYEsPorHora() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        assertEquals(200, post(f, "/api/v1/auth/reset-password/Misma@x.com", "8.8.1.1"));
+        assertEquals(200, post(f, "/api/v1/auth/reset-password/%20misma@X.com%20", "8.8.1.2"));
+        assertEquals(200, post(f, "/api/v1/auth/reset-password/misma@x.com", "8.8.1.3"));
+        assertEquals(429, post(f, "/api/v1/auth/reset-password/MISMA@x.com", "8.8.1.4"), "4.o pedido al mismo mail desde otra IP");
+        assertEquals(200, post(f, "/api/v1/auth/reset-password/otra@x.com", "8.8.1.5"));
+        assertEquals(3_600_000, AuthRateLimitFilter.windowFor("/api/v1/auth/reset-password/x@x.com"));
+        assertEquals("a@b.com", AuthRateLimitFilter.normalizedEmailFromPath("/api/v1/auth/reset-password/%20A@B.com%20", AuthRateLimitFilter.RESET));
+        assertNull(AuthRateLimitFilter.normalizedEmailFromPath("/api/v1/auth/reset-password/%zz", AuthRateLimitFilter.RESET));
+    }
+
+    @Test
+    void resetPasswordContadoresAcotados() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < 25_000; i++) post(f, "/api/v1/auth/reset-password/m" + i + "@x.com", "9." + (i / 65536) + "." + ((i / 256) % 256) + "." + (i % 256));
+        assertTrue(f.limiter.size() <= 20_000, "el limitador no crece sin limite: " + f.limiter.size());
+    }
+
+    @Test
     void otherEndpointsAreNotLimited() throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
         for (int i = 0; i < 30; i++) assertEquals(200, post(f, "/api/v1/matches/load-result", "4.4.4.4"));
