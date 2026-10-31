@@ -3,6 +3,7 @@ package com.gesfut;
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.services.impl.AuthServiceImpl;
 import com.gesfut.services.impl.EmailService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -44,7 +46,24 @@ class ResetRateLimitTests {
         auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaRl", "Uno"));
         return email;
     }
-    static String ip() { return "10.7." + (int) (Math.random() * 250) + "." + (int) (Math.random() * 250); }
+    /** IPs deterministicas y unicas dentro de la corrida (sin Math.random). */
+    static final AtomicInteger IP_SEQ = new AtomicInteger();
+    static String ip() { int n = IP_SEQ.incrementAndGet(); return "10.7." + (n / 250) + "." + (n % 250 + 1); }
+
+    @AfterEach void limpiar() {
+        String like = "qa.rl.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
+    }
+
+    @Test void cuartoPedidoDesdeLaMismaIpConMailsDistintosDa429() throws Exception {
+        String miIp = "10.6.0.1";
+        for (int i = 0; i < 3; i++) assertEquals(200, reset("distinto-" + i + "-" + UUID.randomUUID() + "@example.test", miIp).getStatus());
+        var r4 = reset("otro-" + UUID.randomUUID() + "@example.test", miIp);
+        assertEquals(429, r4.getStatus(), "4.o pedido desde la misma IP aunque cambie el mail");
+        assertEquals("3600", r4.getHeader("Retry-After"));
+    }
 
     MockHttpServletResponse reset(String email, String ip) throws Exception {
         return mvc.perform(post("/api/v1/auth/reset-password/{e}", email).header("CF-Connecting-IP", ip)).andReturn().getResponse();
@@ -67,7 +86,7 @@ class ResetRateLimitTests {
 
     @Test void mismaRespuestaYTiempoComparableConEnvioAsincrono(CapturedOutput out) throws Exception {
         String existe = cuenta();
-        doAnswer(inv -> { Thread.sleep(1500); throw new MailAuthenticationException("auth failed"); })
+        doAnswer(inv -> { Thread.sleep(3000); throw new MailAuthenticationException("auth failed"); })
                 .when(emailService).sendEmail(anyString(), anyString(), anyString());
         String nadie = "nadie-" + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         reset("calentar-" + UUID.randomUUID() + "@example.test", ip());
@@ -76,10 +95,11 @@ class ResetRateLimitTests {
         assertEquals(200, a.getStatus());
         assertEquals(a.getStatus(), b.getStatus());
         assertEquals(b.getContentAsString(StandardCharsets.UTF_8), a.getContentAsString(StandardCharsets.UTF_8));
-        assertTrue(ta < 1000, "el existente no espera al envio (" + ta + " ms)");
-        assertTrue(tb < 1000, "el inexistente responde rapido (" + tb + " ms)");
-        verify(emailService, timeout(5000)).sendEmail(eq(existe), anyString(), anyString());
-        for (int i = 0; i < 100 && !out.getAll().contains("No se pudo enviar el mail de recuperacion"); i++) Thread.sleep(50);
+        // El envio simulado tarda 3 s: si la respuesta lo esperara, tardaria >= 3 s. Margen amplio para maquinas lentas.
+        assertTrue(ta < 2500, "el existente no espera al envio (" + ta + " ms)");
+        assertTrue(tb < 2500, "el inexistente responde rapido (" + tb + " ms)");
+        verify(emailService, timeout(8000)).sendEmail(eq(existe), anyString(), anyString());
+        for (int i = 0; i < 160 && !out.getAll().contains("No se pudo enviar el mail de recuperacion"); i++) Thread.sleep(50);
         assertTrue(out.getAll().contains("No se pudo enviar el mail de recuperacion"));
         assertFalse(out.getAll().contains(existe), "el log no contiene el mail");
         assertFalse(out.getAll().contains(nadie), "el log no contiene el mail inexistente");

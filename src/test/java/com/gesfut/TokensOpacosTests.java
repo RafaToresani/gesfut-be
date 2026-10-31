@@ -4,6 +4,8 @@ import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.config.security.jwt.CookieAuth;
 import com.gesfut.config.security.jwt.JwtService;
 import com.gesfut.exceptions.ResourceNotFoundException;
+import com.gesfut.config.security.dtos.LoginRequest;
+import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.impl.AuthServiceImpl;
 import com.gesfut.services.impl.EmailService;
 import com.gesfut.services.impl.OneTimeTokens;
@@ -54,6 +56,7 @@ class TokensOpacosTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
     @Autowired JwtService jwt;
+    @Autowired UserRepository users;
     @MockBean EmailService emailService;
     @Value("${SECRET.KEY}") String secretKey;
 
@@ -68,6 +71,23 @@ class TokensOpacosTests {
     String guard() {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         return "qa.tok." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
+    }
+
+    @Test void changePasswordWithOldPasswordConSesionValidaFunciona() throws Exception {
+        String email = guard();
+        String vieja = "Qa-" + UUID.randomUUID(), nueva = "Qa-" + UUID.randomUUID();
+        ArgumentCaptor<String> mail = ArgumentCaptor.forClass(String.class);
+        auth.singUp(new RegisterRequest(email, vieja, "QaTok", "Uno"));
+        verify(emailService, atLeastOnce()).sendEmail(eq(email), anyString(), mail.capture());
+        auth.verifyEmail(after(mail.getValue(), "/auth/verify-email/"));
+        var user = users.findByEmail(email).orElseThrow();
+        String sesion = jwt.getToken(user, user.getAuthorities());
+        int st = mvc.perform(post("/api/v1/auth/change-password-with-old-password").header("Authorization", "Bearer " + sesion)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"oldPassword\":\"" + vieja + "\",\"newPassword\":\"" + nueva + "\"}"))
+                .andReturn().getResponse().getStatus();
+        assertEquals(200, st);
+        assertNotNull(auth.logIn(new LoginRequest(email, nueva)).token(), "entra con la nueva");
+        assertThrows(RuntimeException.class, () -> auth.logIn(new LoginRequest(email, vieja)), "la vieja ya no sirve");
     }
 
     /** Registra (captura el link de verificacion) y devuelve {email, tokenVerificacion}. */
