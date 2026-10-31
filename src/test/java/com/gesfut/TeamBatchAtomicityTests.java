@@ -27,7 +27,7 @@ class TeamBatchAtomicityTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired TeamService teams;
     @Autowired UserRepository users;
-    final String prefix = "TEST ATOM " + System.nanoTime() % 100000;
+    final String prefix = "TEST ATOM " + java.util.UUID.randomUUID().toString().substring(0, 8);
 
     @BeforeEach void auth() {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));

@@ -119,7 +119,7 @@ public class AuthServiceImpl implements AuthService {
                         frontBaseUrl() + "/auth/verify-email/" + verificationToken
         );
         } catch (RuntimeException e) {
-            log.warn("No se pudo enviar el mail de verificacion: {}", e.getMessage());
+            log.warn("No se pudo enviar el mail de verificacion: {}", e.getClass().getSimpleName());
         }
         }
         return new AuthResponse(
@@ -187,7 +187,7 @@ public class AuthServiceImpl implements AuthService {
                 "Hola, para recuperar tu contraseña, haz click en el siguiente enlace: " +
                         frontBaseUrl() + "/auth/reset-password/" + token);
         } catch (RuntimeException e) {
-            log.warn("No se pudo enviar el mail de recuperacion: {}", e.getClass().getSimpleName());
+            log.error("No se pudo enviar el mail de recuperacion: {}", e.getClass().getSimpleName());
         }
     }
 

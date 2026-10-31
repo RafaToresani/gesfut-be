@@ -36,7 +36,7 @@ class TournamentCheckTeamsTests {
     @Autowired TournamentService tournaments;
     @Autowired UserRepository users;
     @Autowired com.gesfut.config.security.jwt.JwtService jwt;
-    final String prefix = "TEST DNI " + System.nanoTime() % 100000;
+    final String prefix = "TEST DNI " + java.util.UUID.randomUUID().toString().substring(0, 8);
     UserEntity owner; String code; long teamA, teamB;
 
     @BeforeEach void setUp() {

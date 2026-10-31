@@ -42,7 +42,7 @@ class InitializeAndDniHttpTests {
     @Autowired TournamentService tournaments;
     @Autowired UserRepository users;
     @Autowired com.gesfut.config.security.jwt.JwtService jwt;
-    final String prefix = "TEST INIT " + System.nanoTime() % 100000;
+    final String prefix = "TEST INIT " + java.util.UUID.randomUUID().toString().substring(0, 8);
     UserEntity owner; String token; String code;
     final Map<String, Long> ids = new HashMap<>();
 

@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.mail.MailException.class)
     public ResponseEntity<Map<String, String>> handleMail(Exception ex) {
-        log.warn("Fallo el envio de mail: {}", ex.getMessage());
+        log.warn("Fallo el envio de mail: {}", ex.getClass().getSimpleName());
         return body(HttpStatus.SERVICE_UNAVAILABLE, "No pudimos enviar el correo. Probá de nuevo en unos minutos.");
     }
 

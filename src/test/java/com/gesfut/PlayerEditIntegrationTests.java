@@ -27,7 +27,7 @@ class PlayerEditIntegrationTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired TeamService teams;
     @Autowired UserRepository users;
-    final String prefix = "TEST EDIT " + System.nanoTime() % 100000;
+    final String prefix = "TEST EDIT " + java.util.UUID.randomUUID().toString().substring(0, 8);
     long juan, pedro;
 
     @BeforeEach void setUp() {
