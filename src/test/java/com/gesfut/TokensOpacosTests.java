@@ -7,10 +7,12 @@ import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.services.impl.AuthServiceImpl;
 import com.gesfut.services.impl.EmailService;
 import com.gesfut.services.impl.OneTimeTokens;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -22,6 +24,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -53,6 +56,14 @@ class TokensOpacosTests {
     @Autowired JwtService jwt;
     @MockBean EmailService emailService;
     @Value("${SECRET.KEY}") String secretKey;
+
+    /** M5: limpia las cuentas qa.tok.* (y su equipo Free) que crea esta clase. */
+    @AfterEach void limpiar() {
+        String like = "qa.tok.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
+    }
 
     String guard() {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
@@ -110,14 +121,36 @@ class TokensOpacosTests {
         assertEquals("false", validate(resetTok));
     }
 
-    @Test void jwtFirmadoSinTypSessionSeRechaza() throws Exception {
-        guard();
-        String email = jdbc.queryForObject("SELECT email FROM users WHERE email_verified=1 ORDER BY id LIMIT 1", String.class);
-        String sinTyp = Jwts.builder().subject(email).issuedAt(new Date()).expiration(new Date(System.currentTimeMillis() + 600_000))
-                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey))).compact();
-        assertEquals(401, statusBearer(sinTyp));
-        assertEquals(401, statusCookie(sinTyp));
-        assertEquals("false", validate(sinTyp));
+    String firmar(String email, String typ) {
+        JwtBuilder b = Jwts.builder().subject(email).issuedAt(new Date()).expiration(new Date(System.currentTimeMillis() + 600_000));
+        if (typ != null) b.claim(JwtService.TYP_CLAIM, typ);
+        return b.signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey))).compact();
+    }
+
+    @Test void jwtFirmadoSinTypOConTypDistintoSeRechaza() throws Exception {
+        String[] r = registrar();
+        auth.verifyEmail(r[1]);
+        for (String typ : new String[]{null, "SESSION", "Session", "reset", "verify", ""}) {
+            String t = firmar(r[0], typ);
+            assertEquals(401, statusBearer(t), "typ=" + typ);
+            assertEquals(401, statusCookie(t), "typ=" + typ);
+            assertEquals("false", validate(t), "typ=" + typ);
+        }
+        assertEquals(200, statusBearer(firmar(r[0], JwtService.TYP_SESSION)), "control: typ=session del mismo usuario QA si entra");
+    }
+
+    @Test void tokenDeResetNoSirveEnChangePasswordWithOldPassword() throws Exception {
+        String[] r = registrar();
+        auth.verifyEmail(r[1]);
+        String resetTok = pedirReset(r[0]);
+        String body = "{\"oldPassword\":\"x\",\"newPassword\":\"NuevaClave-123\"}";
+        int conReset = mvc.perform(post("/api/v1/auth/change-password-with-old-password").header("Authorization", "Bearer " + resetTok)
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse().getStatus();
+        int sinTyp = mvc.perform(post("/api/v1/auth/change-password-with-old-password").header("Authorization", "Bearer " + firmar(r[0], null))
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse().getStatus();
+        assertEquals(401, conReset);
+        assertEquals(401, sinTyp);
+        assertEquals("reset:" + OneTimeTokens.hash(resetTok), stored(r[0]), "el token de reset sigue sin usar");
     }
 
     @Test void prefijosNoSeCruzanYUsoUnicoYVencido() {

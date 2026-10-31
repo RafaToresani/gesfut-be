@@ -14,7 +14,7 @@ public interface AuthService {
 
     void changePassword(String token, String newPassword);
 
-    void changePasswordWithOldPassword(String oldPassword, String newPassword, String token);
+    void changePasswordWithOldPassword(String oldPassword, String newPassword);
 
     void verifyEmail(String token);
 

@@ -205,11 +205,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void changePasswordWithOldPassword(String oldPassword, String newPassword, String token) {
+    public void changePasswordWithOldPassword(String oldPassword, String newPassword) {
         validateNewPassword(newPassword);
-        if (token == null || !jwtService.isTokenValidNotUser(token)) throw new ResourceNotFoundException("El token es inv\u00e1lido."); // A4 #1: solo sesion (typ=session)
-        Optional<UserEntity> user = userRepository.findByEmail(jwtService.getUsernameFromToken(token));
-        if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
+        // A4 #1 fixup (M3/M4): el usuario sale del SecurityContext (lo puso el filtro solo con un JWT typ=session).
+        // Sin sesion valida: 401, no 404.
+        String email = com.gesfut.config.security.SecurityUtils.getCurrentUserEmail();
+        if (email == null) throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Sin sesion");
+        Optional<UserEntity> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) throw new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Sin sesion");
         if (!passwordEncoder.matches(oldPassword, user.get().getPassword())) {
             throw new IllegalStateException("La contraseña antigua no coincide.");
         }

@@ -113,10 +113,9 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void changePasswordWithOldPassword(
-            @RequestBody PasswordsRequest passwords,
-            jakarta.servlet.http.HttpServletRequest httpRequest) {
-        String token = com.gesfut.config.security.jwt.CookieAuth.anyToken(httpRequest);
-       this.authService.changePasswordWithOldPassword(passwords.oldPassword(), passwords.newPassword(), token);
+            @RequestBody PasswordsRequest passwords) {
+        // A4 #1 fixup (M4): el usuario sale del SecurityContext, no se vuelve a leer el token.
+        this.authService.changePasswordWithOldPassword(passwords.oldPassword(), passwords.newPassword());
     }
 
     @PostMapping("/verify-email/{token}")
