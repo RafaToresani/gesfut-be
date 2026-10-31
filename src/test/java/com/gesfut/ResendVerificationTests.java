@@ -70,13 +70,13 @@ class ResendVerificationTests {
     }
 
     @Test void enlaceVencidoPideReenviar() {
-        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE id=?", "verify:tok-vencido", LocalDateTime.now().minusHours(1), unverified.get("id"));
+        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE id=?", "verify:" + com.gesfut.services.impl.OneTimeTokens.hash("tok-vencido"), LocalDateTime.now().minusHours(1), unverified.get("id"));
         var ex = assertThrows(IllegalStateException.class, () -> auth.verifyEmail("tok-vencido"));
         assertTrue(ex.getMessage().contains("venci") && ex.getMessage().contains("Reenviar mail"));
     }
 
     @Test void reenviarInvalidaElEnlaceAnteriorYVenceEn24h() {
-        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE id=?", "verify:tok-viejo", LocalDateTime.now().plusHours(5), unverified.get("id"));
+        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE id=?", "verify:" + com.gesfut.services.impl.OneTimeTokens.hash("tok-viejo"), LocalDateTime.now().plusHours(5), unverified.get("id"));
         auth.resendVerificationEmail((String) unverified.get("email"));
         var ex = assertThrows(IllegalArgumentException.class, () -> auth.verifyEmail("tok-viejo"));
         assertTrue(ex.getMessage().contains("Reenviar mail"));

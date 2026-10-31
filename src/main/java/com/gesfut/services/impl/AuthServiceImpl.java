@@ -88,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
         Optional<UserEntity> opt = this.userRepository.findByEmail(request.email());
         if(opt.isPresent()) throw new ResourceAlreadyExistsException("El email ingresado ya existe.");
 
-        String verificationToken = jwtService.generateToken(request.email());
+        String verificationToken = OneTimeTokens.newRaw();
 
 
         UserEntity user = UserEntity.builder()
@@ -98,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.password()))
                 .role(ERole.MANAGER)
                 .emailVerified(!mailVerificacionEnabled)
-                .resetToken(VERIFY_PREFIX + verificationToken)
+                .resetToken(VERIFY_PREFIX + OneTimeTokens.hash(verificationToken))
                 .resetTokenExpiration(LocalDateTime.now().plusHours(24))
                 .build();
 
@@ -131,17 +131,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public void verifyEmail(String token) {
-        UserEntity user = userRepository.findByResetToken(VERIFY_PREFIX + token)
-                .orElseThrow(() -> new IllegalArgumentException("El enlace de verificaci\u00f3n no es v\u00e1lido o ya se us\u00f3. Ped\u00ed uno nuevo con \"Reenviar mail\" desde el inicio de sesi\u00f3n."));
-
-        if (user.getResetTokenExpiration() == null || user.getResetTokenExpiration().isBefore(LocalDateTime.now())) {
+        // A4 #1: uso atomico (un solo UPDATE); el prefijo verify: impide usar un token de reset.
+        String key = VERIFY_PREFIX + OneTimeTokens.hash(token == null ? "" : token);
+        if (token != null && !token.isBlank() && userRepository.consumeVerifyToken(key, LocalDateTime.now()) == 1) return;
+        if (token != null && !token.isBlank() && userRepository.existsByResetToken(key)) {
             throw new IllegalStateException("El enlace de verificaci\u00f3n venci\u00f3. Ped\u00ed uno nuevo con \"Reenviar mail\" desde el inicio de sesi\u00f3n.");
         }
-
-        user.setEmailVerified(true);
-        user.setResetToken(null);
-        user.setResetTokenExpiration(null);
-        userRepository.save(user);
+        throw new IllegalArgumentException("El enlace de verificaci\u00f3n no es v\u00e1lido o ya se us\u00f3. Ped\u00ed uno nuevo con \"Reenviar mail\" desde el inicio de sesi\u00f3n.");
     }
 
     public void resendVerificationEmail(String email) {
@@ -150,8 +146,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null || Boolean.TRUE.equals(user.getEmailVerified())) return;
         if (!mailVerificacionEnabled) return; // TODO(Mateo): ver gesfut.mail.verificacion.enabled; respuesta neutra sin enviar.
 
-        String newToken = jwtService.generateToken(email);
-        user.setResetToken(VERIFY_PREFIX + newToken);
+        String newToken = OneTimeTokens.newRaw();
+        user.setResetToken(VERIFY_PREFIX + OneTimeTokens.hash(newToken));
         user.setResetTokenExpiration(LocalDateTime.now().plusHours(24));
         userRepository.save(user);
 
@@ -175,9 +171,9 @@ public class AuthServiceImpl implements AuthService {
         // Loop 4: no revelar si el email existe; el front ya muestra "Si X tiene una cuenta, te enviamos...".
         if (user.isEmpty()) return;
 
-        String token = jwtService.generateToken(email);
+        String token = OneTimeTokens.newRaw();
 
-        user.get().setResetToken(RESET_PREFIX + token);
+        user.get().setResetToken(RESET_PREFIX + OneTimeTokens.hash(token));
         user.get().setResetTokenExpiration(LocalDateTime.now().plusMinutes(30));
         userRepository.save(user.get());
 
@@ -200,21 +196,18 @@ public class AuthServiceImpl implements AuthService {
 
     public void changePassword(String token, String newPassword) {
         validateNewPassword(newPassword);
-        Optional<UserEntity> user = userRepository.findByResetToken(RESET_PREFIX + token);
-        if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
-        if (user.get().getResetTokenExpiration().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("El token ha expirado.");
-        }
+        // A4 #1: uso atomico (un solo UPDATE que devuelve filas afectadas); dos usos simultaneos: gana uno solo.
+        String key = RESET_PREFIX + OneTimeTokens.hash(token == null ? "" : token);
         String hashedPassword = passwordEncoder.encode(newPassword);
-        user.get().setPassword(hashedPassword);
-        user.get().setResetToken(null);
-        user.get().setResetTokenExpiration(null);
-        userRepository.save(user.get());
+        if (token != null && !token.isBlank() && userRepository.consumeResetToken(key, hashedPassword, LocalDateTime.now()) == 1) return;
+        if (token != null && !token.isBlank() && userRepository.existsByResetToken(key)) throw new IllegalStateException("El token ha expirado.");
+        throw new ResourceNotFoundException("El token es inv\u00e1lido.");
     }
 
     @Override
     public void changePasswordWithOldPassword(String oldPassword, String newPassword, String token) {
         validateNewPassword(newPassword);
+        if (token == null || !jwtService.isTokenValidNotUser(token)) throw new ResourceNotFoundException("El token es inv\u00e1lido."); // A4 #1: solo sesion (typ=session)
         Optional<UserEntity> user = userRepository.findByEmail(jwtService.getUsernameFromToken(token));
         if (user.isEmpty()) throw new ResourceNotFoundException("El token es inválido.");
         if (!passwordEncoder.matches(oldPassword, user.get().getPassword())) {

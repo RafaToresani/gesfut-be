@@ -23,9 +23,14 @@ public class JwtService {
     @Value("${SECRET.KEY}")
     private String SECRET_KEY;
 
+    /** A4 #1 (31/10): solo los JWT de sesion llevan typ=session; cualquier otro JWT (sin typ) se rechaza (falla cerrado). */
+    public static final String TYP_CLAIM = "typ";
+    public static final String TYP_SESSION = "session";
+
     public String getToken(UserDetails user,  Collection<? extends GrantedAuthority> authorities) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()));
+        claims.put(TYP_CLAIM, TYP_SESSION);
         return getToken(claims, user);
     }
 
@@ -58,7 +63,7 @@ public class JwtService {
     {
         final String username = getUsernameFromToken(token);
 
-        return (username.equals(userDetails.getUsername())&& !isTokenExpired(token));
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token) && isSessionToken(token));
     }
 
     private Claims getAllClaims(String token){
@@ -73,7 +78,7 @@ public class JwtService {
     public boolean isTokenValidNotUser(String token) {
         try {
             Claims claims = getAllClaims(token);
-            return !isTokenExpired(token);
+            return TYP_SESSION.equals(claims.get(TYP_CLAIM)) && !isTokenExpired(token);
         } catch (Exception e) {
             return false;
         }
@@ -91,13 +96,9 @@ public class JwtService {
         return getExpiration(token).before(new Date());
     }
 
-    public String generateToken(String email) {
-        return Jwts
-                .builder()
-                .setSubject(email)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // 1 hora
-                .signWith(getKey())
-                .compact();
+    /** A4 #1: true solo si es un JWT de sesion valido con typ=session; ante cualquier error, false. */
+    public boolean isSessionToken(String token) {
+        try { return TYP_SESSION.equals(getAllClaims(token).get(TYP_CLAIM)); }
+        catch (RuntimeException e) { return false; }
     }
 }

@@ -64,9 +64,9 @@ class MailReactivadoYResetTests {
 
     @Test void changePasswordTokenVencidoYTokenReusado() {
         String email = nuevaCuenta();
-        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE email=?", "reset:tok-vencido-" + email, LocalDateTime.now().minusMinutes(1), email);
+        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE email=?", "reset:" + com.gesfut.services.impl.OneTimeTokens.hash("tok-vencido-" + email), LocalDateTime.now().minusMinutes(1), email);
         assertThrows(IllegalStateException.class, () -> auth.changePassword("tok-vencido-" + email, "NuevaClave-123"));
-        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE email=?", "reset:tok-uso-" + email, LocalDateTime.now().plusMinutes(10), email);
+        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=? WHERE email=?", "reset:" + com.gesfut.services.impl.OneTimeTokens.hash("tok-uso-" + email), LocalDateTime.now().plusMinutes(10), email);
         auth.changePassword("tok-uso-" + email, "NuevaClave-123");
         assertThrows(ResourceNotFoundException.class, () -> auth.changePassword("tok-uso-" + email, "OtraClave-456"));
     }
