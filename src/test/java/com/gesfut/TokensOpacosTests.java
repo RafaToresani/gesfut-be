@@ -87,7 +87,7 @@ class TokensOpacosTests {
                 .andReturn().getResponse().getStatus();
         assertEquals(200, st);
         assertNotNull(auth.logIn(new LoginRequest(email, nueva)).token(), "entra con la nueva");
-        assertThrows(RuntimeException.class, () -> auth.logIn(new LoginRequest(email, vieja)), "la vieja ya no sirve");
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () -> auth.logIn(new LoginRequest(email, vieja)), "la vieja ya no sirve");
     }
 
     /** Registra (captura el link de verificacion) y devuelve {email, tokenVerificacion}. */

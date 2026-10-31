@@ -73,6 +73,7 @@ class PasswordChangeSessionTests {
         String vieja = sesion(c[0]);
         assertEquals(200, teams(vieja));
         assertNull(jdbc.queryForObject("SELECT password_changed_at FROM users WHERE email=?", java.sql.Timestamp.class, c[0]));
+        var antesUtc = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(2);
         Thread.sleep(1100); // el iat tiene resolucion de segundos: el cambio cae en un segundo posterior
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         auth.resetPasswordSendEmail(c[0]);
@@ -80,7 +81,9 @@ class PasswordChangeSessionTests {
         String raw = body.getValue().substring(body.getValue().indexOf("/auth/reset-password/") + "/auth/reset-password/".length()).trim();
         String nueva = "Qa-" + UUID.randomUUID();
         auth.changePassword(raw, nueva);
-        assertNotNull(jdbc.queryForObject("SELECT password_changed_at FROM users WHERE email=?", java.sql.Timestamp.class, c[0]));
+        var guardado = users.findByEmail(c[0]).orElseThrow().getPasswordChangedAt();
+        assertNotNull(guardado);
+        assertTrue(guardado.isAfter(antesUtc) && guardado.isBefore(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(2)), "password_changed_at en UTC");
         assertEquals(401, teams(vieja), "login previo al cambio da 401");
         assertEquals("false", validate(vieja));
         String nuevaSesion = auth.logIn(new LoginRequest(c[0], nueva)).token();
@@ -111,7 +114,10 @@ class PasswordChangeSessionTests {
         assertEquals(200, teams(s));
         assertEquals("true", validate(s));
         assertTrue(jwt.isIssuedAfterPasswordChange(s, null));
-        assertTrue(jwt.isIssuedAfterPasswordChange(s, java.time.LocalDateTime.now().withNano(0)), "mismo segundo: vale (borde documentado)");
-        assertFalse(jwt.isIssuedAfterPasswordChange(s, java.time.LocalDateTime.now().plusSeconds(2)));
+        long iat = jwt.getIssuedAtEpochSeconds(s);
+        var iatUtc = java.time.LocalDateTime.ofEpochSecond(iat, 0, java.time.ZoneOffset.UTC);
+        assertTrue(jwt.isIssuedAfterPasswordChange(s, iatUtc.plusNanos(900_000_000)), "mismo segundo del iat: vale (borde documentado)");
+        assertTrue(jwt.isIssuedAfterPasswordChange(s, iatUtc.minusSeconds(1)));
+        assertFalse(jwt.isIssuedAfterPasswordChange(s, iatUtc.plusSeconds(1)), "cambio en el segundo siguiente: invalida");
     }
 }

@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /** A4 #7: las migraciones crean desde cero el mismo esquema que la base de regresion, y la regresion quedo con baseline. Nunca GESFUT2. */
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
-    "spring.jpa.hibernate.ddl-auto=validate"
+    "spring.jpa.hibernate.ddl-auto=validate",
+    "spring.flyway.enabled=true" // Flyway esta apagado por defecto; este test lo activa explicito sobre la base de regresion
 })
 class FlywayMigrationTests {
     static final String REGRESSION = "gesfut_codex_regression_20261013";

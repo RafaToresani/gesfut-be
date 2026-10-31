@@ -199,7 +199,7 @@ public class AuthServiceImpl implements AuthService {
         // A4 #1: uso atomico (un solo UPDATE que devuelve filas afectadas); dos usos simultaneos: gana uno solo.
         String key = RESET_PREFIX + OneTimeTokens.hash(token == null ? "" : token);
         String hashedPassword = passwordEncoder.encode(newPassword);
-        if (token != null && !token.isBlank() && userRepository.consumeResetToken(key, hashedPassword, LocalDateTime.now()) == 1) return;
+        if (token != null && !token.isBlank() && userRepository.consumeResetToken(key, hashedPassword, LocalDateTime.now(), LocalDateTime.now(java.time.ZoneOffset.UTC)) == 1) return;
         if (token != null && !token.isBlank() && userRepository.existsByResetToken(key)) throw new IllegalStateException("El token ha expirado.");
         throw new ResourceNotFoundException("El token es inv\u00e1lido.");
     }
@@ -218,7 +218,7 @@ public class AuthServiceImpl implements AuthService {
         }
         String hashedPassword = passwordEncoder.encode(newPassword);
         user.get().setPassword(hashedPassword);
-        user.get().setPasswordChangedAt(LocalDateTime.now()); // A4 #2: cierra las sesiones anteriores
+        user.get().setPasswordChangedAt(LocalDateTime.now(java.time.ZoneOffset.UTC)); // A4 #2: cierra las sesiones anteriores (en UTC)
         userRepository.save(user.get());
     }
 

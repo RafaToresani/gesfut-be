@@ -100,13 +100,18 @@ public class JwtService {
     /** A4 #2: la sesion vale si se emitio en el mismo segundo o despues del ultimo cambio de contrasena.
      *  El iat del JWT tiene resolucion de segundos: se comparan segundos (borde: un token emitido en el mismo
      *  segundo pero antes del cambio sigue valiendo; ventana menor a 1 s, aceptada para no romper el login nuevo). */
-    public boolean isIssuedAfterPasswordChange(String token, java.time.LocalDateTime changedAt) {
+    public boolean isIssuedAfterPasswordChange(String token, java.time.LocalDateTime changedAt) { // changedAt en UTC
         if (changedAt == null) return true;
         try {
             Date iat = getClaim(token, Claims::getIssuedAt);
             if (iat == null) return false;
-            return iat.getTime() / 1000 >= changedAt.atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+            return iat.getTime() / 1000 >= changedAt.toEpochSecond(java.time.ZoneOffset.UTC); // passwordChangedAt se guarda en UTC
         } catch (RuntimeException e) { return false; }
+    }
+
+    /** iat del token en segundos epoch (para tests y diagnostico); -1 si no se puede leer. */
+    public long getIssuedAtEpochSeconds(String token) {
+        try { return getClaim(token, Claims::getIssuedAt).getTime() / 1000; } catch (RuntimeException e) { return -1; }
     }
 
     /** A4 #1: true solo si es un JWT de sesion valido con typ=session; ante cualquier error, false. */

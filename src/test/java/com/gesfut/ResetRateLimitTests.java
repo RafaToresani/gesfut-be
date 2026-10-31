@@ -58,7 +58,7 @@ class ResetRateLimitTests {
     }
 
     @Test void cuartoPedidoDesdeLaMismaIpConMailsDistintosDa429() throws Exception {
-        String miIp = "10.6.0.1";
+        String miIp = "10.250.99.1"; // IP reservada para este test (ningun otro test usa 10.250.x.x)
         for (int i = 0; i < 3; i++) assertEquals(200, reset("distinto-" + i + "-" + UUID.randomUUID() + "@example.test", miIp).getStatus());
         var r4 = reset("otro-" + UUID.randomUUID() + "@example.test", miIp);
         assertEquals(429, r4.getStatus(), "4.o pedido desde la misma IP aunque cambie el mail");
