@@ -121,11 +121,17 @@ public class AuthController {
         this.authService.changePassword(request.token(), request.password());
     }
 
-    public record ResetPasswordRequest(@jakarta.validation.constraints.NotBlank(message = "El email es obligatorio.") String email) { }
+    public record ResetPasswordRequest(@jakarta.validation.constraints.NotBlank(message = "El email es obligatorio.") String email) {
+        /** Nunca imprime el mail (logs, excepciones de validacion). */
+        @Override public String toString() { return "ResetPasswordRequest[***]"; }
+    }
 
     public record ChangePasswordRequest(
             @jakarta.validation.constraints.NotBlank(message = "El token es obligatorio.") String token,
-            @jakarta.validation.constraints.NotBlank(message = "La contrase\u00f1a es obligatoria.") String password) { }
+            @jakarta.validation.constraints.NotBlank(message = "La contrase\u00f1a es obligatoria.") String password) {
+        /** Nunca imprime el token ni la contrasena. */
+        @Override public String toString() { return "ChangePasswordRequest[***]"; }
+    }
 
     @Operation(
             summary = "Permite cambiar la contraseña del usuario.",

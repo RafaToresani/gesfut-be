@@ -99,7 +99,7 @@ class ResetYChangePasswordEnBodyTests {
         assertEquals("/api/v1/auth/change-password", r.getRequest().getRequestURI(), "la URL no lleva el token");
         assertNull(r.getRequest().getQueryString());
         assertNotNull(auth.logIn(new LoginRequest(c[0], nueva)).token(), "entra con la nueva");
-        assertEquals(400, postJson("/api/v1/auth/change-password", JSON.writeValueAsString(Map.of("token", tok, "password", "Otra-" + UUID.randomUUID()))).getStatus() / 100 * 100, "reusado: error 4xx");
+        assertEquals(404, postJson("/api/v1/auth/change-password", JSON.writeValueAsString(Map.of("token", tok, "password", "Otra-" + UUID.randomUUID()))).getStatus(), "reusado: 404 (token invalido)");
         assertFalse(out.getAll().contains(tok), "el log no contiene el token");
         assertFalse(out.getAll().contains(c[0]), "el log no contiene el mail");
         assertFalse(out.getAll().contains(nueva), "el log no contiene la contrasena");
@@ -143,6 +143,28 @@ class ResetYChangePasswordEnBodyTests {
                 .header("CF-Connecting-IP", ip())).andReturn().getResponse().getStatus();
         assertTrue(crudo == 400 || crudo == 415, "texto crudo rechazado: " + crudo);
         verify(emailService, never()).sendEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test void changePasswordOnceavoPedidoEnUnMinutoDesdeLaMismaIpDa429() throws Exception {
+        String miIp = "10.253.0.1"; // reservada para este test
+        String body = JSON.writeValueAsString(Map.of("token", "inexistente-" + UUID.randomUUID(), "password", "NuevaClave-123"));
+        for (int i = 0; i < 10; i++) assertEquals(404, mvc.perform(post("/api/v1/auth/change-password").contentType(MediaType.APPLICATION_JSON)
+                .content(body).header("CF-Connecting-IP", miIp)).andReturn().getResponse().getStatus(), "pedido " + (i + 1));
+        var r11 = mvc.perform(post("/api/v1/auth/change-password").contentType(MediaType.APPLICATION_JSON)
+                .content(body).header("CF-Connecting-IP", miIp)).andReturn().getResponse();
+        assertEquals(429, r11.getStatus(), "11.o pedido en un minuto desde la misma IP");
+        assertEquals("60", r11.getHeader("Retry-After"));
+        assertEquals(404, mvc.perform(post("/api/v1/auth/change-password").contentType(MediaType.APPLICATION_JSON)
+                .content(body).header("CF-Connecting-IP", "10.253.0.2")).andReturn().getResponse().getStatus(), "otra IP no se ve afectada");
+    }
+
+    @Test void losDtosNoImprimenDatosSensibles() {
+        String tok = "tok-" + UUID.randomUUID(), pass = "Clave-" + UUID.randomUUID(), mail = "qa.p3.dto@example.test";
+        String a = new com.gesfut.controllers.AuthController.ChangePasswordRequest(tok, pass).toString();
+        String b = new com.gesfut.controllers.AuthController.ResetPasswordRequest(mail).toString();
+        assertEquals("ChangePasswordRequest[***]", a);
+        assertEquals("ResetPasswordRequest[***]", b);
+        assertFalse(a.contains(tok) || a.contains(pass) || b.contains(mail));
     }
 
     @Test void rateLimitSigueAndandoConElMailEnElBody() throws Exception {
