@@ -218,6 +218,7 @@ public class AuthServiceImpl implements AuthService {
         }
         String hashedPassword = passwordEncoder.encode(newPassword);
         user.get().setPassword(hashedPassword);
+        user.get().setPasswordChangedAt(LocalDateTime.now()); // A4 #2: cierra las sesiones anteriores
         userRepository.save(user.get());
     }
 

@@ -29,6 +29,9 @@ public class AuthController {
     @Autowired
     private com.gesfut.config.security.jwt.TokenDenylist tokenDenylist;
 
+    @Autowired
+    private com.gesfut.repositories.UserRepository userRepository;
+
     @Operation(
             summary = "Permite iniciar sesión al usuario.",
             description = "El email debe tener formato de email.")
@@ -54,7 +57,12 @@ public class AuthController {
     public boolean validateToken(jakarta.servlet.http.HttpServletRequest httpRequest) {
         String token = com.gesfut.config.security.jwt.CookieAuth.anyToken(httpRequest);
         if (token == null) return false;
-        return !tokenDenylist.isRevoked(token) && this.jwtService.isTokenValidNotUser(token);
+        if (tokenDenylist.isRevoked(token) || !this.jwtService.isTokenValidNotUser(token)) return false;
+        // A4 #2: una sesion emitida antes del ultimo cambio de contrasena ya no es valida.
+        try {
+            var user = userRepository.findByEmail(jwtService.getUsernameFromToken(token));
+            return user.isPresent() && jwtService.isIssuedAfterPasswordChange(token, user.get().getPasswordChangedAt());
+        } catch (RuntimeException e) { return false; }
     }
 
     // Loop 5: logout del lado del servidor. El token queda revocado hasta su vencimiento.
@@ -120,9 +128,14 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyAuthority('MANAGER')")
     public void changePasswordWithOldPassword(
-            @RequestBody PasswordsRequest passwords) {
+            @RequestBody PasswordsRequest passwords,
+            jakarta.servlet.http.HttpServletRequest httpRequest, jakarta.servlet.http.HttpServletResponse httpResponse) {
         // A4 #1 fixup (M4): el usuario sale del SecurityContext, no se vuelve a leer el token.
         this.authService.changePasswordWithOldPassword(passwords.oldPassword(), passwords.newPassword());
+        // A4 #2: el cambio cierra las sesiones anteriores; esta sesion recibe una cookie nueva para no quedar afuera.
+        String email = com.gesfut.config.security.SecurityUtils.getCurrentUserEmail();
+        userRepository.findByEmail(email).ifPresent(u -> com.gesfut.config.security.jwt.CookieAuth.issue(httpRequest, httpResponse,
+                jwtService.getToken(u, u.getAuthorities()), java.time.Duration.ofHours(24)));
     }
 
     @PostMapping("/verify-email/{token}")

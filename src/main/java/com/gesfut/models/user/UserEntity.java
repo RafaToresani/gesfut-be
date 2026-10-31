@@ -26,6 +26,12 @@ public class UserEntity implements UserDetails {
     private String resetToken;
     @Column(name = "reset_token_expiration")
     private LocalDateTime resetTokenExpiration;
+    /** A4 #2: las sesiones con iat anterior a este momento (en segundos) dejan de valer. */
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+    /** A4 #5: aceptacion de Terminos y Privacidad (V2; la logica del registro va aparte). */
+    @Column(name = "accepted_terms_at")
+    private LocalDateTime acceptedTermsAt;
     @Builder.Default
     private Boolean emailVerified = false;
 

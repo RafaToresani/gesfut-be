@@ -63,7 +63,8 @@ public class JwtService {
     {
         final String username = getUsernameFromToken(token);
 
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token) && isSessionToken(token));
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token) && isSessionToken(token)
+                && (!(userDetails instanceof com.gesfut.models.user.UserEntity u) || isIssuedAfterPasswordChange(token, u.getPasswordChangedAt())));
     }
 
     private Claims getAllClaims(String token){
@@ -94,6 +95,18 @@ public class JwtService {
 
     private Boolean isTokenExpired(String token){
         return getExpiration(token).before(new Date());
+    }
+
+    /** A4 #2: la sesion vale si se emitio en el mismo segundo o despues del ultimo cambio de contrasena.
+     *  El iat del JWT tiene resolucion de segundos: se comparan segundos (borde: un token emitido en el mismo
+     *  segundo pero antes del cambio sigue valiendo; ventana menor a 1 s, aceptada para no romper el login nuevo). */
+    public boolean isIssuedAfterPasswordChange(String token, java.time.LocalDateTime changedAt) {
+        if (changedAt == null) return true;
+        try {
+            Date iat = getClaim(token, Claims::getIssuedAt);
+            if (iat == null) return false;
+            return iat.getTime() / 1000 >= changedAt.atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+        } catch (RuntimeException e) { return false; }
     }
 
     /** A4 #1: true solo si es un JWT de sesion valido con typ=session; ante cualquier error, false. */

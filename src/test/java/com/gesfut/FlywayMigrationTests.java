@@ -33,6 +33,30 @@ class FlywayMigrationTests {
         assertEquals("BASELINE", jdbc.queryForObject("SELECT type FROM flyway_schema_history WHERE version='1'", String.class));
     }
 
+    @Test void v2AgregaColumnasYBorraTokensJwtViejos() {
+        assertEquals(REGRESSION, jdbc.queryForObject("SELECT DATABASE()", String.class));
+        String name = "gesfut_codex_flyway_m1_" + UUID.randomUUID().toString().substring(0, 8);
+        jdbc.execute("CREATE DATABASE `" + name + "`");
+        try {
+            var vacia = new DriverManagerDataSource("jdbc:mysql://127.0.0.1:3306/" + name, ds.getUsername(), ds.getPassword());
+            Flyway.configure().dataSource(vacia).locations("classpath:db/migration").target("1").load().migrate();
+            var t = new JdbcTemplate(vacia);
+            t.update("INSERT INTO users (email, reset_token) VALUES ('a@example.test','reset:eyJhbGciOi.x.y'), ('b@example.test','verify:eyJhbGciOi.x.y'), ('c@example.test', ?)",
+                    "reset:" + "0".repeat(64));
+            Flyway.configure().dataSource(vacia).locations("classpath:db/migration").load().migrate();
+            assertNull(t.queryForObject("SELECT reset_token FROM users WHERE email='a@example.test'", String.class));
+            assertNull(t.queryForObject("SELECT reset_token FROM users WHERE email='b@example.test'", String.class));
+            assertEquals("reset:" + "0".repeat(64), t.queryForObject("SELECT reset_token FROM users WHERE email='c@example.test'", String.class), "los hash nuevos quedan");
+            assertEquals(2, t.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name IN ('password_changed_at','accepted_terms_at')", Integer.class));
+        } finally {
+            jdbc.execute("DROP DATABASE IF EXISTS `" + name + "`");
+        }
+    }
+
+    @Test void regresionTieneV2Aplicada() {
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='2' AND success=1", Integer.class));
+    }
+
     @Test void baseVaciaMigraAlMismoEsquemaQueLaRegresion() {
         assertEquals(REGRESSION, jdbc.queryForObject("SELECT DATABASE()", String.class));
         String name = "gesfut_codex_flyway_vacia_" + UUID.randomUUID().toString().substring(0, 8);
