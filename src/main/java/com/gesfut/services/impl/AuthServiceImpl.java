@@ -52,6 +52,11 @@ public class AuthServiceImpl implements AuthService {
     @org.springframework.beans.factory.annotation.Value("${cors.allowed.origins:http://localhost:4200}")
     private String allowedOrigins;
 
+    // TODO(Mateo): reactivar envio de mail de verificacion -> gesfut.mail.verificacion.enabled=true (deuda temporal hasta rotar la credencial de mail).
+    // En false: la cuenta nueva queda verificada al registrarse y no se manda ningun mail (registro ni reenvio). Token, reenvio y limite 3/h quedan intactos.
+    @org.springframework.beans.factory.annotation.Value("${gesfut.mail.verificacion.enabled:false}")
+    boolean mailVerificacionEnabled;
+
     String frontBaseUrl() {
         String base = frontendUrl;
         if (base == null || base.isBlank()) {
@@ -92,17 +97,19 @@ public class AuthServiceImpl implements AuthService {
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .role(ERole.MANAGER)
-                .emailVerified(false)
+                .emailVerified(!mailVerificacionEnabled)
                 .resetToken(VERIFY_PREFIX + verificationToken)
                 .resetTokenExpiration(LocalDateTime.now().plusHours(24))
                 .build();
 
 
+        if (!mailVerificacionEnabled) { user.setResetToken(null); user.setResetTokenExpiration(null); }
         user = this.userRepository.save(user);
         Set<PlayerRequest> players = new HashSet<>();
         players.add(new PlayerRequest("Free", "Free", true, true, 10));
         this.teamService.createDummyTeam(new TeamRequest("Free", "#FFF", players), user);
 
+        if (mailVerificacionEnabled) {
         // Auditoria 22/10: si falla el SMTP el usuario ya quedo creado; no devolver 500 (puede pedir "Reenviar enlace").
         try {
         this.emailService.sendEmail(
@@ -113,6 +120,7 @@ public class AuthServiceImpl implements AuthService {
         );
         } catch (RuntimeException e) {
             log.warn("No se pudo enviar el mail de verificacion: {}", e.getMessage());
+        }
         }
         return new AuthResponse(
                 user.getName(),
@@ -140,6 +148,7 @@ public class AuthServiceImpl implements AuthService {
         // Loop 5: respuesta igual exista o no la cuenta, y este o no verificada (no enumerar emails).
         UserEntity user = userRepository.findByEmail(email).orElse(null);
         if (user == null || Boolean.TRUE.equals(user.getEmailVerified())) return;
+        if (!mailVerificacionEnabled) return; // TODO(Mateo): ver gesfut.mail.verificacion.enabled; respuesta neutra sin enviar.
 
         String newToken = jwtService.generateToken(email);
         user.setResetToken(VERIFY_PREFIX + newToken);

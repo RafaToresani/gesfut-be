@@ -18,7 +18,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 /** Reenviar mail: respuesta neutral, enlace que vence y reenvio que invalida el anterior. Solo base de prueba. */
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
-    "spring.jpa.hibernate.ddl-auto=validate"
+    "spring.jpa.hibernate.ddl-auto=validate",
+    "gesfut.mail.verificacion.enabled=true"
 })
 @AutoConfigureMockMvc
 class ResendVerificationTests {
