@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(swaggerPublic ? new String[]{"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"} : new String[]{"/__swagger-cerrado__"}).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                                 "/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/signup", "/api/v1/auth/sing-up", "/api/v1/auth/validate-token",
-                                "/api/v1/auth/reset-password/*", "/api/v1/auth/change-password/*",
+                                "/api/v1/auth/reset-password", "/api/v1/auth/change-password",
                                 "/api/v1/auth/verify-email/*", "/api/v1/auth/resend-verification", "/api/v1/auth/resend-verification/*").permitAll()
                         // Review 24/10: la lista propia cae en el comodin /tournaments/* pero exige sesion (anonimo -> 401, no 403).
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tournaments/short").authenticated()

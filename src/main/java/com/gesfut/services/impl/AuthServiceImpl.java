@@ -181,7 +181,7 @@ public class AuthServiceImpl implements AuthService {
         try {
         this.emailService.sendEmail(email, "GESFUT - Recuperación de contraseña",
                 "Hola, para recuperar tu contraseña, haz click en el siguiente enlace: " +
-                        frontBaseUrl() + "/auth/reset-password/" + token);
+                        frontBaseUrl() + "/auth/reset-password#t=" + token);
         } catch (RuntimeException e) {
             log.error("No se pudo enviar el mail de recuperacion: {}", e.getClass().getSimpleName());
         }

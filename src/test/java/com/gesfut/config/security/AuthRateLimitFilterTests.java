@@ -29,27 +29,28 @@ class AuthRateLimitFilterTests {
     @Test
     void resetPasswordSharesOneBucketForAllEmails() throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
-        for (int i = 0; i < 3; i++) assertEquals(200, post(f, "/api/v1/auth/reset-password/a" + i + "@x.com", "3.3.3.3"));
-        assertEquals(429, post(f, "/api/v1/auth/reset-password/otro@x.com", "3.3.3.3"));
+        for (int i = 0; i < 3; i++) assertEquals(200, postReset(f, "a" + i + "@x.com", "3.3.3.3", new MockFilterChain()).getStatus());
+        assertEquals(429, postReset(f, "otro@x.com", "3.3.3.3", new MockFilterChain()).getStatus());
     }
 
     @Test
     void resetPasswordLimitaPorMailNormalizadoAunqueCambieLaIpYEsPorHora() throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
-        assertEquals(200, post(f, "/api/v1/auth/reset-password/Misma@x.com", "8.8.1.1"));
-        assertEquals(200, post(f, "/api/v1/auth/reset-password/%20misma@X.com%20", "8.8.1.2"));
-        assertEquals(200, post(f, "/api/v1/auth/reset-password/misma@x.com", "8.8.1.3"));
-        assertEquals(429, post(f, "/api/v1/auth/reset-password/MISMA@x.com", "8.8.1.4"), "4.o pedido al mismo mail desde otra IP");
-        assertEquals(200, post(f, "/api/v1/auth/reset-password/otra@x.com", "8.8.1.5"));
-        assertEquals(3_600_000, AuthRateLimitFilter.windowFor("/api/v1/auth/reset-password/x@x.com"));
-        assertEquals("a@b.com", AuthRateLimitFilter.normalizedEmailFromPath("/api/v1/auth/reset-password/%20A@B.com%20", AuthRateLimitFilter.RESET));
-        assertNull(AuthRateLimitFilter.normalizedEmailFromPath("/api/v1/auth/reset-password/%zz", AuthRateLimitFilter.RESET));
+        assertEquals(200, postReset(f, "Misma@x.com", "8.8.1.1", new MockFilterChain()).getStatus());
+        assertEquals(200, postReset(f, " misma@X.com ", "8.8.1.2", new MockFilterChain()).getStatus());
+        assertEquals(200, postReset(f, "misma@x.com", "8.8.1.3", new MockFilterChain()).getStatus());
+        assertEquals(429, postReset(f, "MISMA@x.com", "8.8.1.4", new MockFilterChain()).getStatus(), "4.o pedido al mismo mail desde otra IP");
+        assertEquals(200, postReset(f, "otra@x.com", "8.8.1.5", new MockFilterChain()).getStatus());
+        assertEquals(3_600_000, AuthRateLimitFilter.windowFor("/api/v1/auth/reset-password"));
+        assertEquals("a@b.com", AuthRateLimitFilter.normalizeEmail(" A@B.com "));
+        assertNull(AuthRateLimitFilter.normalizeEmail("   "));
+        assertNull(AuthRateLimitFilter.normalizeEmail(null));
     }
 
     @Test
     void resetPasswordContadoresAcotados() throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
-        for (int i = 0; i < 25_000; i++) post(f, "/api/v1/auth/reset-password/m" + i + "@x.com", "9." + (i / 65536) + "." + ((i / 256) % 256) + "." + (i % 256));
+        for (int i = 0; i < 25_000; i++) postReset(f, "m" + i + "@x.com", "9." + (i / 65536) + "." + ((i / 256) % 256) + "." + (i % 256), new MockFilterChain());
         assertTrue(f.limiter.size() <= 20_000, "el limitador no crece sin limite: " + f.limiter.size());
     }
 
@@ -72,6 +73,37 @@ class AuthRateLimitFilterTests {
         MockHttpServletResponse res = new MockHttpServletResponse();
         f.doFilter(req, res, new MockFilterChain());
         assertTrue(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).contains("Probaste muchas veces"));
+    }
+
+    private MockHttpServletResponse postReset(AuthRateLimitFilter f, String email, String ip, MockFilterChain chain) throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/reset-password");
+        req.setRemoteAddr("127.0.0.1"); req.addHeader("CF-Connecting-IP", ip);
+        req.setContentType("application/json"); req.setContent(("{\"email\":\"" + email + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        f.doFilter(req, res, chain);
+        return res;
+    }
+
+    @Test
+    void resetConEmailEnElBodyElControllerRecibeElBodyYLasRutasViejasNoSeLimitanComoReset() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        MockFilterChain chain = new MockFilterChain();
+        assertEquals(200, postReset(f, "cuerpo@x.com", "9.7.0.1", chain).getStatus());
+        String seen = new String(chain.getRequest().getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(seen.contains("cuerpo@x.com"), "el body llega intacto al controller");
+        // Body sin email o ilegible: no rompe el filtro, solo cuenta por IP (el controller responde 400).
+        MockHttpServletRequest roto = new MockHttpServletRequest("POST", "/api/v1/auth/reset-password");
+        roto.setRemoteAddr("127.0.0.1"); roto.addHeader("CF-Connecting-IP", "9.7.0.2");
+        roto.setContentType("application/json"); roto.setContent("{no-json".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse r = new MockHttpServletResponse();
+        f.doFilter(roto, r, new MockFilterChain());
+        assertEquals(200, r.getStatus());
+        // Rutas viejas: ya no son reset ni change-password (no comparten limite ni leen el path).
+        assertEquals(-1, AuthRateLimitFilter.limitFor("/api/v1/auth/reset-password/a@x.com"));
+        assertEquals(-1, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password/tok"));
+        assertEquals(10, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password"));
+        assertEquals(3, AuthRateLimitFilter.limitFor("/api/v1/auth/reset-password"));
+        assertEquals(10, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password-with-old-password"), "conserva el limite que tenia por prefijo");
     }
 
     private MockHttpServletResponse postBody(AuthRateLimitFilter f, String email, String ip, MockFilterChain chain) throws Exception {

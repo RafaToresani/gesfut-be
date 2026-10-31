@@ -66,7 +66,8 @@ class ResetRateLimitTests {
     }
 
     MockHttpServletResponse reset(String email, String ip) throws Exception {
-        return mvc.perform(post("/api/v1/auth/reset-password/{e}", email).header("CF-Connecting-IP", ip)).andReturn().getResponse();
+        return mvc.perform(post("/api/v1/auth/reset-password").contentType("application/json")
+                .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of("email", email))).header("CF-Connecting-IP", ip)).andReturn().getResponse();
     }
 
     @Test void cuartoPedidoAlMismoMailDesdeOtraIpDa429IgualExistaONo() throws Exception {

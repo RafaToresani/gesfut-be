@@ -78,7 +78,7 @@ class PasswordChangeSessionTests {
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         auth.resetPasswordSendEmail(c[0]);
         verify(emailService).sendEmail(eq(c[0]), anyString(), body.capture());
-        String raw = body.getValue().substring(body.getValue().indexOf("/auth/reset-password/") + "/auth/reset-password/".length()).trim();
+        String raw = body.getValue().substring(body.getValue().indexOf("/auth/reset-password#t=") + "/auth/reset-password#t=".length()).trim();
         String nueva = "Qa-" + UUID.randomUUID();
         auth.changePassword(raw, nueva);
         var guardado = users.findByEmail(c[0]).orElseThrow().getPasswordChangedAt();

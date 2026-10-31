@@ -104,7 +104,7 @@ class TokensOpacosTests {
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         auth.resetPasswordSendEmail(email);
         verify(emailService).sendEmail(eq(email), anyString(), body.capture());
-        return after(body.getValue(), "/auth/reset-password/");
+        return after(body.getValue(), "/auth/reset-password#t=");
     }
 
     static String after(String s, String marker) { return s.substring(s.indexOf(marker) + marker.length()).trim(); }
@@ -224,13 +224,13 @@ class TokensOpacosTests {
         auth.verifyEmail(r[1]);
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         doThrow(new MailAuthenticationException("auth failed")).when(emailService).sendEmail(anyString(), anyString(), anyString());
-        var existe = mvc.perform(post("/api/v1/auth/reset-password/" + r[0]).header("CF-Connecting-IP", "10.8.0.1")).andReturn().getResponse();
-        var nadie = mvc.perform(post("/api/v1/auth/reset-password/nadie-" + UUID.randomUUID() + "@example.test").header("CF-Connecting-IP", "10.8.0.2")).andReturn().getResponse();
+        var existe = mvc.perform(post("/api/v1/auth/reset-password").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"" + r[0] + "\"}").header("CF-Connecting-IP", "10.8.0.1")).andReturn().getResponse();
+        var nadie = mvc.perform(post("/api/v1/auth/reset-password").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"nadie-" + UUID.randomUUID() + "@example.test\"}").header("CF-Connecting-IP", "10.8.0.2")).andReturn().getResponse();
         assertEquals(existe.getStatus(), nadie.getStatus());
         assertEquals(200, existe.getStatus());
         assertEquals(nadie.getContentAsString(StandardCharsets.UTF_8), existe.getContentAsString(StandardCharsets.UTF_8));
         verify(emailService, timeout(5000).atLeastOnce()).sendEmail(eq(r[0]), anyString(), body.capture());
-        String tok = after(body.getValue(), "/auth/reset-password/");
+        String tok = after(body.getValue(), "/auth/reset-password#t=");
         for (int i = 0; i < 100 && !out.getAll().contains("No se pudo enviar el mail de recuperacion"); i++) Thread.sleep(50);
         assertTrue(out.getAll().contains("No se pudo enviar el mail de recuperacion"));
         assertFalse(out.getAll().contains(tok), "el log no contiene el token");

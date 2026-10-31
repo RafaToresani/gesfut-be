@@ -54,8 +54,8 @@ class MailReactivadoYResetTests {
         String email = nuevaCuenta();
         clearInvocations(emailService); // el registro ya mando el mail de verificacion; se espera el de recuperacion (asincrono)
         doThrow(new MailAuthenticationException("auth failed")).when(emailService).sendEmail(anyString(), anyString(), anyString());
-        var ok = mvc.perform(post("/api/v1/auth/reset-password/" + email).header("CF-Connecting-IP", "10.9.0.1")).andReturn().getResponse();
-        var nadie = mvc.perform(post("/api/v1/auth/reset-password/nadie-" + UUID.randomUUID() + "@example.test").header("CF-Connecting-IP", "10.9.0.2")).andReturn().getResponse();
+        var ok = mvc.perform(post("/api/v1/auth/reset-password").contentType("application/json").content("{\"email\":\"" + email + "\"}").header("CF-Connecting-IP", "10.9.0.1")).andReturn().getResponse();
+        var nadie = mvc.perform(post("/api/v1/auth/reset-password").contentType("application/json").content("{\"email\":\"nadie-" + UUID.randomUUID() + "@example.test\"}").header("CF-Connecting-IP", "10.9.0.2")).andReturn().getResponse();
         assertEquals(200, ok.getStatus());
         assertEquals(200, nadie.getStatus());
         assertEquals(nadie.getContentAsString(StandardCharsets.UTF_8), ok.getContentAsString(StandardCharsets.UTF_8));

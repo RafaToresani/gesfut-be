@@ -97,13 +97,13 @@ public class AuthController {
             summary = "Permite enviar al usuario un link para crear una nueva contraseña.",
             description = "El email debe exisitir."
     )
-    @PostMapping("/reset-password/{email}")
+    // A4 #3 (31/10): el email viaja en el body (POST JSON {email}); la ruta vieja /reset-password/{email} se elimino, sin alias.
+    @PostMapping("/reset-password")
     @ResponseStatus(HttpStatus.OK)
-    public void resetPassword(@PathVariable String email) {
+    public void resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
         // A4 #4: respuesta inmediata e identica exista o no el mail; la busqueda y el envio corren en otro hilo
         // (el tiempo de respuesta no revela si la cuenta existe). El log nunca lleva el mail ni el token.
-        if (email == null || email.isBlank()) return;
-        String target = email.trim().toLowerCase(java.util.Locale.ROOT);
+        String target = request.email().trim().toLowerCase(java.util.Locale.ROOT);
         mailExecutor.execute(() -> {
             try { this.authService.resetPasswordSendEmail(target); }
             catch (RuntimeException e) { log.error("Fallo la recuperacion de contrasena: {}", e.getClass().getSimpleName()); }
@@ -114,11 +114,18 @@ public class AuthController {
             summary = "Permite cambiar y/o recuperar la contraseña del usuario.",
             description = "El token debe ser válido (el que se envia por email) y la contraseña nueva debe contener al menos 8 caracteres."
     )
-    @PostMapping("/change-password/{token}")
+    // A4 #3 (31/10): token y contrasena en el body (POST JSON {token, password}); la ruta vieja /change-password/{token} se elimino, sin alias.
+    @PostMapping("/change-password")
     @ResponseStatus(HttpStatus.OK)
-    public void changePassword(@PathVariable String token, @RequestBody String password) {
-        this.authService.changePassword(token, password);
+    public void changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        this.authService.changePassword(request.token(), request.password());
     }
+
+    public record ResetPasswordRequest(@jakarta.validation.constraints.NotBlank(message = "El email es obligatorio.") String email) { }
+
+    public record ChangePasswordRequest(
+            @jakarta.validation.constraints.NotBlank(message = "El token es obligatorio.") String token,
+            @jakarta.validation.constraints.NotBlank(message = "La contrase\u00f1a es obligatoria.") String password) { }
 
     @Operation(
             summary = "Permite cambiar la contraseña del usuario.",

@@ -23,8 +23,9 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     static int limitFor(String path) {
         if (path.equals("/api/v1/auth/login")) return 10;
         if (path.equals("/api/v1/auth/signup")) return 5;
-        if (path.startsWith("/api/v1/auth/reset-password/") || isResend(path)) return 3;
-        if (path.startsWith("/api/v1/auth/change-password")) return 10;
+        if (isReset(path) || isResend(path)) return 3;
+        // Rutas exactas. change-password-with-old-password conserva el limite que antes tenia por prefijo.
+        if (path.equals("/api/v1/auth/change-password") || path.equals("/api/v1/auth/change-password-with-old-password")) return 10;
         return -1;
     }
 
@@ -37,16 +38,16 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     /** Reenviar mail: 3 por hora por IP y tambien por cuenta (email), aunque cambie la IP. */
     static long windowFor(String path) { return isResend(path) || isReset(path) ? RESEND_WINDOW_MS : WINDOW_MS; }
 
-    /** A4 #4 (31/10): recuperar contrasena, 3 por hora por IP y tambien por mail (normalizado), contado ANTES de mirar si el mail existe. */
-    static final String RESET = "/api/v1/auth/reset-password/";
-    static boolean isReset(String path) { return path.startsWith(RESET); }
+    /** A4 #4 (31/10): recuperar contrasena, 3 por hora por IP y tambien por mail (normalizado), contado ANTES de mirar si el mail existe.
+     *  A4 #3 (31/10): ruta exacta; el mail llega en el body JSON {email}. */
+    static final String RESET = "/api/v1/auth/reset-password";
+    static boolean isReset(String path) { return path.equals(RESET); }
 
-    /** Mail normalizado (trim + minusculas) para la clave del limite; null si no se puede leer. Nunca se loguea. */
-    static String normalizedEmailFromPath(String path, String prefix) {
-        try {
-            String e = java.net.URLDecoder.decode(path.substring(prefix.length()), java.nio.charset.StandardCharsets.UTF_8).trim().toLowerCase(java.util.Locale.ROOT);
-            return e.isEmpty() ? null : e;
-        } catch (IllegalArgumentException ex) { return null; }
+    /** Mail normalizado (trim + minusculas) para la clave del limite; null si falta. Nunca se loguea. */
+    static String normalizeEmail(String raw) {
+        if (raw == null) return null;
+        String e = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        return e.isEmpty() ? null : e;
     }
 
     private boolean hit(String key, int limit, long window, long now) { return limiter.hit(key, limit, window, now); }
@@ -90,7 +91,11 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             if (email != null && !email.isBlank()) blocked = hit("email|" + email.trim().toLowerCase(), limit, window, now);
         }
         if (!blocked && isReset(path)) {
-            String email = normalizedEmailFromPath(path, RESET);
+            // Igual que resend: el body se lee una sola vez (max 4 KB), se vuelve a ofrecer al controller y nunca se loguea.
+            // Body ilegible o sin email: solo cuenta el limite por IP (el controller responde 400).
+            CachedBodyRequest cached = new CachedBodyRequest(request, 4096);
+            request = cached;
+            String email = normalizeEmail(cached.jsonField("email"));
             if (email != null) blocked = hit("reset-email|" + email, limit, window, now);
         }
         if (blocked) {
