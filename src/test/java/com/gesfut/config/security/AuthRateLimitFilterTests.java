@@ -189,7 +189,7 @@ class AuthRateLimitFilterTests {
 
     /** Tema 3 (5/11): IPv6 agrupada por /64 en la clave de cada bucket por IP. Llega por CF-Connecting-IP desde loopback. */
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.CsvSource({"/api/v1/auth/reset-password,20", "/api/v1/auth/change-password,10", "/api/v1/auth/login,10", "/api/v1/auth/signup,5"})
+    @org.junit.jupiter.params.provider.CsvSource({"/api/v1/auth/reset-password,20", "/api/v1/auth/change-password,10", "/api/v1/auth/login,10", "/api/v1/auth/signup,5", "/api/v1/auth/resend-verification,3"})
     void ipv6DelMismoSlash64CompartenBucketYDeOtroSlash64No(String path, int limit) throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
         for (int i = 0; i < limit; i++) assertEquals(200, postBodyTo(f, path, "2001:db8:aaaa:1::" + Integer.toHexString(i + 1), "v" + i + "@x.com"), "pedido " + (i + 1));
@@ -206,7 +206,13 @@ class AuthRateLimitFilterTests {
         assertEquals("1.2.3.4", AuthRateLimitFilter.ipKey("1.2.3.4"));
         assertEquals("1.2.3.4", AuthRateLimitFilter.ipKey("::ffff:1.2.3.4"));
         assertEquals("0:0:0:0::/64", AuthRateLimitFilter.ipKey("::1"));
-        assertEquals("no:es-ip.example", AuthRateLimitFilter.ipKey("no:es-ip.example"), "no resuelve DNS ni rompe");
+        for (String basura : new String[]{"no:es-ip.example", ".1:2", "abc", "evil.example.com", "", "   ", "1.2.3.4 5.6.7.8", "1.2.3", "256.1.1.1", "01.2.3.4",
+                "1:2:3:4:5:6:7:8:9", "1::2::3", "::ffff:1.2.3.4.5", "1.2.3.4::", "fe80::1%eth0", "12345::", "2001:db8::" + "a".repeat(5000)})
+            assertNull(AuthRateLimitFilter.ipKey(basura), "no es literal IP: " + (basura.length() > 30 ? basura.substring(0, 30) + "..." : basura));
+        assertNull(AuthRateLimitFilter.ipKey(null));
+        assertEquals("1:2:3:4::/64", AuthRateLimitFilter.ipKey("1:2:3:4:5:6:7:8"));
+        assertEquals("0:0:0:0::/64", AuthRateLimitFilter.ipKey("::"));
+        assertEquals("64:ff9b:0:0::/64", AuthRateLimitFilter.ipKey("64:ff9b::1.2.3.4"));
     }
 
     private int postBodyTo(AuthRateLimitFilter f, String path, String ip, String email) throws Exception {
@@ -216,5 +222,25 @@ class AuthRateLimitFilterTests {
         MockHttpServletResponse res = new MockHttpServletResponse();
         f.doFilter(req, res, new MockFilterChain());
         return res.getStatus();
+    }
+
+    /** Tema 5 (5/11): remote ::ffff:127.0.0.1 NO es loopback confiable; la cabecera se ignora (un solo cupo aunque rote). */
+    @Test
+    void remoteIpv4MappedLoopbackNoEsConfiableYLaCabeceraSeIgnora() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < 20; i++) assertEquals(200, postResetDesde(f, "::ffff:127.0.0.1", "198.51.102." + i, "m" + i + "@x.com").getStatus(), "pedido " + (i + 1));
+        assertEquals(429, postResetDesde(f, "::ffff:127.0.0.1", "198.51.102.200", "m99@x.com").getStatus(), "la cabecera no abre cupo nuevo");
+        assertEquals(200, postResetDesde(f, "127.0.0.1", "198.51.102.0", "n0@x.com").getStatus(), "esa CF-Connecting-IP no quedo consumida");
+    }
+
+    /** Tema 5 (5/11): CF-Connecting-IP desde loopback que no es literal IP: se ignora y cuenta la IP de remote. */
+    @Test
+    void cfConnectingIpQueNoEsLiteralSeIgnoraYCuentaRemote() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        String[] basura = {"evil.example.com", "abc", ".1:2", "1.2.3.4 5.6.7.8", "x".repeat(300)};
+        for (int i = 0; i < 20; i++) assertEquals(200, postResetDesde(f, "127.0.0.1", basura[i % basura.length], "b" + i + "@x.com").getStatus(), "pedido " + (i + 1));
+        assertEquals(429, postResetDesde(f, "127.0.0.1", "otro.example.com", "b99@x.com").getStatus(), "todo el texto raro comparte el cupo de remote");
+        assertEquals(429, postResetDesde(f, "127.0.0.1", null, "b98@x.com").getStatus(), "es el mismo cupo que sin cabecera");
+        assertEquals(200, postResetDesde(f, "127.0.0.1", "192.0.2.77", "b97@x.com").getStatus(), "una IP literal valida si tiene su cupo");
     }
 }

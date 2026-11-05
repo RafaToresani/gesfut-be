@@ -63,32 +63,103 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     }
 
     /** Tema 3 (5/11): clave de IP para TODOS los buckets por IP. IPv6 se agrupa por su /64 (un cliente suele tener
-     *  el /64 entero y podria rotar direcciones); IPv4 y IPv4-mapped (::ffff:a.b.c.d) quedan como la IPv4. Literal invalido: tal cual. */
+     *  el /64 entero y podria rotar direcciones); IPv4 y IPv4-mapped (::ffff:a.b.c.d) quedan como la IPv4.
+     *  Tema 5 (5/11): parser de literales puro (sin InetAddress, nunca resuelve DNS). Si el texto no es un literal IP
+     *  valido devuelve null y el que llama usa la IP de remote. */
     static String ipKey(String ip) {
-        if (ip == null || ip.indexOf(':') < 0) return ip;
-        String s = ip.trim();
-        if (s.startsWith("[") && s.endsWith("]")) s = s.substring(1, s.length() - 1);
-        int pct = s.indexOf('%');
-        if (pct >= 0) s = s.substring(0, pct);
-        if (!s.matches("[0-9A-Fa-f:.]+")) return ip; // solo literales: nunca resolver DNS
-        try {
-            java.net.InetAddress a = java.net.InetAddress.getByName(s);
-            if (a instanceof java.net.Inet4Address) return a.getHostAddress();
-            byte[] b = a.getAddress();
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 8; i += 2) sb.append(Integer.toHexString(((b[i] & 0xff) << 8) | (b[i + 1] & 0xff))).append(':');
-            return sb.append(":/64").toString();
-        } catch (Exception e) { return ip; }
+        byte[] b = parseIpLiteral(ip);
+        if (b == null) return null;
+        if (b.length == 4) return (b[0] & 0xff) + "." + (b[1] & 0xff) + "." + (b[2] & 0xff) + "." + (b[3] & 0xff);
+        boolean mapped = true;
+        for (int i = 0; i < 10; i++) if (b[i] != 0) { mapped = false; break; }
+        if (mapped && (b[10] & 0xff) == 0xff && (b[11] & 0xff) == 0xff) return (b[12] & 0xff) + "." + (b[13] & 0xff) + "." + (b[14] & 0xff) + "." + (b[15] & 0xff);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 8; i += 2) sb.append(Integer.toHexString(((b[i] & 0xff) << 8) | (b[i + 1] & 0xff))).append(':');
+        return sb.append(":/64").toString();
     }
 
+    /** Literal IPv4 (a.b.c.d, decimal estricto) o IPv6 (con :: y IPv4 final opcional, entre corchetes opcional) a bytes; null si no es literal. */
+    static byte[] parseIpLiteral(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.length() > 2 && s.charAt(0) == '[' && s.charAt(s.length() - 1) == ']') s = s.substring(1, s.length() - 1);
+        if (s.isEmpty() || s.length() > 45) return null;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (!(c == ':' || c == '.' || (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) return null;
+        }
+        if (s.indexOf(':') < 0) return parseIpv4(s);
+        return parseIpv6(s);
+    }
+
+    private static byte[] parseIpv4(String s) {
+        String[] p = s.split("\\.", -1);
+        if (p.length != 4) return null;
+        byte[] out = new byte[4];
+        for (int i = 0; i < 4; i++) {
+            String q = p[i];
+            if (q.isEmpty() || q.length() > 3 || (q.length() > 1 && q.charAt(0) == '0')) return null;
+            int v = 0;
+            for (int j = 0; j < q.length(); j++) { char c = q.charAt(j); if (c < '0' || c > '9') return null; v = v * 10 + (c - '0'); }
+            if (v > 255) return null;
+            out[i] = (byte) v;
+        }
+        return out;
+    }
+
+    private static byte[] parseIpv6(String s) {
+        int dbl = s.indexOf("::");
+        if (dbl >= 0 && s.indexOf("::", dbl + 1) >= 0) return null;
+        String head = dbl >= 0 ? s.substring(0, dbl) : s;
+        String tail = dbl >= 0 ? s.substring(dbl + 2) : "";
+        java.util.List<Integer> h = groups(head, dbl < 0 || tail.isEmpty());
+        java.util.List<Integer> t = dbl >= 0 ? groups(tail, true) : java.util.List.of();
+        if (h == null || t == null) return null;
+        if (dbl >= 0 && !head.isEmpty() && head.indexOf('.') >= 0) return null; // IPv4 solo al final
+        int n = h.size() + t.size();
+        if (dbl < 0 ? n != 8 : n > 7) return null;
+        int[] g = new int[8];
+        for (int i = 0; i < h.size(); i++) g[i] = h.get(i);
+        for (int i = 0; i < t.size(); i++) g[8 - t.size() + i] = t.get(i);
+        byte[] out = new byte[16];
+        for (int i = 0; i < 8; i++) { out[2 * i] = (byte) (g[i] >> 8); out[2 * i + 1] = (byte) g[i]; }
+        return out;
+    }
+
+    /** Grupos hex separados por ':'; si allowV4, el ultimo puede ser una IPv4 (cuenta como 2 grupos). "" = lista vacia. */
+    private static java.util.List<Integer> groups(String s, boolean allowV4) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        if (s.isEmpty()) return out;
+        String[] p = s.split(":", -1);
+        for (int i = 0; i < p.length; i++) {
+            String q = p[i];
+            if (i == p.length - 1 && q.indexOf('.') >= 0) {
+                if (!allowV4) return null;
+                byte[] v4 = parseIpv4(q);
+                if (v4 == null) return null;
+                out.add(((v4[0] & 0xff) << 8) | (v4[1] & 0xff));
+                out.add(((v4[2] & 0xff) << 8) | (v4[3] & 0xff));
+                continue;
+            }
+            if (q.isEmpty() || q.length() > 4) return null;
+            int v = 0;
+            for (int j = 0; j < q.length(); j++) { int d = Character.digit(q.charAt(j), 16); if (d < 0) return null; v = v * 16 + d; }
+            out.add(v);
+        }
+        return out;
+    }
+
+    /** IP efectiva ya normalizada (ipKey). CF-Connecting-IP solo se cree desde loopback y solo si es un literal IP valido;
+     *  si no, se usa la IP de remote. */
     private String clientIp(HttpServletRequest request) {
         String remote = request.getRemoteAddr();
         boolean local = "127.0.0.1".equals(remote) || "0:0:0:0:0:0:0:1".equals(remote) || "::1".equals(remote);
         if (local) {
-            String cf = request.getHeader("CF-Connecting-IP");
-            if (cf != null && !cf.isBlank()) return cf.trim();
+            String cf = ipKey(request.getHeader("CF-Connecting-IP"));
+            if (cf != null) return cf;
         }
-        return remote;
+        String r = ipKey(remote);
+        return r != null ? r : remote;
     }
 
     @Override
@@ -98,7 +169,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/auth/sing-up")) path = "/api/v1/auth/signup";
         int limit = "POST".equalsIgnoreCase(request.getMethod()) ? limitFor(path) : -1;
         if (limit < 0) { chain.doFilter(request, response); return; }
-        String key = ipKey(clientIp(request)) + "|" + bucketFor(path);
+        String key = clientIp(request) + "|" + bucketFor(path);
         long now = System.currentTimeMillis();
         long window = windowFor(path);
         boolean blocked = hit(key, limit, window, now);

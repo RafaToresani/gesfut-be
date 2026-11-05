@@ -83,4 +83,28 @@ class JwtPasswordChangedAtTests {
         org.mockito.Mockito.when(u.getPasswordChangedAt()).thenReturn(changedAt);
         return u;
     }
+
+    private String conIatMs(Object iatMs, long iatSecMs) {
+        return Jwts.builder().claims(Map.of(JwtService.TYP_CLAIM, JwtService.TYP_SESSION, JwtService.IAT_MS_CLAIM, iatMs)).subject(user.getUsername())
+                .issuedAt(new Date(iatSecMs)).expiration(new Date(iatSecMs + 3_600_000))
+                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(key))).compact();
+    }
+
+    /** Tema 5: iat_ms negativo se rechaza (con cambio de contrasena registrado). */
+    @Test void iatMsNegativoSeRechaza() {
+        long now = System.currentTimeMillis();
+        String t = conIatMs(-5L, now);
+        assertEquals(-5, jwt.getIssuedAtEpochMillis(t));
+        assertFalse(jwt.isIssuedAfterPasswordChange(t, utc(now - 60_000, 0)));
+        assertFalse(jwt.isIssuedAfterPasswordChange(t, utc(0, 0)));
+    }
+
+    /** Tema 5: iat_ms no numerico cae a la regla por segundos del iat estandar. */
+    @Test void iatMsNoNumericoCaeALaReglaPorSegundos() {
+        long iatMs = (System.currentTimeMillis() / 1000) * 1000 + 100;
+        String t = conIatMs("abc", iatMs);
+        assertEquals(-1, jwt.getIssuedAtEpochMillis(t));
+        assertTrue(jwt.isIssuedAfterPasswordChange(t, utc(iatMs - 100, 500_000_000)), "mismo segundo: regla vieja");
+        assertFalse(jwt.isIssuedAfterPasswordChange(t, utc(iatMs - 100 + 1000, 0)), "segundo siguiente: invalida");
+    }
 }
