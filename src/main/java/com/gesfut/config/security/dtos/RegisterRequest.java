@@ -24,6 +24,13 @@ public record RegisterRequest(
         @Schema(description = "El apellido del usuario", example = "de Nazaret Pereira Perez Da Silva")
         @NotBlank(message = "El apellido es obligatorio")
         @Size(min = 2, max = 50, message = "El apellido debe tener entre 2 y 50 caracteres")
-        String lastName
+        String lastName,
+
+        // Tema 7 (5/11): aceptacion obligatoria; ausente (null) o false dan 400 con el mismo mensaje.
+        @Schema(description = "Acepta los Terminos y Condiciones y la Politica de Privacidad", example = "true")
+        @jakarta.validation.constraints.NotNull(message = TERMS_MESSAGE)
+        @jakarta.validation.constraints.AssertTrue(message = TERMS_MESSAGE)
+        Boolean acceptedTerms
 ) {
+    public static final String TERMS_MESSAGE = "Deb\u00e9s aceptar los T\u00e9rminos y Condiciones y la Pol\u00edtica de Privacidad.";
 }

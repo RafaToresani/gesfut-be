@@ -43,7 +43,7 @@ class ResetRateLimitTests {
     String cuenta() {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.rl." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
-        auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaRl", "Uno"));
+        auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaRl", "Uno", true));
         return email;
     }
     /** IPs deterministicas y unicas dentro de la corrida (sin Math.random). */

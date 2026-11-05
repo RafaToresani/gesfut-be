@@ -63,7 +63,7 @@ class ResetYChangePasswordEnBodyTests {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.p3." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         String clave = "Qa-" + UUID.randomUUID();
-        auth.singUp(new RegisterRequest(email, clave, "QaP3", "Uno"));
+        auth.singUp(new RegisterRequest(email, clave, "QaP3", "Uno", true));
         return new String[]{email, clave};
     }
 

@@ -55,7 +55,7 @@ class PasswordChangeSessionTests {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.pwd." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         String pass = "Qa-" + UUID.randomUUID();
-        auth.singUp(new RegisterRequest(email, pass, "QaPwd", "Uno"));
+        auth.singUp(new RegisterRequest(email, pass, "QaPwd", "Uno", true));
         return new String[]{email, pass};
     }
     String sesion(String email) { UserEntity u = users.findByEmail(email).orElseThrow(); return jwt.getToken(u, u.getAuthorities()); }

@@ -77,7 +77,7 @@ class TokensOpacosTests {
         String email = guard();
         String vieja = "Qa-" + UUID.randomUUID(), nueva = "Qa-" + UUID.randomUUID();
         ArgumentCaptor<String> mail = ArgumentCaptor.forClass(String.class);
-        auth.singUp(new RegisterRequest(email, vieja, "QaTok", "Uno"));
+        auth.singUp(new RegisterRequest(email, vieja, "QaTok", "Uno", true));
         verify(emailService, atLeastOnce()).sendEmail(eq(email), anyString(), mail.capture());
         auth.verifyEmail(after(mail.getValue(), "/auth/verify-email/"));
         var user = users.findByEmail(email).orElseThrow();
@@ -94,7 +94,7 @@ class TokensOpacosTests {
     String[] registrar() {
         String email = guard();
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
-        auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaTok", "Uno"));
+        auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaTok", "Uno", true));
         verify(emailService, atLeastOnce()).sendEmail(eq(email), anyString(), body.capture());
         return new String[]{email, after(body.getValue(), "/auth/verify-email/")};
     }

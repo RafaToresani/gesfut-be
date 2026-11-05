@@ -100,6 +100,8 @@ public class AuthServiceImpl implements AuthService {
                 .emailVerified(!mailVerificacionEnabled)
                 .resetToken(VERIFY_PREFIX + OneTimeTokens.hash(verificationToken))
                 .resetTokenExpiration(LocalDateTime.now().plusHours(24))
+                // Tema 7: cuando acepto Terminos y Privacidad, en UTC (mismo criterio que passwordChangedAt).
+                .acceptedTermsAt(Boolean.TRUE.equals(request.acceptedTerms()) ? LocalDateTime.now(java.time.ZoneOffset.UTC) : null)
                 .build();
 
 

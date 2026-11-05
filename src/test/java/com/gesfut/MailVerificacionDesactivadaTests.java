@@ -30,7 +30,7 @@ class MailVerificacionDesactivadaTests {
         assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.autoverify." + System.nanoTime() + "@example.test";
         String pass = "Qa-" + java.util.UUID.randomUUID();
-        auth.singUp(new RegisterRequest(email, pass, "QaAuto", "Verify"));
+        auth.singUp(new RegisterRequest(email, pass, "QaAuto", "Verify", true));
         Map<String, Object> row = jdbc.queryForMap("SELECT email_verified, reset_token FROM users WHERE email=?", email);
         assertEquals(true, ((Boolean) row.get("email_verified")) || Integer.valueOf(1).equals(row.get("email_verified")));
         assertNull(row.get("reset_token"));
