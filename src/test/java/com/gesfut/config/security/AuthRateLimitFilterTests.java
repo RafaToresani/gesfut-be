@@ -29,8 +29,8 @@ class AuthRateLimitFilterTests {
     @Test
     void resetPasswordSharesOneBucketForAllEmails() throws Exception {
         AuthRateLimitFilter f = new AuthRateLimitFilter();
-        for (int i = 0; i < 3; i++) assertEquals(200, postReset(f, "a" + i + "@x.com", "3.3.3.3", new MockFilterChain()).getStatus());
-        assertEquals(429, postReset(f, "otro@x.com", "3.3.3.3", new MockFilterChain()).getStatus());
+        for (int i = 0; i < 20; i++) assertEquals(200, postReset(f, "a" + i + "@x.com", "3.3.3.3", new MockFilterChain()).getStatus(), "pedido " + (i + 1));
+        assertEquals(429, postReset(f, "otro@x.com", "3.3.3.3", new MockFilterChain()).getStatus(), "21.o pedido desde la misma IP");
     }
 
     @Test
@@ -102,7 +102,7 @@ class AuthRateLimitFilterTests {
         assertEquals(-1, AuthRateLimitFilter.limitFor("/api/v1/auth/reset-password/a@x.com"));
         assertEquals(-1, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password/tok"));
         assertEquals(10, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password"));
-        assertEquals(3, AuthRateLimitFilter.limitFor("/api/v1/auth/reset-password"));
+        assertEquals(20, AuthRateLimitFilter.limitFor("/api/v1/auth/reset-password"));
         assertEquals(10, AuthRateLimitFilter.limitFor("/api/v1/auth/change-password-with-old-password"), "conserva el limite que tenia por prefijo");
     }
 
@@ -139,5 +139,51 @@ class AuthRateLimitFilterTests {
         assertFalse(l.hit("x", 1, 60_000, now));
         assertTrue(l.hit("x", 1, 60_000, now + 1));
         assertFalse(l.hit("x", 1, 60_000, now + 60_002), "la ventana vence");
+    }
+
+    /** Punto 5: desde una IP no confiable (no loopback) CF-Connecting-IP se ignora; cuenta la remoteAddr real. */
+    private MockHttpServletResponse postResetDesde(AuthRateLimitFilter f, String remote, String cfHeader, String email) throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/reset-password");
+        req.setRemoteAddr(remote);
+        if (cfHeader != null) req.addHeader("CF-Connecting-IP", cfHeader);
+        req.setContentType("application/json"); req.setContent(("{\"email\":\"" + email + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        f.doFilter(req, res, new MockFilterChain());
+        return res;
+    }
+
+    @Test
+    void resetPasswordIgnoraCfConnectingIpFalsaDesdeIpNoConfiable() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        // Un cliente directo (203.0.113.7) rota la cabecera en cada pedido: igual comparte un solo cupo de 20.
+        for (int i = 0; i < 20; i++) assertEquals(200, postResetDesde(f, "203.0.113.7", "198.51.100." + i, "f" + i + "@x.com").getStatus(), "pedido " + (i + 1));
+        assertEquals(429, postResetDesde(f, "203.0.113.7", "198.51.100.200", "f99@x.com").getStatus(), "la cabecera falsa no abre cupo nuevo");
+        // La IP falsificada no quedo consumida: desde loopback con esa misma CF-Connecting-IP sigue habiendo cupo.
+        assertEquals(200, postResetDesde(f, "127.0.0.1", "198.51.100.0", "g0@x.com").getStatus());
+        // IPv6 no confiable: tampoco se cree la cabecera.
+        for (int i = 0; i < 20; i++) postResetDesde(f, "2001:db8::5", "198.51.101." + i, "h" + i + "@x.com");
+        assertEquals(429, postResetDesde(f, "2001:db8::5", "198.51.101.250", "h99@x.com").getStatus());
+    }
+
+    @Test
+    void resetPasswordDesdeLoopbackUsaCfConnectingIpYSigueEnTresPorMail() throws Exception {
+        for (String lo : new String[]{"127.0.0.1", "::1", "0:0:0:0:0:0:0:1"}) {
+            AuthRateLimitFilter f = new AuthRateLimitFilter();
+            for (int i = 0; i < 20; i++) assertEquals(200, postResetDesde(f, lo, "192.0.2.1", "l" + i + "@x.com").getStatus());
+            assertEquals(429, postResetDesde(f, lo, "192.0.2.1", "lx@x.com").getStatus(), "21.o desde la misma CF-Connecting-IP via " + lo);
+            assertEquals(200, postResetDesde(f, lo, "192.0.2.2", "ly@x.com").getStatus(), "otra IP real detras del tunel tiene su cupo");
+        }
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < 3; i++) assertEquals(200, postResetDesde(f, "127.0.0.1", "192.0.2." + (10 + i), "Uno@x.com").getStatus());
+        assertEquals(429, postResetDesde(f, "127.0.0.1", "192.0.2.20", " uno@X.com ").getStatus(), "4.o al mismo mail normalizado aunque la IP tenga cupo");
+        assertEquals(3, AuthRateLimitFilter.RESET_EMAIL_LIMIT);
+    }
+
+    @Test
+    void changePasswordSigueEnDiezPorMinutoPorIp() throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < 10; i++) assertEquals(200, post(f, "/api/v1/auth/change-password", "192.0.2.50"));
+        assertEquals(429, post(f, "/api/v1/auth/change-password", "192.0.2.50"));
+        assertEquals(60_000, AuthRateLimitFilter.windowFor("/api/v1/auth/change-password"));
     }
 }

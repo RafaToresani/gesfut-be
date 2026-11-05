@@ -23,7 +23,9 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     static int limitFor(String path) {
         if (path.equals("/api/v1/auth/login")) return 10;
         if (path.equals("/api/v1/auth/signup")) return 5;
-        if (isReset(path) || isResend(path)) return 3;
+        // Punto 5 (5/11): reset-password sube a 20 por hora por IP (wifi compartido de clubes); por mail sigue en 3.
+        if (isReset(path)) return RESET_IP_LIMIT;
+        if (isResend(path)) return 3;
         // Rutas exactas. change-password-with-old-password conserva el limite que antes tenia por prefijo.
         if (path.equals("/api/v1/auth/change-password") || path.equals("/api/v1/auth/change-password-with-old-password")) return 10;
         return -1;
@@ -42,6 +44,9 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
      *  A4 #3 (31/10): ruta exacta; el mail llega en el body JSON {email}. */
     static final String RESET = "/api/v1/auth/reset-password";
     static boolean isReset(String path) { return path.equals(RESET); }
+    /** Punto 5 (5/11): 20 por hora por IP efectiva (clientIp) y 3 por hora por mail normalizado. */
+    static final int RESET_IP_LIMIT = 20;
+    static final int RESET_EMAIL_LIMIT = 3;
 
     /** Mail normalizado (trim + minusculas) para la clave del limite; null si falta. Nunca se loguea. */
     static String normalizeEmail(String raw) {
@@ -96,7 +101,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             CachedBodyRequest cached = new CachedBodyRequest(request, 4096);
             request = cached;
             String email = normalizeEmail(cached.jsonField("email"));
-            if (email != null) blocked = hit("reset-email|" + email, limit, window, now);
+            if (email != null) blocked = hit("reset-email|" + email, RESET_EMAIL_LIMIT, window, now);
         }
         if (blocked) {
             response.setStatus(429);
