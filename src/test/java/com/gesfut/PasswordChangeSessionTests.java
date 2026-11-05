@@ -116,8 +116,35 @@ class PasswordChangeSessionTests {
         assertTrue(jwt.isIssuedAfterPasswordChange(s, null));
         long iat = jwt.getIssuedAtEpochSeconds(s);
         var iatUtc = java.time.LocalDateTime.ofEpochSecond(iat, 0, java.time.ZoneOffset.UTC);
-        assertTrue(jwt.isIssuedAfterPasswordChange(s, iatUtc.plusNanos(900_000_000)), "mismo segundo del iat: vale (borde documentado)");
+        long iatMs = jwt.getIssuedAtEpochMillis(s);
+        assertTrue(iatMs / 1000 == iat, "iat_ms coincide con el iat en segundos");
+        var iatMsUtc = java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(iatMs), java.time.ZoneOffset.UTC);
+        assertTrue(jwt.isIssuedAfterPasswordChange(s, iatMsUtc.minusNanos(300_000)), "cambio un instante antes de emitir: vale");
+        assertFalse(jwt.isIssuedAfterPasswordChange(s, iatMsUtc.plusNanos(300_000)), "cambio un instante despues, mismo segundo: invalida");
         assertTrue(jwt.isIssuedAfterPasswordChange(s, iatUtc.minusSeconds(1)));
         assertFalse(jwt.isIssuedAfterPasswordChange(s, iatUtc.plusSeconds(1)), "cambio en el segundo siguiente: invalida");
+    }
+
+    /** Punto 4 (5/11): sesion abierta (usuario logueado) y reset en el MISMO segundo, sin esperar: la sesion previa da 401 y el relogin entra. */
+    @Test void resetEnElMismoSegundoQueLaSesionPreviaLaInvalidaYElReloginEntra() throws Exception {
+        String[] c = cuenta();
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        auth.resetPasswordSendEmail(c[0]);
+        verify(emailService).sendEmail(eq(c[0]), anyString(), body.capture());
+        String raw = body.getValue().substring(body.getValue().indexOf("/auth/reset-password#t=") + "/auth/reset-password#t=".length()).trim();
+        String vieja = sesion(c[0]);
+        long iatMs = jwt.getIssuedAtEpochMillis(vieja);
+        String nueva = "Qa-" + UUID.randomUUID();
+        var r = mvc.perform(post("/api/v1/auth/change-password").contentType(MediaType.APPLICATION_JSON)
+                .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of("token", raw, "password", nueva)))).andReturn().getResponse();
+        assertEquals(200, r.getStatus());
+        var cambio = users.findByEmail(c[0]).orElseThrow().getPasswordChangedAt();
+        long cambioMs = cambio.toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+        assertTrue(cambioMs >= iatMs, "el cambio es posterior a la emision de la sesion vieja");
+        assertEquals(401, teams(vieja), "sesion emitida antes del cambio (aunque sea el mismo segundo) da 401");
+        assertEquals("false", validate(vieja));
+        String relogin = auth.logIn(new LoginRequest(c[0], nueva)).token();
+        assertEquals(200, teams(relogin), "relogin despues del cambio da 200");
+        assertEquals("true", validate(relogin));
     }
 }

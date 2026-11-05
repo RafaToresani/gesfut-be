@@ -26,6 +26,9 @@ public class JwtService {
     /** A4 #1 (31/10): solo los JWT de sesion llevan typ=session; cualquier otro JWT (sin typ) se rechaza (falla cerrado). */
     public static final String TYP_CLAIM = "typ";
     public static final String TYP_SESSION = "session";
+    /** Punto 4 (5/11): instante de emision en milisegundos. El iat estandar tiene resolucion de segundos y dejaba
+     *  valida una sesion emitida en el mismo segundo pero antes del cambio de contrasena. */
+    public static final String IAT_MS_CLAIM = "iat_ms";
 
     public String getToken(UserDetails user,  Collection<? extends GrantedAuthority> authorities) {
         Map<String, Object> claims = new HashMap<>();
@@ -35,12 +38,15 @@ public class JwtService {
     }
 
     private String getToken(Map<String, Object> extraClaims, UserDetails user) {
+        long now = System.currentTimeMillis();
+        Map<String, Object> claims = new HashMap<>(extraClaims);
+        claims.put(IAT_MS_CLAIM, now);
         return Jwts
                 .builder()
-                .claims(extraClaims)
+                .claims(claims)
                 .subject(user.getUsername())
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis()+1000*60*60*24))
+                .issuedAt(new Date(now))
+                .expiration(new Date(now+1000*60*60*24))
                 .signWith(getKey())
                 .compact();
     }
@@ -97,16 +103,32 @@ public class JwtService {
         return getExpiration(token).before(new Date());
     }
 
-    /** A4 #2: la sesion vale si se emitio en el mismo segundo o despues del ultimo cambio de contrasena.
-     *  El iat del JWT tiene resolucion de segundos: se comparan segundos (borde: un token emitido en el mismo
-     *  segundo pero antes del cambio sigue valiendo; ventana menor a 1 s, aceptada para no romper el login nuevo). */
+    /** A4 #2 + punto 4 (5/11): la sesion vale solo si se emitio despues del ultimo cambio de contrasena.
+     *  Tokens nuevos: se compara iat_ms (milisegundos) contra passwordChangedAt redondeado hacia arriba al milisegundo,
+     *  asi una sesion emitida en el mismo segundo pero antes del cambio queda invalidada y el login nuevo (posterior) entra.
+     *  Tokens emitidos antes de este cambio (sin iat_ms): se mantiene la regla vieja por segundos. */
     public boolean isIssuedAfterPasswordChange(String token, java.time.LocalDateTime changedAt) { // changedAt en UTC
         if (changedAt == null) return true;
         try {
-            Date iat = getClaim(token, Claims::getIssuedAt);
+            Claims claims = getAllClaims(token);
+            Object ms = claims.get(IAT_MS_CLAIM);
+            if (ms instanceof Number n) return n.longValue() >= changedAtCeilMillis(changedAt);
+            Date iat = claims.getIssuedAt();
             if (iat == null) return false;
             return iat.getTime() / 1000 >= changedAt.toEpochSecond(java.time.ZoneOffset.UTC); // passwordChangedAt se guarda en UTC
         } catch (RuntimeException e) { return false; }
+    }
+
+    /** passwordChangedAt (UTC) en milisegundos epoch, redondeado hacia arriba (un token del mismo ms pero antes no pasa). */
+    static long changedAtCeilMillis(java.time.LocalDateTime changedAt) {
+        java.time.Instant i = changedAt.toInstant(java.time.ZoneOffset.UTC);
+        long ms = i.toEpochMilli();
+        return i.getNano() % 1_000_000 == 0 ? ms : ms + 1;
+    }
+
+    /** iat_ms del token (milisegundos epoch, para tests y diagnostico); -1 si no lo tiene. */
+    public long getIssuedAtEpochMillis(String token) {
+        try { Object ms = getAllClaims(token).get(IAT_MS_CLAIM); return ms instanceof Number n ? n.longValue() : -1; } catch (RuntimeException e) { return -1; }
     }
 
     /** iat del token en segundos epoch (para tests y diagnostico); -1 si no se puede leer. */
