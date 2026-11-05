@@ -15,4 +15,9 @@ public record LoginRequest(
         @NotBlank(message = "La contraseña es obligatoria")
         String password
 ) {
+    /** Tema 4 (5/11): el email se normaliza igual que en reset-password (trim + minusculas) ANTES de validar formato
+     *  y de buscar el usuario. La contrasena NO se toca. */
+    public LoginRequest {
+        email = com.gesfut.config.security.AuthRateLimitFilter.normalizeEmail(email);
+    }
 }

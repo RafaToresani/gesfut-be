@@ -49,7 +49,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     static final int RESET_EMAIL_LIMIT = 3;
 
     /** Mail normalizado (trim + minusculas) para la clave del limite; null si falta. Nunca se loguea. */
-    static String normalizeEmail(String raw) {
+    public static String normalizeEmail(String raw) {
         if (raw == null) return null;
         String e = raw.trim().toLowerCase(java.util.Locale.ROOT);
         return e.isEmpty() ? null : e;
