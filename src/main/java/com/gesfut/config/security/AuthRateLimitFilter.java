@@ -62,6 +62,25 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         return i > 0 ? path.substring(0, i) : path;
     }
 
+    /** Tema 3 (5/11): clave de IP para TODOS los buckets por IP. IPv6 se agrupa por su /64 (un cliente suele tener
+     *  el /64 entero y podria rotar direcciones); IPv4 y IPv4-mapped (::ffff:a.b.c.d) quedan como la IPv4. Literal invalido: tal cual. */
+    static String ipKey(String ip) {
+        if (ip == null || ip.indexOf(':') < 0) return ip;
+        String s = ip.trim();
+        if (s.startsWith("[") && s.endsWith("]")) s = s.substring(1, s.length() - 1);
+        int pct = s.indexOf('%');
+        if (pct >= 0) s = s.substring(0, pct);
+        if (!s.matches("[0-9A-Fa-f:.]+")) return ip; // solo literales: nunca resolver DNS
+        try {
+            java.net.InetAddress a = java.net.InetAddress.getByName(s);
+            if (a instanceof java.net.Inet4Address) return a.getHostAddress();
+            byte[] b = a.getAddress();
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8; i += 2) sb.append(Integer.toHexString(((b[i] & 0xff) << 8) | (b[i + 1] & 0xff))).append(':');
+            return sb.append(":/64").toString();
+        } catch (Exception e) { return ip; }
+    }
+
     private String clientIp(HttpServletRequest request) {
         String remote = request.getRemoteAddr();
         boolean local = "127.0.0.1".equals(remote) || "0:0:0:0:0:0:0:1".equals(remote) || "::1".equals(remote);
@@ -79,7 +98,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/auth/sing-up")) path = "/api/v1/auth/signup";
         int limit = "POST".equalsIgnoreCase(request.getMethod()) ? limitFor(path) : -1;
         if (limit < 0) { chain.doFilter(request, response); return; }
-        String key = clientIp(request) + "|" + bucketFor(path);
+        String key = ipKey(clientIp(request)) + "|" + bucketFor(path);
         long now = System.currentTimeMillis();
         long window = windowFor(path);
         boolean blocked = hit(key, limit, window, now);

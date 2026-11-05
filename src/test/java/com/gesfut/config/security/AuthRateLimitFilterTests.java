@@ -186,4 +186,35 @@ class AuthRateLimitFilterTests {
         assertEquals(429, post(f, "/api/v1/auth/change-password", "192.0.2.50"));
         assertEquals(60_000, AuthRateLimitFilter.windowFor("/api/v1/auth/change-password"));
     }
+
+    /** Tema 3 (5/11): IPv6 agrupada por /64 en la clave de cada bucket por IP. Llega por CF-Connecting-IP desde loopback. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"/api/v1/auth/reset-password,20", "/api/v1/auth/change-password,10", "/api/v1/auth/login,10", "/api/v1/auth/signup,5"})
+    void ipv6DelMismoSlash64CompartenBucketYDeOtroSlash64No(String path, int limit) throws Exception {
+        AuthRateLimitFilter f = new AuthRateLimitFilter();
+        for (int i = 0; i < limit; i++) assertEquals(200, postBodyTo(f, path, "2001:db8:aaaa:1::" + Integer.toHexString(i + 1), "v" + i + "@x.com"), "pedido " + (i + 1));
+        assertEquals(429, postBodyTo(f, path, "2001:db8:aaaa:1:ffff:ffff:ffff:fffe", "vz@x.com"), "otra IPv6 del mismo /64 comparte bucket");
+        assertEquals(429, postBodyTo(f, path, "2001:DB8:AAAA:0001:0:0:0:99", "vy@x.com"), "misma /64 escrita distinto");
+        assertEquals(200, postBodyTo(f, path, "2001:db8:aaaa:2::1", "vx@x.com"), "un /64 distinto tiene su propio bucket");
+    }
+
+    @Test
+    void ipKeyNormalizaIpv6YDejaIpv4() {
+        assertEquals("2001:db8:aaaa:1::/64", AuthRateLimitFilter.ipKey("2001:db8:aaaa:1::5"));
+        assertEquals(AuthRateLimitFilter.ipKey("2001:db8:aaaa:1:1:2:3:4"), AuthRateLimitFilter.ipKey("[2001:DB8:AAAA:1::9]"));
+        assertNotEquals(AuthRateLimitFilter.ipKey("2001:db8:aaaa:1::1"), AuthRateLimitFilter.ipKey("2001:db8:aaaa:2::1"));
+        assertEquals("1.2.3.4", AuthRateLimitFilter.ipKey("1.2.3.4"));
+        assertEquals("1.2.3.4", AuthRateLimitFilter.ipKey("::ffff:1.2.3.4"));
+        assertEquals("0:0:0:0::/64", AuthRateLimitFilter.ipKey("::1"));
+        assertEquals("no:es-ip.example", AuthRateLimitFilter.ipKey("no:es-ip.example"), "no resuelve DNS ni rompe");
+    }
+
+    private int postBodyTo(AuthRateLimitFilter f, String path, String ip, String email) throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", path);
+        req.setRemoteAddr("127.0.0.1"); req.addHeader("CF-Connecting-IP", ip);
+        req.setContentType("application/json"); req.setContent(("{\"email\":\"" + email + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        f.doFilter(req, res, new MockFilterChain());
+        return res.getStatus();
+    }
 }
