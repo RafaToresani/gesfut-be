@@ -174,9 +174,10 @@ class ResetYChangePasswordEnBodyTests {
         assertEquals(429, r4.getStatus(), "4.o pedido al mismo mail (normalizado) desde otra IP");
         assertEquals("3600", r4.getHeader("Retry-After"));
         String miIp = "10.252.0.1"; // reservada para este test
-        for (int i = 0; i < 3; i++) assertEquals(200, mvc.perform(post("/api/v1/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+        // Punto 5 (5/11): el limite por IP es 20 por hora (el de 3 es por mail); el test quedo desactualizado y nunca corria en la base aislada.
+        for (int i = 0; i < 20; i++) assertEquals(200, mvc.perform(post("/api/v1/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
                 .content(JSON.writeValueAsString(Map.of("email", "qa.p3.ip" + i + "-" + UUID.randomUUID() + "@example.test"))).header("CF-Connecting-IP", miIp)).andReturn().getResponse().getStatus());
         assertEquals(429, mvc.perform(post("/api/v1/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"qa.p3.otro@example.test\"}").header("CF-Connecting-IP", miIp)).andReturn().getResponse().getStatus(), "4.o desde la misma IP");
+                .content("{\"email\":\"qa.p3.otro@example.test\"}").header("CF-Connecting-IP", miIp)).andReturn().getResponse().getStatus(), "21.o desde la misma IP aunque cambie el mail");
     }
 }
