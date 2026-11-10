@@ -15,6 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * o sea manda la hora de pared de Argentina con sufijo Z. Se verifica, con el mismo ObjectMapper por defecto
  * de Spring Boot (sin config propia de Jackson en el proyecto), que el LocalDateTime queda con esa hora de pared
  * y NO se convierte, sin importar la zona horaria del servidor. Sin Spring ni base.
+ *
+ * Limitacion conocida: el mapper es el que arma Jackson2ObjectMapperBuilder.json() (la base de la autoconfiguracion de Boot),
+ * no el bean del contexto. Una variante con @JsonTest levantaria el contexto de Spring (y con el la guardia de aislamiento
+ * de la base), asi que no se hizo. Si alguien agrega spring.jackson.*, un Jackson2ObjectMapperBuilderCustomizer o @JsonFormat
+ * sobre estas fechas, este test deja de representar al mapper real y hay que migrarlo a @JsonTest.
  */
 class MatchDateRequestJsonTests {
     private final ObjectMapper mapper = Jackson2ObjectMapperBuilder.json().build();

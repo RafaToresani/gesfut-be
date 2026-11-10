@@ -510,7 +510,7 @@ public class MatchServiceImpl implements MatchService {
                 match.getMvpPlayer(),
                 match.getVsMatchIdWhoWin(),
                 match.getTiebreakWinnerId(),
-                match.resultLoadableToday(),
+                match.resultLoadableAt(currentClock()),
                 match.isByeMatch(),
                 match.restingTeamName(),
                 match.getPenaltiesHome(),

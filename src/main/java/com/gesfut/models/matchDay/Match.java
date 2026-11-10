@@ -96,7 +96,12 @@ public class Match {
      * date es hora de pared de Argentina; el nombre se mantiene porque es el campo que consume el front.
      */
     public boolean resultLoadableToday() {
-        return date == null || !date.isAfter(java.time.LocalDateTime.now(com.gesfut.config.TimeConfig.ARGENTINA));
+        return resultLoadableAt(java.time.Clock.system(com.gesfut.config.TimeConfig.ARGENTINA));
+    }
+
+    /** Igual que resultLoadableToday pero con el reloj inyectado (el mismo Clock que usa MatchServiceImpl): permite probar el borde exacto. */
+    public boolean resultLoadableAt(java.time.Clock clock) {
+        return date == null || !date.atZone(com.gesfut.config.TimeConfig.ARGENTINA).toInstant().isAfter(clock.instant());
     }
 
     public String formatMatchDate(LocalDateTime date) {
