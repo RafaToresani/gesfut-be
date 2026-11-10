@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,45 +22,39 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
 })
+// Datos propios y solo TEST: antes de cada test se limpia (por si una corrida anterior se corto) y se siembra;
+// despues de cada test (aunque falle) se limpia. Cada DELETE va limitado por los ids sembrados y el prefijo TEST.
+// No se usa @Transactional con rollback: el test usa hilos (simultaneousSaves...) y verifica los rollbacks
+// del propio servicio, asi que necesita datos commiteados.
+// result-integrity-db-guard.sql va PRIMERO en ambos @Sql: si DATABASE() no es gesfut_isolated_test, falla
+// antes de cualquier cleanup o seed (los scripts de un @Sql corren en orden, en una misma conexion,
+// y con FAIL_ON_ERROR un error corta los siguientes).
+@SqlConfig(encoding = "UTF-8", errorMode = SqlConfig.ErrorMode.FAIL_ON_ERROR)
+@Sql(scripts = {"/sql/result-integrity-db-guard.sql", "/sql/result-integrity-cleanup.sql", "/sql/result-integrity-seed.sql"},
+     executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+@Sql(scripts = {"/sql/result-integrity-db-guard.sql", "/sql/result-integrity-cleanup.sql"},
+     executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class ResultIntegrityIntegrationTests {
+    // Ids fijos sembrados por src/test/resources/sql/result-integrity-seed.sql (rango reservado 990001/990002).
+    static final long TEST_USER_ID = 990001L, TEST_MATCH_ID = 990001L, TEST_PLAYER_PARTICIPANT_ID = 990001L;
     @Autowired JdbcTemplate jdbc;
     @Autowired MatchService service;
     @Autowired UserRepository users;
     @SpyBean EventService events;
     long matchId, playerId;
-    TestDbSnapshot snapshot;
 
     @BeforeEach void fixture(){
         String database=jdbc.queryForObject("SELECT DATABASE()",String.class);
-        assertEquals("gesfut_codex_regression_20261013",database,"Estas pruebas solo pueden ejecutarse sobre la copia aislada.");
-        var row=jdbc.queryForMap("""
-            SELECT m.id, md.id AS day_id, t.user_id, MIN(pp.id) AS player_id
-            FROM matches m JOIN match_days md ON md.id=m.match_day_id
-            JOIN tournaments t ON t.id=md.tournament_id
-            JOIN tournament_participants h ON h.id=m.home_team_id
-            JOIN tournament_participants a ON a.id=m.away_team_id
-            JOIN teams ht ON ht.id=h.team_id JOIN teams at ON at.id=a.team_id
-            JOIN player_participants pp ON pp.tournament_participant_id=h.id
-            WHERE md.play_off=0 AND md.is_finished=0 AND m.is_finished=0 AND ht.name<>'Free' AND at.name<>'Free'
-            AND COALESCE(t.is_active,1)=1 AND COALESCE(t.is_finished,0)=0
-            AND NOT EXISTS (SELECT 1 FROM match_days later WHERE later.tournament_id=t.id AND later.play_off=1 AND later.number_of_match_day>md.number_of_match_day)
-            GROUP BY m.id, md.id, t.user_id ORDER BY m.id LIMIT 1
-            """);
-        matchId=((Number)row.get("id")).longValue(); playerId=((Number)row.get("player_id")).longValue();
-        snapshot=new TestDbSnapshot(jdbc)
-            .take("matches","id=?",matchId)
-            .take("match_days","id=(SELECT match_day_id FROM matches WHERE id=?)",matchId)
-            .take("events","match_id=?",matchId)
-            .take("result_corrections","match_id=?",matchId)
-            .take("statistics","id IN (SELECT p.statistics_id FROM tournament_participants p JOIN matches m ON p.id=m.home_team_id OR p.id=m.away_team_id WHERE m.id=?)",matchId)
-            .take("player_participants","tournament_participant_id IN (SELECT home_team_id FROM matches WHERE id=? UNION SELECT away_team_id FROM matches WHERE id=?)",matchId,matchId);
-        UserEntity user=users.findById(((Number)row.get("user_id")).longValue()).orElseThrow();
+        assertEquals("gesfut_isolated_test",database,"Estas pruebas solo pueden ejecutarse sobre la base aislada.");
+        // Solo ids sembrados por este test: no se lee ningun dato preexistente.
+        matchId=TEST_MATCH_ID; playerId=TEST_PLAYER_PARTICIPANT_ID;
+        UserEntity user=users.findById(TEST_USER_ID).orElseThrow();
+        assertTrue(user.getEmail().startsWith("test+")&&user.getEmail().endsWith("@example.invalid"),"El organizador debe ser el usuario TEST sembrado.");
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user,null,user.getAuthorities()));
     }
-    @AfterEach void clear(){SecurityContextHolder.clearContext();reset(events);if(snapshot!=null)snapshot.restore();}
+    @AfterEach void clear(){SecurityContextHolder.clearContext();reset(events);}
 
     List<Map<String,Object>> fingerprint(){
         var data=new ArrayList<Map<String,Object>>();
@@ -91,7 +87,7 @@ class ResultIntegrityIntegrationTests {
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM player_participants WHERE id=? AND is_suspended=1",Integer.class,playerId));
     }
     @Test void anotherManagerCannotWriteMatch(){
-        var before=fingerprint();var other=UserEntity.builder().email("other@example.test").build();
+        var before=fingerprint();var other=UserEntity.builder().email("test+otro-organizador@example.invalid").build();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(other,null,List.of()));
         assertThrows(AccessDeniedException.class,()->service.loadMatchResult(validResult(1)));
         assertEquals(before,fingerprint());verify(events,never()).createEvent(any(),any());

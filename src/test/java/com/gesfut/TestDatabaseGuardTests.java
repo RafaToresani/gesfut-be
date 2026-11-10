@@ -7,13 +7,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Seguridad: sin override propio, los tests caen en la base de regresion aunque DB_NAME apunte a otra
+/** Seguridad: los tests solo corren sobre la base aislada gesfut_isolated_test (la inyecta test-isolated.ps1 y la valida IsolatedDbGuard)
  *  (src/test/resources/config/application.properties). */
 @SpringBootTest
 class TestDatabaseGuardTests {
     @Autowired JdbcTemplate jdbc;
 
-    @Test void siempreLaBaseDeRegresion() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+    @Test void siempreLaBaseAislada() {
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
     }
 }

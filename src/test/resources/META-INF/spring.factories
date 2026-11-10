@@ -1,0 +1,6 @@
+# Solo en src/test/resources: guardián de aislamiento de los tests de integración de Gesfut.
+# Si ya existe un spring.factories en src/test/resources/META-INF, fusionar estas claves (no pisar).
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.gesfut.testsupport.IsolatedDbGuard
+org.springframework.context.ApplicationContextInitializer=\
+com.gesfut.testsupport.IsolatedDbGuardInitializer
