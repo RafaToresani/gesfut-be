@@ -1,13 +1,13 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
+import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.TeamService;
 import com.gesfut.services.TournamentService;
+import com.gesfut.services.impl.AuthServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,9 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * DNI repetido al sumar equipo / jugador, add-player con DNI (antes 500) y torneo archivado de solo lectura.
  * Crea su propio torneo y equipos y los borra al final.
  */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "spring.jpa.open-in-view=false" // como en produccion: sin sesion abierta en el controller
 })
@@ -44,17 +42,19 @@ class InitializeAndDniHttpTests {
     @Autowired TeamService teams;
     @Autowired TournamentService tournaments;
     @Autowired UserRepository users;
+    @Autowired AuthServiceImpl authService;
     @Autowired com.gesfut.config.security.jwt.JwtService jwt;
     final String prefix = "TEST INIT " + java.util.UUID.randomUUID().toString().substring(0, 8);
+    final String email = "qa.init." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
     UserEntity owner; String token; String code;
     final Map<String, Long> ids = new HashMap<>();
 
     void auth() { SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(owner, null, owner.getAuthorities())); }
 
     @BeforeEach void setUp() throws Exception {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
-        long uid = jdbc.queryForObject("SELECT user_id FROM teams WHERE LOWER(name)='free' AND user_id IS NOT NULL ORDER BY id LIMIT 1", Long.class);
-        owner = users.findById(uid).orElseThrow();
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        authService.singUp(new RegisterRequest(email, "Qa-" + java.util.UUID.randomUUID(), "QaInit", "User", true));
+        owner = users.findByEmail(email).orElseThrow();
         token = "Bearer " + jwt.getToken(owner, owner.getAuthorities());
         var r = call(post("/api/v1/tournaments").content("{\"name\":\"" + prefix + "\"}"));
         assertTrue(r.getResponse().getStatus() < 300, r.getResponse().getContentAsString());
@@ -82,6 +82,10 @@ class InitializeAndDniHttpTests {
         jdbc.update("DELETE p FROM players p JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
         jdbc.update("DELETE FROM teams WHERE name LIKE ?", prefix + "%");
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM tournaments WHERE name=?", Long.class, prefix));
+        String like = "qa.init.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
         SecurityContextHolder.clearContext();
     }
 

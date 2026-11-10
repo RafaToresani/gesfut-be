@@ -1,7 +1,6 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
+import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.services.impl.AuthServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** Reenviar mail: respuesta neutral, enlace que vence y reenvio que invalida el anterior. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=true"
 })
@@ -30,11 +27,17 @@ class ResendVerificationTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired AuthServiceImpl auth;
     Map<String, Object> unverified; String verifiedEmail;
+    final String emailUnverified = "qa.resend.u." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
+    final String emailVerified = "qa.resend.v." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
 
     @BeforeEach void setUp() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
-        unverified = jdbc.queryForMap("SELECT id, email, reset_token, reset_token_expiration FROM users WHERE email_verified=0 ORDER BY id LIMIT 1");
-        verifiedEmail = jdbc.queryForObject("SELECT email FROM users WHERE email_verified=1 ORDER BY id LIMIT 1", String.class);
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        String pass = "Qa-" + java.util.UUID.randomUUID();
+        auth.singUp(new RegisterRequest(emailUnverified, pass, "QaResend", "Uno", true));
+        auth.singUp(new RegisterRequest(emailVerified, pass, "QaResend", "Dos", true));
+        jdbc.update("UPDATE users SET email_verified=1, reset_token=NULL, reset_token_expiration=NULL WHERE email=?", emailVerified);
+        unverified = jdbc.queryForMap("SELECT id, email, reset_token, reset_token_expiration FROM users WHERE email=?", emailUnverified);
+        verifiedEmail = emailVerified;
     }
     @Autowired @org.springframework.beans.factory.annotation.Qualifier("mailExecutor") org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor mailExecutor;
 
@@ -45,7 +48,10 @@ class ResendVerificationTests {
 
     @AfterEach void restore() throws InterruptedException {
         awaitMail();
-        jdbc.update("UPDATE users SET reset_token=?, reset_token_expiration=?, email_verified=0 WHERE id=?", unverified.get("reset_token"), unverified.get("reset_token_expiration"), unverified.get("id"));
+        String like = "qa.resend.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
     }
 
     String[] resend(String email, String ip) throws Exception {
