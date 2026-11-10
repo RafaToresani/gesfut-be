@@ -228,7 +228,7 @@ class TournamentRegressionTests {
         assertEquals(List.of(start,start.plusMinutes(60)),dates);
         assertFalse(po.getMatches().iterator().next().resultLoadableToday());
     }
-    /** Playoffs: una fecha pasada se acepta (se programa a posteriori); solo debe ser posterior al ultimo partido jugado. */
+    /** Playoffs: una fecha pasada se acepta (se programa a posteriori); solo se rechaza si empieza ANTES del ultimo partido jugado (igual al ultimo se acepta). */
     @Test void playoffRoundAcceptsPastDate(){
         MatchDay league=day(false,true);
         Match last=match(league,a,b,3,0,true); match(league,c,d,1,0,true);
@@ -238,6 +238,33 @@ class TournamentRegressionTests {
         MatchDay po=tournament.getMatchDays().stream().filter(MatchDay::getIsPlayOff).findFirst().orElseThrow();
         var dates=po.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).map(Match::getDate).toList();
         assertEquals(List.of(start,start.plusMinutes(30)),dates);
+    }
+    boolean canLoadResultAt(java.time.Instant now){
+        ReflectionTestUtils.setField(service,"clock",java.time.Clock.fixed(now,java.time.ZoneOffset.UTC));
+        var r=service.findMatchesByTournamentAndParticipant(tournament.getCode().toString(),1L);
+        assertEquals(1,r.size());
+        return r.get(0).canLoadResult();
+    }
+    /** MatchResponse.canLoadResult sale del Clock inyectado en TournamentServiceImpl (no del reloj del sistema): borde exacto, 1 s antes/despues y fechas lejanas. */
+    @Test void matchResponseCanLoadResultUsesInjectedClock(){
+        MatchDay league=day(false,false);
+        Match m=match(league,a,b,0,0,false);
+        var participants=mock(com.gesfut.repositories.TournamentParticipantRepository.class);
+        when(participants.findById(1L)).thenReturn(Optional.of(a));
+        ReflectionTestUtils.setField(service,"participantRepository",participants);
+        var start=java.time.LocalDateTime.of(2026,11,14,20,0);
+        m.setDate(start);
+        var at=start.atZone(com.gesfut.config.TimeConfig.ARGENTINA).toInstant();
+        assertTrue(canLoadResultAt(at),"justo a la hora programada se puede cargar");
+        assertFalse(canLoadResultAt(at.minusSeconds(1)),"un segundo antes no");
+        assertTrue(canLoadResultAt(at.plusSeconds(1)),"un segundo despues si");
+        // Fechas lejanas: si el servicio usara el reloj del sistema el resultado seria el contrario.
+        m.setDate(java.time.LocalDateTime.of(2000,1,1,0,0));
+        assertFalse(canLoadResultAt(java.time.Instant.parse("1999-12-31T00:00:00Z")));
+        m.setDate(java.time.LocalDateTime.of(2100,1,1,0,0));
+        assertTrue(canLoadResultAt(java.time.Instant.parse("2101-01-01T00:00:00Z")));
+        m.setDate(null);
+        assertTrue(canLoadResultAt(java.time.Instant.parse("1999-12-31T00:00:00Z")),"sin fecha se permite");
     }
     /** Igual que las jornadas: empezar justo en el instante del ultimo partido jugado se acepta; solo se rechaza si empieza ANTES. */
     @Test void playoffRoundStartingExactlyAtLastMatchIsAccepted(){

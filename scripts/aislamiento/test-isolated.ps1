@@ -234,6 +234,7 @@ function Test-Grants {
 # ---------------------------------------------------------------------------------------------
 $exitCode = 0
 $password = $null
+$jwtKey = $null
 $logFile = $null
 $pushed = $false
 try {
@@ -283,6 +284,9 @@ try {
         Set-ProcessEnv 'SPRING_FLYWAY_CLEAN_DISABLED' 'true'
         Set-ProcessEnv 'GESFUT_ISOLATED_PORT' "$port"
         Set-ProcessEnv 'MAVEN_SKIP_RC' 'on'
+        # Clave JWT descartable solo para esta corrida: pisa cualquier SECRET_KEY heredada (nunca se usa la real) y se restaura en finally.
+        $jwtKey = New-EphemeralJwtKey
+        Set-ProcessEnv 'SECRET_KEY' $jwtKey
 
         # Las clases con base de regresion propia (@Tag requiere-base-regresion) NUNCA corren aca: no estan validadas por esta corrida.
         $mvnArgs = @('-B', 'test', '-DexcludedGroups=requiere-base-regresion')
@@ -297,7 +301,7 @@ try {
         } finally { $ErrorActionPreference = $prev }
 
         $log = Get-Content -LiteralPath $logFile -Raw
-        if ($log -and $log.Contains($password)) {
+        if ($log -and ($log.Contains($password) -or $log.Contains($jwtKey))) {
             Remove-Item -LiteralPath $logFile -Force
             $logFile = $null
             Write-Warning 'La credencial apareció en la salida de Maven: se borró el log. Revisar qué la imprimió.'
@@ -325,7 +329,8 @@ try {
     }
 } finally {
     $password = $null
-    Remove-Variable -Name password -ErrorAction SilentlyContinue
+    $jwtKey = $null
+    Remove-Variable -Name password, jwtKey -ErrorAction SilentlyContinue
     Restore-ProcessEnv
     if ($pushed) { Pop-Location }
     Write-Host ''

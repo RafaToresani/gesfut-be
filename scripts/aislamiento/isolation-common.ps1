@@ -57,6 +57,16 @@ function Restore-ProcessEnv {
     $script:SavedEnv = @{}
 }
 
+# Clave JWT DESCARTABLE para los tests (jwtService hace Decoders.BASE64.decode + Keys.hmacShaKeyFor: Base64, minimo 32 bytes;
+# 64 bytes sirven para HS256/384/512). RNG criptografico, distinta en cada corrida. El llamador NUNCA debe imprimirla ni
+# escribirla: solo Set-ProcessEnv y la comprobacion de fuga en el log (lo verifica test-listener-check.ps1).
+function New-EphemeralJwtKey {
+    $bytes = New-Object 'byte[]' 64
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    return [Convert]::ToBase64String($bytes)
+}
+
 # Ejecuta un comando nativo sin que stderr dispare errores en PS 5.1; devuelve objeto con stdout/stderr/exit.
 # Nunca loguea los argumentos (no deben contener secretos de todos modos).
 function Invoke-Native {
@@ -179,8 +189,8 @@ function Assert-PublishedPortListener {
         $pname = [string](& $GetProcessName $l.OwningProcess)
         if ($pname -match '(?i)^mysqld') { Stop-Preflight "el puerto $Port lo escucha mysqld (MySQL nativo)" }
         if ($fallback) {
-            if ($script:FallbackListenerProcesses -notcontains $pname) { Stop-Preflight "el puerto $Port figura sin estado y lo atiende un proceso que no es com.docker.backend/docker: $pname" }
-        } elseif ($script:AllowedListenerProcesses -notcontains $pname) {
+            if (-not ($script:FallbackListenerProcesses -ccontains $pname)) { Stop-Preflight "el puerto $Port figura sin estado y lo atiende un proceso que no es com.docker.backend/docker: $pname" }
+        } elseif (-not ($script:AllowedListenerProcesses -ccontains $pname)) {
             Stop-Preflight "el puerto $Port lo escucha un proceso no reconocido como Docker: $pname"
         }
     }
