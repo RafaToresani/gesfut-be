@@ -176,7 +176,8 @@ function Assert-PublishedPortListener {
     if ($listen.Count -gt 0) {
         $entries = $listen
     } else {
-        $entries = @($all | Where-Object { [string]::IsNullOrEmpty("$($_.State)") -or "$($_.State)" -eq '0' })
+        # OwningProcess 0 (Idle) son restos de conexiones cerradas (TIME_WAIT) de corridas anteriores: un socket en escucha nunca lo tiene, se ignoran.
+        $entries = @($all | Where-Object { ([string]::IsNullOrEmpty("$($_.State)") -or "$($_.State)" -eq '0') -and [int]$_.OwningProcess -ne 0 })
         $fallback = $true
     }
     if ($entries.Count -eq 0) { Stop-Preflight "nadie escucha en 127.0.0.1:$Port" }

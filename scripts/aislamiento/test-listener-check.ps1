@@ -5,7 +5,7 @@
 .DESCRIPTION
   Usa conexiones y duenos FALSOS inyectados por parametro. Cada caso negativo debe abortar con
   "GESFUT PREFLIGHT" (que test-isolated.ps1 convierte en exit 2); los positivos no deben abortar.
-  Salida: exit 0 si los 32 casos (13 de listener, 8 de GRANT y 11 de clave JWT descartable) dan lo esperado, exit 1 si alguno no.
+  Salida: exit 0 si los 35 casos (16 de listener, 8 de GRANT y 11 de clave JWT descartable) dan lo esperado, exit 1 si alguno no.
 #>
 [CmdletBinding()]
 param()
@@ -35,7 +35,10 @@ $cases = @(
     @{ N = 'P10 Listen en 0.0.0.0 mas una entrada sin estado valida'; C = @((Conn '0.0.0.0' 'Listen' 100), (Conn '127.0.0.1' '' 100)); Connect = $yes; Expect = 'no loopback' },
     @{ N = 'P11 sin estado con dockerd (permitido solo con Listen, no en el fallback)'; C = @(Conn '127.0.0.1' '' 103); Connect = $yes; Expect = 'no es com.docker.backend/docker' },
     @{ N = 'P12 sin estado, dueno COM.DOCKER.BACKEND (otra capitalizacion): la comparacion es sensible a mayusculas'; C = @(Conn '127.0.0.1' '' 105); Connect = $yes; Expect = 'no es com.docker.backend/docker' },
-    @{ N = 'P13 Listen, dueno Com.Docker.Backend (otra capitalizacion): la comparacion es sensible a mayusculas'; C = @(Conn '127.0.0.1' 'Listen' 106); Connect = $yes; Expect = 'no reconocido como Docker' }
+    @{ N = 'P13 Listen, dueno Com.Docker.Backend (otra capitalizacion): la comparacion es sensible a mayusculas'; C = @(Conn '127.0.0.1' 'Listen' 106); Connect = $yes; Expect = 'no reconocido como Docker' },
+    @{ N = 'P14 sin estado: docker backend mas un resto con dueno 0 (Idle, TIME_WAIT de una corrida previa)'; C = @((Conn '127.0.0.1' '' 100), (Conn '127.0.0.1' '' 0)); Connect = $yes; Expect = 'ok' },
+    @{ N = 'P15 sin estado: solo restos con dueno 0 (nadie escucha de verdad)'; C = @(Conn '127.0.0.1' '' 0); Connect = $yes; Expect = 'nadie escucha' },
+    @{ N = 'P16 sin estado: mysqld mas un resto con dueno 0 (sigue abortando por mysqld)'; C = @((Conn '127.0.0.1' '' 101), (Conn '127.0.0.1' '' 0)); Connect = $yes; Expect = 'mysqld' }
 )
 $fail = 0
 foreach ($c in $cases) {
