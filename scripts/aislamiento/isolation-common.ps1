@@ -122,6 +122,72 @@ function Find-ApplicationLocal([string]$RepoRoot) {
     return ,$found
 }
 
+# Duenos aceptados cuando Windows informa el listener con State vacio/0 (Docker Desktop publica el puerto con un
+# reenviador propio y Get-NetTCPConnection lo devuelve sin estado). Mas estricta que AllowedListenerProcesses.
+$script:FallbackListenerProcesses = @('com.docker.backend', 'docker')
+
+function Test-TcpConnect([int]$Port) {
+    $c = New-Object System.Net.Sockets.TcpClient
+    try {
+        $iar = $c.BeginConnect('127.0.0.1', $Port, $null, $null)
+        if (-not $iar.AsyncWaitHandle.WaitOne(3000)) { return $false }
+        $c.EndConnect($iar)
+        return $c.Connected
+    } catch {
+        return $false
+    } finally {
+        $c.Close()
+    }
+}
+
+function Get-ProcessNameById([int]$ProcessId) {
+    $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if ($proc) { return [string]$proc.ProcessName }
+    return "<pid $ProcessId>"
+}
+
+# Valida quien atiende el puerto publicado por el contenedor fijado por ID (el puerto sale de `docker port <ID>`,
+# verificado antes en Test-Container). $Connections: salida de Get-NetTCPConnection -LocalPort <puerto> (sin filtrar por estado).
+#  - Si hay entradas Listen, solo se miran esas (comportamiento original: loopback + proceso de Docker, nunca mysqld).
+#  - Si NO hay entradas Listen, se aceptan las de State vacio/0 (rareza de Docker Desktop) solo si TODAS cumplen:
+#    LocalAddress 127.0.0.1, dueno com.docker.backend o docker (nunca mysqld ni otro proceso) y una conexion TCP a
+#    127.0.0.1:<puerto> realmente se establece.
+# $GetProcessName y $CanConnect se pueden reemplazar en las pruebas (scripts\aislamiento\test-listener-check.ps1).
+function Assert-PublishedPortListener {
+    param(
+        [Parameter(Mandatory)][int]$Port,
+        [object[]]$Connections = @(),
+        [scriptblock]$GetProcessName = { param($ProcessId) Get-ProcessNameById $ProcessId },
+        [scriptblock]$CanConnect = { param($P) Test-TcpConnect $P }
+    )
+    $all = @($Connections | Where-Object { $null -ne $_ })
+    $listen = @($all | Where-Object { "$($_.State)" -eq 'Listen' })
+    $fallback = $false
+    if ($listen.Count -gt 0) {
+        $entries = $listen
+    } else {
+        $entries = @($all | Where-Object { [string]::IsNullOrEmpty("$($_.State)") -or "$($_.State)" -eq '0' })
+        $fallback = $true
+    }
+    if ($entries.Count -eq 0) { Stop-Preflight "nadie escucha en 127.0.0.1:$Port" }
+    foreach ($l in $entries) {
+        if ($fallback) {
+            if ($l.LocalAddress -cne '127.0.0.1') { Stop-Preflight "el puerto $Port figura sin estado en $($l.LocalAddress) (solo se acepta 127.0.0.1)" }
+        } elseif (@('127.0.0.1', '::1') -notcontains $l.LocalAddress) {
+            Stop-Preflight "el puerto $Port escucha en $($l.LocalAddress) (no loopback)"
+        }
+        $pname = [string](& $GetProcessName $l.OwningProcess)
+        if ($pname -match '(?i)^mysqld') { Stop-Preflight "el puerto $Port lo escucha mysqld (MySQL nativo)" }
+        if ($fallback) {
+            if ($script:FallbackListenerProcesses -notcontains $pname) { Stop-Preflight "el puerto $Port figura sin estado y lo atiende un proceso que no es com.docker.backend/docker: $pname" }
+        } elseif ($script:AllowedListenerProcesses -notcontains $pname) {
+            Stop-Preflight "el puerto $Port lo escucha un proceso no reconocido como Docker: $pname"
+        }
+    }
+    if ($fallback) {
+        if (-not (& $CanConnect $Port)) { Stop-Preflight "el puerto $Port figura sin estado y no acepta conexiones TCP en 127.0.0.1" }
+    }
+}
 function Test-PortListening([int]$Port) {
     $l = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
     return ($l.Count -gt 0)

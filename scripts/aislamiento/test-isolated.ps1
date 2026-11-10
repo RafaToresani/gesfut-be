@@ -196,15 +196,8 @@ function Test-Container {
     if ($port -lt $script:MinPort -or $port -gt $script:MaxPort) { Stop-Preflight "puerto $port fuera de $($script:MinPort)-$($script:MaxPort)" }
 
     # Quién escucha en ese puerto: solo procesos de Docker, solo loopback, nunca mysqld.
-    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
-    if ($listeners.Count -eq 0) { Stop-Preflight "nadie escucha en 127.0.0.1:$port" }
-    foreach ($l in $listeners) {
-        if (@('127.0.0.1', '::1') -notcontains $l.LocalAddress) { Stop-Preflight "el puerto $port escucha en $($l.LocalAddress) (no loopback)" }
-        $proc = Get-Process -Id $l.OwningProcess -ErrorAction SilentlyContinue
-        $pname = if ($proc) { $proc.ProcessName } else { "<pid $($l.OwningProcess)>" }
-        if ($pname -match '(?i)^mysqld') { Stop-Preflight "el puerto $port lo escucha mysqld (MySQL nativo)" }
-        if ($script:AllowedListenerProcesses -notcontains $pname) { Stop-Preflight "el puerto $port lo escucha un proceso no reconocido como Docker: $pname" }
-    }
+    $connections = @(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)
+    Assert-PublishedPortListener -Port $port -Connections $connections
     return $port
 }
 
