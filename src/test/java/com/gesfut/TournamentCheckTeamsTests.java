@@ -1,14 +1,15 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
+import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
+import com.gesfut.dtos.requests.TournamentRequest;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.TeamService;
 import com.gesfut.services.TournamentService;
+import com.gesfut.services.impl.AuthServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,9 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** Revisar y generar / inicializar: DNI repetido entre equipos e intervalo 0 dan 400 con mensaje claro y no crean nada. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
 })
 @AutoConfigureMockMvc
@@ -38,16 +37,18 @@ class TournamentCheckTeamsTests {
     @Autowired TeamService teams;
     @Autowired TournamentService tournaments;
     @Autowired UserRepository users;
+    @Autowired AuthServiceImpl authService;
     @Autowired com.gesfut.config.security.jwt.JwtService jwt;
     final String prefix = "TEST DNI " + java.util.UUID.randomUUID().toString().substring(0, 8);
+    final String email = "qa.check." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
     UserEntity owner; String code; long teamA, teamB;
 
     @BeforeEach void setUp() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
-        var row = jdbc.queryForMap("SELECT t.user_id uid, BIN_TO_UUID(t.code) code FROM tournaments t WHERE t.code IS NOT NULL AND NOT EXISTS (SELECT 1 FROM tournament_participants p WHERE p.tournament_id=t.id) ORDER BY t.id LIMIT 1");
-        owner = users.findById(((Number) row.get("uid")).longValue()).orElseThrow();
-        code = (String) row.get("code");
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        authService.singUp(new RegisterRequest(email, "Qa-" + java.util.UUID.randomUUID(), "QaCheck", "User", true));
+        owner = users.findByEmail(email).orElseThrow();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(owner, null, owner.getAuthorities()));
+        code = tournaments.createTournament(new TournamentRequest(prefix));
         teams.createTeam(new TeamRequest(prefix + " A", "#000000", new LinkedHashSet<>(List.of(
                 new PlayerRequest("Juan", "Perez", true, true, 10, "30123456"), new PlayerRequest("Pedro", "Gomez", false, false, 1)))));
         teams.createTeam(new TeamRequest(prefix + " B", "#000000", new LinkedHashSet<>(List.of(
@@ -58,6 +59,13 @@ class TournamentCheckTeamsTests {
     @AfterEach void clean() {
         jdbc.update("DELETE p FROM players p JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
         jdbc.update("DELETE FROM teams WHERE name LIKE ?", prefix + "%");
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(owner, null, owner.getAuthorities()));
+        try { if (code != null) tournaments.deleteTournament(code); } catch (Exception ignored) { }
+        jdbc.update("DELETE FROM tournaments WHERE name=?", prefix);
+        String like = "qa.check.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
         SecurityContextHolder.clearContext();
     }
     long participants() { return jdbc.queryForObject("SELECT COUNT(*) FROM tournament_participants p JOIN tournaments t ON t.id=p.tournament_id WHERE BIN_TO_UUID(t.code)=?", Long.class, code); }
