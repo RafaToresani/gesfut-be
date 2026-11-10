@@ -1,6 +1,5 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
 
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.config.security.jwt.CookieAuth;
@@ -46,9 +45,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** A4 #1 (31/10): tokens de reset y verificacion opacos, hasheados, de un solo uso y que no sirven como sesion. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=true"
 })
@@ -72,7 +69,7 @@ class TokensOpacosTests {
     }
 
     String guard() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         return "qa.tok." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
     }
 

@@ -1,6 +1,5 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
 
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.services.impl.AuthServiceImpl;
@@ -29,9 +28,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** A4 #4 (31/10): recuperar contrasena con limite por mail e IP, respuesta identica y envio asincrono. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=false"
 })
@@ -44,7 +41,7 @@ class ResetRateLimitTests {
     @MockBean EmailService emailService;
 
     String cuenta() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.rl." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaRl", "Uno", true));
         return email;

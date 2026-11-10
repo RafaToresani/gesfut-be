@@ -1,6 +1,5 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
 
 import com.gesfut.config.security.dtos.LoginRequest;
 import com.gesfut.config.security.dtos.RegisterRequest;
@@ -32,9 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** A4 #2 (31/10): cambiar la contrasena invalida las sesiones anteriores; el login nuevo sigue funcionando. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=false"
 })
@@ -55,7 +52,7 @@ class PasswordChangeSessionTests {
     }
 
     String[] cuenta() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.pwd." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         String pass = "Qa-" + UUID.randomUUID();
         auth.singUp(new RegisterRequest(email, pass, "QaPwd", "Uno", true));

@@ -65,13 +65,9 @@ $known = @{
     'java/com/gesfut/InitializeAndDniHttpTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/MailReactivadoYResetTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/MailVerificacionDesactivadaTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/PasswordChangeSessionTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/PlayerEditIntegrationTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/ResendVerificationTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/ResetRateLimitTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/ResetYChangePasswordEnBodyTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/TeamBatchAtomicityTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/TokensOpacosTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/TournamentCheckTeamsTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/config/security/PublicAccessTests.java' = @('jdbc-url','spring-config-keys')
 }

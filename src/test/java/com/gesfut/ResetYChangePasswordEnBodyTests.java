@@ -1,6 +1,5 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
 
 import com.gesfut.config.security.dtos.LoginRequest;
 import com.gesfut.config.security.dtos.RegisterRequest;
@@ -35,9 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** A4 #3 (31/10): email y token en el body del POST; rutas viejas eliminadas sin alias; link del mail con #t=. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=false"
 })
@@ -63,7 +60,7 @@ class ResetYChangePasswordEnBodyTests {
     }
 
     String[] cuenta() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.p3." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         String clave = "Qa-" + UUID.randomUUID();
         auth.singUp(new RegisterRequest(email, clave, "QaP3", "Uno", true));
