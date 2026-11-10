@@ -220,7 +220,7 @@ function Test-Grants {
         if ($privs -match '(?i)\bFILE\b|\bSUPER\b') { Stop-Preflight 'el usuario tiene FILE o SUPER' }
         if ($obj -ceq '*.*') {
             if ($privs -cne 'USAGE') { Stop-Preflight 'el usuario tiene privilegios globales (*.*) además de USAGE' }
-        } elseif ($obj -ceq '`gesfut_isolated_test`.*' -or $obj -ceq '`gesfut\_isolated\_test`.*') {
+        } elseif (Test-GrantObjectIsIsolatedDb $obj) {
             $onDb = $true
         } else {
             Stop-Preflight 'el usuario tiene privilegios sobre otra base u objeto'

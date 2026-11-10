@@ -188,6 +188,19 @@ function Assert-PublishedPortListener {
         if (-not (& $CanConnect $Port)) { Stop-Preflight "el puerto $Port figura sin estado y no acepta conexiones TCP en 127.0.0.1" }
     }
 }
+# Objeto de un GRANT de nivel base de datos tal como lo imprime `mysql -N -B` (modo batch): el backslash se duplica,
+# asi que el grant real `gesfut\_isolated\_test`.* (guion bajo escapado = literal) sale como `gesfut\\_isolated\\_test`.*
+# Se aceptan SOLO estas tres escrituras de la base aislada; cualquier otra base u objeto aborta.
+function Test-GrantObjectIsIsolatedDb([string]$Obj) {
+    $bt = [string][char]96
+    $accepted = @(
+        ($bt + 'gesfut_isolated_test' + $bt + '.*'),
+        ($bt + 'gesfut\_isolated\_test' + $bt + '.*'),
+        ($bt + 'gesfut\\_isolated\\_test' + $bt + '.*')
+    )
+    foreach ($a in $accepted) { if ($Obj -ceq $a) { return $true } }
+    return $false
+}
 function Test-PortListening([int]$Port) {
     $l = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
     return ($l.Count -gt 0)

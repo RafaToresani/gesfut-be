@@ -5,7 +5,7 @@
 .DESCRIPTION
   Usa conexiones y duenos FALSOS inyectados por parametro. Cada caso negativo debe abortar con
   "GESFUT PREFLIGHT" (que test-isolated.ps1 convierte en exit 2); los positivos no deben abortar.
-  Salida: exit 0 si los 11 casos dan lo esperado, exit 1 si alguno no.
+  Salida: exit 0 si los 19 casos (11 de listener y 8 de GRANT) dan lo esperado, exit 1 si alguno no.
 #>
 [CmdletBinding()]
 param()
@@ -42,6 +42,23 @@ foreach ($c in $cases) {
     $okRun = if ($c.Expect -eq 'ok') { $null -eq $msg } else { ($null -ne $msg) -and $msg.StartsWith($script:PreflightMarker) -and $msg.Contains($c.Expect) }
     if ($okRun) { Write-Host ("OK     " + $c.N) } else { $fail++; Write-Host ("FALLO  " + $c.N + " -> " + $msg) -ForegroundColor Red }
 }
-Write-Host ("test-listener-check: {0} casos, {1} fallos" -f $cases.Count, $fail)
+# --- Grants: salida de mysql -N -B (backslash duplicado) ---
+$bt = [string][char]96
+$gcases = @(
+    @{ N = 'G1 base aislada tal cual la imprime -B (con \\)'; O = ($bt + 'gesfut\\_isolated\\_test' + $bt + '.*'); Expect = $true },
+    @{ N = 'G2 base aislada con \_ (sin batch)'; O = ($bt + 'gesfut\_isolated\_test' + $bt + '.*'); Expect = $true },
+    @{ N = 'G3 base aislada sin escapes'; O = ($bt + 'gesfut_isolated_test' + $bt + '.*'); Expect = $true },
+    @{ N = 'G4 otra base (GESFUT2)'; O = ($bt + 'GESFUT2' + $bt + '.*'); Expect = $false },
+    @{ N = 'G5 comodin de todas las bases'; O = ($bt + '%' + $bt + '.*'); Expect = $false },
+    @{ N = 'G6 prefijo con comodin que abarca otras bases'; O = ($bt + 'gesfut\\_%' + $bt + '.*'); Expect = $false },
+    @{ N = 'G7 tabla puntual de la base aislada'; O = ($bt + 'gesfut\\_isolated\\_test' + $bt + '.matches'); Expect = $false },
+    @{ N = 'G8 cuatro backslashes (patron distinto)'; O = ($bt + 'gesfut\\\\_isolated\\\\_test' + $bt + '.*'); Expect = $false }
+)
+foreach ($g in $gcases) {
+    $r = Test-GrantObjectIsIsolatedDb $g.O
+    if ($r -eq $g.Expect) { Write-Host ("OK     " + $g.N) } else { $fail++; Write-Host ("FALLO  " + $g.N) -ForegroundColor Red }
+}
+$total = $cases.Count + $gcases.Count
+Write-Host ("test-listener-check: {0} casos, {1} fallos" -f $total, $fail)
 if ($fail -gt 0) { exit 1 }
 exit 0
