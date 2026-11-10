@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.models.user.UserEntity;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * DNI repetido al sumar equipo / jugador, add-player con DNI (antes 500) y torneo archivado de solo lectura.
  * Crea su propio torneo y equipos y los borra al final.
  */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",

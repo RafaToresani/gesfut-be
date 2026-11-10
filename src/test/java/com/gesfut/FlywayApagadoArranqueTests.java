@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** A4 #7 fixup: con Flyway apagado (default) un arranque normal NO migra; con ddl-auto=validate solo arranca si la base ya tiene V2. */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"

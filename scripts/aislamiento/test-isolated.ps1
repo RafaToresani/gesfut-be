@@ -291,7 +291,8 @@ try {
         Set-ProcessEnv 'GESFUT_ISOLATED_PORT' "$port"
         Set-ProcessEnv 'MAVEN_SKIP_RC' 'on'
 
-        $mvnArgs = @('-B', 'test')
+        # Las clases con base de regresion propia (@Tag requiere-base-regresion) NUNCA corren aca: no estan validadas por esta corrida.
+        $mvnArgs = @('-B', 'test', '-DexcludedGroups=requiere-base-regresion')
         if ($TestFilter) { $mvnArgs += @("-Dtest=$TestFilter", '-Dsurefire.failIfNoSpecifiedTests=false') }
         $logFile = Join-Path ([IO.Path]::GetTempPath()) ("gesfut-isolated-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 

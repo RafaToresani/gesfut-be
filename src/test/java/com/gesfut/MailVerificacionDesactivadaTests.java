@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.config.security.dtos.LoginRequest;
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.services.impl.AuthServiceImpl;
@@ -17,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /** Deuda temporal (31/10): con gesfut.mail.verificacion.enabled=false (default) el registro queda verificado y no se manda mail. Solo base de prueba. */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"

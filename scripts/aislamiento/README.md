@@ -105,3 +105,21 @@ El informe final dice en qué etapa se frenó (`ABORTADO 1-entorno: …`, `FRENA
 8. Que los procesos de Docker que escuchan el puerto se llamen `com.docker.backend`/`wslrelay`/… depende de la versión de Docker Desktop; si es otro nombre, el script aborta (falla cerrado) y hay que revisar la lista.
 9. Los tests de registro instancian, vía `SpringFactoriesLoader`, también los EPP/initializers de otras librerías que tengan constructor sin argumentos; las fallas de los que piden argumentos se ignoran a propósito (`FailureHandler`). No tienen efectos laterales conocidos, pero es una instanciación real.
 10. Verificado en el box: **solo sintaxis Java** (parser `java-parser`, sin compilar: no hay JDK) y balance de llaves/paréntesis/strings de los `.ps1` (heurístico: no hay `pwsh`). No se compiló contra Spring/Hikari/JUnit, no se corrió ningún test ni script.
+## Clases NO validadas por esta corrida (excepciones conocidas)
+
+Decision de Jefe (10/11): 16 clases de integracion siguen con su propia URL jdbc 3306 de la base de regresion
+(`gesfut_codex_regression_20261013`) y NO se editaron salvo agregarles `@Tag("requiere-base-regresion")`:
+AddPlayerHttpTests, ArchivedReadOnlyTests, FlywayApagadoArranqueTests, FlywayMigrationTests, InitializeAndDniHttpTests,
+MailReactivadoYResetTests, MailVerificacionDesactivadaTests, PasswordChangeSessionTests, PlayerEditIntegrationTests,
+ResendVerificationTests, ResetRateLimitTests, ResetYChangePasswordEnBodyTests, TeamBatchAtomicityTests,
+TokensOpacosTests, TournamentCheckTeamsTests y config/security/PublicAccessTests.
+
+- **Esas 16 NO deben correrse contra la base aislada** ni se consideran validadas por la corrida de `test-isolated.ps1`.
+  El script pasa `-DexcludedGroups=requiere-base-regresion`, asi que no corren; ademas el guardian las frenaria
+  (puerto 3306 fuera de rango) si alguien las ejecutara por otra via con el entorno del script.
+- La corrida aislada ejecuta: ResultIntegrityIntegrationTests, TestDatabaseGuardTests, GesfutApplicationTests (arranque de contexto
+  sobre la base aislada vacia, con Flyway) y los unitarios sin Spring.
+- `grep-checks.ps1` tiene la lista explicita y versionada (`$known`). Falla si: aparece una clase nueva con 3306/datasource que no
+  esta en la lista; una clase de la lista no tiene el `@Tag`; una clase de la lista usa un patron distinto de los listados; o una
+  clase de la lista ya no usa 3306 (migrada: hay que sacarla de la lista y quitarle el `@Tag`).
+- Plan: migrarlas de a lotes de 3-4 a datos `@Sql` propios sobre la base aislada (un commit por lote); las dos de Flyway al final.

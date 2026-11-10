@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.services.impl.AuthServiceImpl;
@@ -23,6 +25,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** Lote 1 (31/10): mail de verificacion reactivado, reset con SMTP caido y changePassword. Sender mockeado; solo base de prueba. */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",

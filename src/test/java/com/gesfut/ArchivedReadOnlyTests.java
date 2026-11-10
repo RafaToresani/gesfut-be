@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.dtos.requests.MatchDayRequest;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
@@ -17,6 +19,7 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Bug 6: un torneo archivado es solo lectura tambien para renombrar y sumar equipos/inicializar. */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"

@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.dtos.requests.PlayerEditRequest;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
@@ -19,6 +21,7 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Editar jugador: solo el duenio, mismas validaciones que el alta, conserva el jugador (y su historial). */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"

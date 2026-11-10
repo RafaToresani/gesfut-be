@@ -1,5 +1,7 @@
 package com.gesfut;
 
+import org.junit.jupiter.api.Tag;
+
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamImportResponse;
@@ -19,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Plan 22/10 #15 (reemplaza el todo o nada del loop 11): el import crea los equipos validos y reporta los que fallan.
  * Cada equipo es atomico: uno que falla no deja el equipo creado ni jugadores sueltos.
  */
+@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
