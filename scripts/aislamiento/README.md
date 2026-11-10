@@ -24,7 +24,7 @@ Defensa en capas: **script** (antes de Maven) → **guardián de entorno** (ante
 | `src/test/java/com/gesfut/testsupport/IsolatedDbRulesTest.java` | igual | Tests unitarios puros: 3306, rango, localhost, `[::1]`/IPv6, multi-host, failover, variantes de esquema, `address=`, base, usuario, parámetros prohibidos y desconocidos, perfil local, clean-disabled, y positivos. |
 | `src/test/java/com/gesfut/testsupport/IsolatedDbGuardTest.java` | igual | Tests del EnvironmentPostProcessor con `MockEnvironment` (sin contexto ni conexión). |
 | `src/test/java/com/gesfut/testsupport/IsolatedDbConnectionGuardTest.java` | igual | Tests del BPP con DataSources construidos sin `getConnection()`; verifica que Hikari no arranca (`isRunning()==false`). |
-| `negative-fixtures/ExternalDynamicPropertySourceNegativeTest.java` | **no se commitea** | Test externo con `@DynamicPropertySource` a 3306; `negative-runs.ps1` lo copia temporalmente y lo borra. |
+| `negative-fixtures/ExternalDynamicPropertySourceNegativeTest.java` | `scripts/negative-fixtures/` (versionado, fuera de `src/test`: Maven no lo compila) | Test externo con `@DynamicPropertySource` a 3306; `negative-runs.ps1` lo copia temporalmente a `src/test` y lo borra al terminar. |
 | `scripts/isolation-common.ps1` | `scripts/aislamiento/` (o fuera del repo) | Invariantes, listas de variables, detección de `application-local.*`, helper de comandos nativos. |
 | `scripts/test-isolated.ps1` | idem | Script de corrida: etapas 0-6, `-DryRun`, exit codes, restauración del entorno. |
 | `scripts/grep-checks.ps1` | idem | Busca en `src/test` usos que esquiven al guardián; muestra `archivo:línea:patrón` (nunca el contenido). |
@@ -123,3 +123,10 @@ TokensOpacosTests, TournamentCheckTeamsTests y config/security/PublicAccessTests
   esta en la lista; una clase de la lista no tiene el `@Tag`; una clase de la lista usa un patron distinto de los listados; o una
   clase de la lista ya no usa 3306 (migrada: hay que sacarla de la lista y quitarle el `@Tag`).
 - Plan: migrarlas de a lotes de 3-4 a datos `@Sql` propios sobre la base aislada (un commit por lote); las dos de Flyway al final.
+
+## Como correr los tests de integracion (leer antes de usar `mvn test` a mano)
+
+- **La unica corrida valida de los tests que tocan la base es `scripts/aislamiento/test-isolated.ps1`.** Solo ese script verifica el contenedor, arma el entorno (puerto, credencial en el entorno del proceso) y pasa `-DexcludedGroups=requiere-base-regresion`.
+- Un `mvn test` / `mvnw test` **a mano, sin el script**, no esta soportado: no existe la variable `GESFUT_ISOLATED_PORT`, y los tests de Spring dependen del guardian (`IsolatedDbGuard` + `IsolatedDbConnectionGuard`), que los corta con `GESFUT ISOLATION GUARD`. En particular, **las 16 clases con URL 3306 propia (taggeadas `requiere-base-regresion`) no excluyen nada por si solas**: sin el script se ejecutan y es el guardian el que las frena antes de crear el pool.
+- Para correr solo los unitarios sin Spring ni base, pasar una lista explicita de clases en `-Dtest=` (y comprobar que no quede vacia: un `-Dtest` vacio ejecuta toda la suite).
+- El `pom.xml` no se toca: no se configura `excludedGroups` ahi a proposito, para que la exclusion dependa del script verificado.
