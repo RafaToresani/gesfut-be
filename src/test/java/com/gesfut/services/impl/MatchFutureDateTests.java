@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/** Plan 22/10 #5: un partido suelto solo se reprograma con fecha futura. */
+/** 10/11: un partido se puede programar tambien en fecha/hora pasada (carga historica). */
 @ExtendWith(MockitoExtension.class)
 class MatchFutureDateTests {
     @Mock TournamentAccess access;
@@ -34,11 +34,12 @@ class MatchFutureDateTests {
         return m;
     }
 
-    @Test void fechaPasadaRechazada() {
-        match();
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> service.updateMatchDateAndDescription(7L, new MatchDateRequest(LocalDateTime.now().minusDays(1))));
-        assertTrue(e.getMessage().contains("futura"));
-        verify(matches, never()).save(any());
+    @Test void fechaPasadaAceptada() {
+        Match m = match();
+        LocalDateTime ayer = LocalDateTime.now().minusDays(1);
+        service.updateMatchDateAndDescription(7L, new MatchDateRequest(ayer));
+        assertEquals(ayer, m.getDate());
+        verify(matches).save(m);
     }
 
     @Test void fechaFuturaAceptada() {

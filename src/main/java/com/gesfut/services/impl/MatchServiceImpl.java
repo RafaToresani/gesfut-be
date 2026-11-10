@@ -1,5 +1,6 @@
 package com.gesfut.services.impl;
 
+import com.gesfut.config.TimeConfig;
 import com.gesfut.dtos.requests.MatchDateRequest;
 import com.gesfut.dtos.requests.MatchDescriptionRequest;
 import com.gesfut.dtos.requests.MatchRequest;
@@ -23,7 +24,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -48,6 +52,11 @@ public class MatchServiceImpl implements MatchService {
     private com.gesfut.repositories.ResultCorrectionRepository resultCorrectionRepository;
     @Autowired
     private TournamentParticipantService tournamentParticipantService;
+    @Autowired
+    private Clock clock;
+
+    private static final DateTimeFormatter RESULT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter RESULT_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     @Override
     public String loadMatchResult(MatchRequest request) {
@@ -65,8 +74,8 @@ public class MatchServiceImpl implements MatchService {
         if (Boolean.TRUE.equals(match.getMatchDay().getIsFinished())) throw new IllegalArgumentException("La jornada está cerrada.");
         if (match.getIsFinished())throw new ResourceNotFoundException("El partido ya está cerrado");
         if (match.isByeMatch()) throw new IllegalArgumentException("La fecha libre no puede cargar resultados.");
-        // Plan 22/10 #9: no se carga un resultado antes del dia del partido.
-        if (!match.resultLoadableToday()) throw new IllegalArgumentException("Todav\u00eda no es el d\u00eda del partido: el resultado se carga desde ese d\u00eda.");
+        // 10/11: el resultado se carga recien desde la hora programada del partido (hora de Argentina).
+        requireMatchStarted(match);
         return applyResult(request, match);
     }
 
@@ -274,6 +283,7 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public void updateMatchResult(MatchRequest request) throws BadRequestException {
         Match match = getWritableMatch(request.matchId());
+        requireMatchStarted(match);
         validateResult(request, match);
         long mvpCount = request.events().stream()
                 .filter(event -> event.type() == EEventType.MVP)
@@ -361,13 +371,12 @@ public class MatchServiceImpl implements MatchService {
     public NewDateResponse updateMatchDateAndDescription(Long matchId, MatchDateRequest request) {
         Match match = getWritableMatch(matchId);
         if (request.localDateTime() == null) throw new IllegalArgumentException("La fecha es requerida.");
-        // Plan 22/10 #5: un partido suelto solo se programa con fecha futura.
-        if (request.localDateTime().isBefore(LocalDateTime.now().minusMinutes(1))) throw new IllegalArgumentException("Eleg\u00ed una fecha y hora futura para el partido.");
+        // 10/11: se puede programar en fecha/hora pasada (carga historica); solo se exige el orden entre jornadas.
         match.getMatchDay().getTournament().getMatchDays().stream()
             .filter(day -> day.getNumberOfMatchDay() == match.getMatchDay().getNumberOfMatchDay() - 1)
             .flatMap(day -> day.getMatches().stream()).map(Match::getDate).filter(Objects::nonNull)
             .max(Comparator.naturalOrder()).ifPresent(last -> {
-                if (!request.localDateTime().isAfter(last)) throw new IllegalArgumentException("La fecha debe ser posterior a la jornada anterior.");
+                if (request.localDateTime().isBefore(last)) throw new IllegalArgumentException("La fecha no puede ser anterior a la fecha del \u00faltimo partido de la jornada anterior.");
             });
         match.setDate(request.localDateTime());
         matchRepository.save(match);
@@ -516,8 +525,28 @@ public class MatchServiceImpl implements MatchService {
         return match;
     }
 
-    private void validateResult(MatchRequest request, Match match) {
-        if (request.events() == null) throw new IllegalArgumentException("Los eventos son requeridos.");
+    /**
+     * Un resultado (carga, edicion o correccion) solo se acepta desde la hora programada inclusive.
+     * Match.date es hora de pared de Argentina (el front manda la hora ART con sufijo Z y Jackson descarta la Z):
+     * se interpreta en TimeConfig.ARGENTINA y se compara por instante, asi no depende de la zona del servidor.
+     * Sin fecha programada (date == null) no hay horario que respetar y no se bloquea.
+     */
+    private void requireMatchStarted(Match match) {
+        LocalDateTime scheduled = match.getDate();
+        if (scheduled == null) return;
+        Instant start = scheduled.atZone(TimeConfig.ARGENTINA).toInstant();
+        if (currentClock().instant().isBefore(start)) {
+            throw new IllegalArgumentException("Todav\u00eda no se puede cargar el resultado: el partido est\u00e1 programado para el "
+                    + scheduled.format(RESULT_DATE_FORMAT) + " a las " + scheduled.format(RESULT_TIME_FORMAT) + " (hora de Argentina).");
+        }
+    }
+
+    // Respaldo para tests que construyen el servicio con new/@InjectMocks y no setean el Clock.
+    private Clock currentClock() {
+        return clock != null ? clock : Clock.system(TimeConfig.ARGENTINA);
+    }
+
+    private void validateResult(MatchRequest request, Match match) {        if (request.events() == null) throw new IllegalArgumentException("Los eventos son requeridos.");
         int homeGoals = 0, awayGoals = 0;
         Set<String> keys = new HashSet<>();
         int mvps = 0;

@@ -91,9 +91,12 @@ public class Match {
         return null;
     }
 
-    /** Plan 22/10 #9: el resultado se carga recien el dia del partido (sin fecha: se permite). */
+    /**
+     * 10/11: el resultado se carga recien desde la hora programada (sin fecha: se permite).
+     * date es hora de pared de Argentina; el nombre se mantiene porque es el campo que consume el front.
+     */
     public boolean resultLoadableToday() {
-        return date == null || !date.toLocalDate().isAfter(java.time.LocalDate.now());
+        return date == null || !date.isAfter(java.time.LocalDateTime.now(com.gesfut.config.TimeConfig.ARGENTINA));
     }
 
     public String formatMatchDate(LocalDateTime date) {
