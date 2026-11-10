@@ -692,7 +692,6 @@ public class TournamentServiceImpl implements TournamentService {
     @Transactional
     public void generatePlayOffs(String code, List<Long> qualifiedTeams, java.time.LocalDateTime startDate, Integer minutesPerMatch) {
         if (startDate != null) {
-            if (startDate.isBefore(java.time.LocalDateTime.now().minusMinutes(1))) throw new IllegalArgumentException("Eleg\u00ed una fecha y hora futura para la ronda.");
             if (minutesPerMatch != null && (minutesPerMatch < 0 || minutesPerMatch > 600)) throw new IllegalArgumentException("Los minutos entre partidos deben estar entre 0 y 600.");
         }
         doGeneratePlayOffs(code, qualifiedTeams);

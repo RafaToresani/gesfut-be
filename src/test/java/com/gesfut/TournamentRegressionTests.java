@@ -222,12 +222,31 @@ class TournamentRegressionTests {
         Match last=match(league,a,b,3,0,true); match(league,c,d,1,0,true);
         last.setDate(java.time.LocalDateTime.now().minusDays(1));
         var start=java.time.LocalDate.now().plusDays(3).atTime(20,0);
-        assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),java.time.LocalDateTime.now().minusDays(2),60));
         service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),start,60);
         MatchDay po=tournament.getMatchDays().stream().filter(MatchDay::getIsPlayOff).findFirst().orElseThrow();
         var dates=po.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).map(Match::getDate).toList();
         assertEquals(List.of(start,start.plusMinutes(60)),dates);
         assertFalse(po.getMatches().iterator().next().resultLoadableToday()); // regla del dia del partido
+    }
+    /** Playoffs: una fecha pasada se acepta (se programa a posteriori); solo debe ser posterior al ultimo partido jugado. */
+    @Test void playoffRoundAcceptsPastDate(){
+        MatchDay league=day(false,true);
+        Match last=match(league,a,b,3,0,true); match(league,c,d,1,0,true);
+        last.setDate(java.time.LocalDateTime.now().minusDays(3));
+        var start=java.time.LocalDateTime.now().minusDays(1).withSecond(0).withNano(0);
+        service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),start,30);
+        MatchDay po=tournament.getMatchDays().stream().filter(MatchDay::getIsPlayOff).findFirst().orElseThrow();
+        var dates=po.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).map(Match::getDate).toList();
+        assertEquals(List.of(start,start.plusMinutes(30)),dates);
+    }
+    /** Una fecha anterior al ultimo partido jugado sigue rechazada, y ya no con el mensaje de "futura". */
+    @Test void playoffRoundBeforeLastMatchStillRejected(){
+        MatchDay league=day(false,true);
+        Match last=match(league,a,b,3,0,true); match(league,c,d,1,0,true);
+        last.setDate(java.time.LocalDateTime.now().minusDays(1));
+        var e=assertThrows(IllegalArgumentException.class,()->service.generatePlayOffs(tournament.getCode().toString(),List.of(1L,2L,3L,4L),java.time.LocalDateTime.now().minusDays(2),60));
+        assertTrue(e.getMessage().contains("despu"));
+        assertFalse(e.getMessage().contains("futura"));
     }
     /** Revision critica #8: empate en puntos/DG/GF -> enfrentamiento directo -> fair play -> nombre. */
     @Test void tiebreakUsesHeadToHeadThenFairPlayThenName(){
