@@ -69,6 +69,13 @@ public class TournamentServiceImpl implements TournamentService {
 
     @Autowired
     private MatchDayRepository matchDayRepository;
+    @Autowired(required = false)
+    private java.time.Clock clock;
+
+    // Mismo Clock que usa MatchServiceImpl; respaldo para tests que construyen el servicio con new y no lo setean.
+    private java.time.Clock currentClock() {
+        return clock != null ? clock : java.time.Clock.system(com.gesfut.config.TimeConfig.ARGENTINA);
+    }
 
     @Override
     public String createTournament(TournamentRequest request) {
@@ -395,7 +402,7 @@ public class TournamentServiceImpl implements TournamentService {
                             match.getMvpPlayer(),
                             match.getVsMatchIdWhoWin(),
                             match.getTiebreakWinnerId(),
-                            match.resultLoadableToday(),
+                            match.resultLoadableAt(currentClock()),
                             match.isByeMatch(),
                             match.restingTeamName(),
                             match.getPenaltiesHome(),
@@ -701,7 +708,7 @@ public class TournamentServiceImpl implements TournamentService {
         java.time.LocalDateTime previousLast = t.getMatchDays().stream().filter(d -> d != round)
                 .flatMap(d -> d.getMatches().stream()).map(Match::getDate).filter(Objects::nonNull)
                 .max(Comparator.naturalOrder()).orElse(null);
-        if (previousLast != null && !startDate.isAfter(previousLast)) throw new IllegalArgumentException("La ronda debe empezar despu\u00e9s del \u00faltimo partido jugado.");
+        if (previousLast != null && startDate.isBefore(previousLast)) throw new IllegalArgumentException("La ronda no puede empezar antes del \u00faltimo partido jugado.");
         java.time.LocalDateTime next = startDate;
         int step = minutesPerMatch == null ? 0 : minutesPerMatch;
         for (Match m : round.getMatches().stream().sorted(Comparator.comparingLong(Match::getId)).toList()) {
