@@ -5,7 +5,7 @@
 .DESCRIPTION
   Usa conexiones y duenos FALSOS inyectados por parametro. Cada caso negativo debe abortar con
   "GESFUT PREFLIGHT" (que test-isolated.ps1 convierte en exit 2); los positivos no deben abortar.
-  Salida: exit 0 si los 35 casos (16 de listener, 8 de GRANT y 11 de clave JWT descartable) dan lo esperado, exit 1 si alguno no.
+  Salida: exit 0 si los 47 casos (16 de listener, 8 de GRANT, 11 de clave JWT descartable y 12 de mail a loopback) dan lo esperado, exit 1 si alguno no.
 #>
 [CmdletBinding()]
 param()
@@ -121,7 +121,32 @@ foreach ($k in $kcases) {
     if ($k.Ok) { Write-Host ("OK     " + $k.N) } else { $fail++; Write-Host ("FALLO  " + $k.N + $(if ($k.Detail) { " -> " + $k.Detail } else { '' })) -ForegroundColor Red }
 }
 $k1 = $null; $k2 = $null; $kb = $null
-$total = $cases.Count + $gcases.Count + $kcases.Count
+# --- SMTP: el mail efectivo de la etapa 6 solo puede ser loopback con puerto cerrado ---
+$mcases = @(
+    @{ N = 'M1 127.0.0.1 puerto 1 cerrado'; H = '127.0.0.1'; P = '1'; Connect = $no; Expect = 'ok' },
+    @{ N = 'M2 localhost puerto 1 cerrado'; H = 'localhost'; P = '1'; Connect = $no; Expect = 'ok' },
+    @{ N = 'M3 host publico (el literal de application.properties)'; H = ('smtp.' + 'gmail.com'); P = '587'; Connect = $no; Expect = 'no es loopback' },
+    @{ N = 'M4 host vacio'; H = ''; P = '1'; Connect = $no; Expect = 'no es loopback' },
+    @{ N = 'M5 host que empieza como loopback pero es otro dominio'; H = '127.0.0.1.example.com'; P = '1'; Connect = $no; Expect = 'no es loopback' },
+    @{ N = 'M6 puerto no numerico'; H = '127.0.0.1'; P = 'abc'; Connect = $no; Expect = 'invalido' },
+    @{ N = 'M7 puerto fuera de rango'; H = '127.0.0.1'; P = '70000'; Connect = $no; Expect = 'invalido' },
+    @{ N = 'M8 loopback pero el puerto acepta conexiones'; H = '127.0.0.1'; P = '587'; Connect = $yes; Expect = 'acepta conexiones' }
+)
+foreach ($m in $mcases) {
+    $msg = $null
+    try { Assert-MailLoopback -MailHost $m.H -MailPort $m.P -CanConnect $m.Connect } catch { $msg = $_.Exception.Message }
+    $okRun = if ($m.Expect -eq 'ok') { $null -eq $msg } else { ($null -ne $msg) -and $msg.StartsWith($script:PreflightMarker) -and $msg.Contains($m.Expect) }
+    if ($okRun) { Write-Host ("OK     " + $m.N) } else { $fail++; Write-Host ("FALLO  " + $m.N + " -> " + $msg) -ForegroundColor Red }
+}
+$mp = $real.IndexOf("Set-ProcessEnv 'SPRING_MAIL_PORT'")
+$scases = @(
+    @{ N = 'M9 test-isolated.ps1 pisa spring.mail.host/port por env a loopback'; Ok = (($real -match "Set-ProcessEnv 'SPRING_MAIL_HOST' '127\.0\.0\.1'") -and ($mp -gt 0)) },
+    @{ N = 'M10 test-isolated.ps1 valida el mail efectivo con Assert-MailLoopback despues de fijarlo'; Ok = (($mp -gt 0) -and ($real.IndexOf('Assert-MailLoopback') -gt $mp)) },
+    @{ N = 'M11 la salida de Maven no se muestra en vivo (sin Tee-Object): va a archivo, se escanea y despues se imprime'; Ok = ((-not ($real -match 'Tee-Object')) -and ($real -match 'Out-File -FilePath \$logFile')) },
+    @{ N = 'M12 la fuga se busca tambien en EMAIL_* y el log se anula en finally'; Ok = (($real -match '\$leakValues') -and ($real -match '\$log = \$null')) }
+)
+foreach ($sc in $scases) { if ($sc.Ok) { Write-Host ("OK     " + $sc.N) } else { $fail++; Write-Host ("FALLO  " + $sc.N) -ForegroundColor Red } }
+$total = $cases.Count + $gcases.Count + $kcases.Count + $mcases.Count + $scases.Count
 Write-Host ("test-listener-check: {0} casos, {1} fallos" -f $total, $fail)
 if ($fail -gt 0) { exit 1 }
 exit 0

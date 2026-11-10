@@ -67,6 +67,21 @@ function New-EphemeralJwtKey {
     return [Convert]::ToBase64String($bytes)
 }
 
+# SMTP: en la etapa 6 el mail solo puede apuntar a loopback con un puerto CERRADO (application.properties trae un host publico
+# literal: se pisa por env SPRING_MAIL_HOST/SPRING_MAIL_PORT). Se valida el valor EFECTIVO que va al proceso Maven.
+$script:MailLoopbackHosts = @('127.0.0.1', 'localhost', '::1')
+function Assert-MailLoopback {
+    param(
+        [string]$MailHost,
+        [string]$MailPort,
+        [scriptblock]$CanConnect = { param($P) Test-TcpConnect $P }
+    )
+    if (-not ($script:MailLoopbackHosts -ccontains $MailHost)) { Stop-Preflight 'spring.mail.host efectivo no es loopback (se espera 127.0.0.1)' }
+    $n = 0
+    if (-not [int]::TryParse([string]$MailPort, [ref]$n) -or $n -lt 1 -or $n -gt 65535) { Stop-Preflight 'spring.mail.port efectivo invalido' }
+    if (& $CanConnect $n) { Stop-Preflight "el puerto de mail $n en loopback acepta conexiones (debe estar cerrado)" }
+}
+
 # Ejecuta un comando nativo sin que stderr dispare errores en PS 5.1; devuelve objeto con stdout/stderr/exit.
 # Nunca loguea los argumentos (no deben contener secretos de todos modos).
 function Invoke-Native {

@@ -235,6 +235,10 @@ function Test-Grants {
 $exitCode = 0
 $password = $null
 $jwtKey = $null
+$leakValues = @()
+$log = $null
+$mailUser = $null
+$mailPass = $null
 $logFile = $null
 $pushed = $false
 try {
@@ -287,11 +291,24 @@ try {
         # Clave JWT descartable solo para esta corrida: pisa cualquier SECRET_KEY heredada (nunca se usa la real) y se restaura en finally.
         $jwtKey = New-EphemeralJwtKey
         Set-ProcessEnv 'SECRET_KEY' $jwtKey
-# Placeholders sin default de application.properties: valores FICTICIOS fijos (pisan los heredados, nunca credenciales reales; el SMTP no tiene destino real).
-Set-ProcessEnv 'FE_URL' 'http://localhost:4200'
-Set-ProcessEnv 'EMAIL_PORT' '587'
-Set-ProcessEnv 'EMAIL_USER' 'isolated-test@invalid.example'
-Set-ProcessEnv 'EMAIL_PASS' 'isolated-test-not-a-real-password'
+        # Placeholders sin default de application.properties: valores FICTICIOS fijos (pisan los heredados, nunca credenciales reales).
+        # Los EMAIL_* reales heredados (si hay) se guardan solo para buscarlos en el log (fuga) y se anulan en finally.
+        foreach ($mn in @('EMAIL_USER', 'EMAIL_PASS')) {
+            $mv = [Environment]::GetEnvironmentVariable($mn, 'Process')
+            if ($mv -and $mv.Length -ge 4) { $leakValues += $mv }
+        }
+        $mv = $null
+        $mailUser = 'isolated-test@invalid.example'
+        $mailPass = 'isolated-test-not-a-real-password'
+        $leakValues += @($mailUser, $mailPass)
+        Set-ProcessEnv 'FE_URL' 'http://localhost:4200'
+        Set-ProcessEnv 'EMAIL_PORT' '1'
+        Set-ProcessEnv 'EMAIL_USER' $mailUser
+        Set-ProcessEnv 'EMAIL_PASS' $mailPass
+        # SMTP: application.properties tiene spring.mail.host=<host publico> literal; SPRING_MAIL_* (env) lo pisa. Solo loopback, puerto 1 cerrado.
+        Set-ProcessEnv 'SPRING_MAIL_HOST' '127.0.0.1'
+        Set-ProcessEnv 'SPRING_MAIL_PORT' '1'
+        Assert-MailLoopback ([Environment]::GetEnvironmentVariable('SPRING_MAIL_HOST', 'Process')) ([Environment]::GetEnvironmentVariable('SPRING_MAIL_PORT', 'Process'))
 
         # Las clases con base de regresion propia (@Tag requiere-base-regresion) NUNCA corren aca: no estan validadas por esta corrida.
         $mvnArgs = @('-B', 'test', '-DexcludedGroups=requiere-base-regresion')
@@ -301,15 +318,24 @@ Set-ProcessEnv 'EMAIL_PASS' 'isolated-test-not-a-real-password'
         Push-Location -LiteralPath $RepoRoot; $pushed = $true
         $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
         try {
-            & (Join-Path $RepoRoot 'mvnw.cmd') @mvnArgs 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $logFile
+            # La salida va SOLO a archivo; se escanea y recien despues se muestra (si aparece una credencial, no se imprime nada).
+            & (Join-Path $RepoRoot 'mvnw.cmd') @mvnArgs 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath $logFile -Encoding utf8
             $mvnCode = $LASTEXITCODE
         } finally { $ErrorActionPreference = $prev }
 
         $log = Get-Content -LiteralPath $logFile -Raw
-        if ($log -and ($log.Contains($password) -or $log.Contains($jwtKey))) {
+        # Fuga: clave JWT, clave de la base, y EMAIL_* (reales heredados o ficticios). Si aparece algo, el log se borra y NO se imprime.
+        $leak = $false
+        if ($log) {
+            if ($log.Contains($password) -or $log.Contains($jwtKey)) { $leak = $true }
+            foreach ($lv in $leakValues) { if ($log.Contains($lv)) { $leak = $true } }
+        }
+        if ($leak) {
             Remove-Item -LiteralPath $logFile -Force
             $logFile = $null
-            Write-Warning 'La credencial apareció en la salida de Maven: se borró el log. Revisar qué la imprimió.'
+            Write-Warning 'La credencial apareció en la salida de Maven: no se imprimió nada y se borró el log. Revisar qué la imprimió.'
+        } elseif ($log) {
+            Write-Host $log
         }
         if ($log -match [regex]::Escape($script:GuardMarker)) {
             $script:Report.Add('FRENADO 6-maven: el guardián de aislamiento abortó el contexto (ver mensaje GESFUT ISOLATION GUARD)')
@@ -335,6 +361,8 @@ Set-ProcessEnv 'EMAIL_PASS' 'isolated-test-not-a-real-password'
 } finally {
     $password = $null
     $jwtKey = $null
+    $log = $null
+    $leakValues = $null; $mailUser = $null; $mailPass = $null
     Remove-Variable -Name password, jwtKey -ErrorAction SilentlyContinue
     Restore-ProcessEnv
     if ($pushed) { Pop-Location }
