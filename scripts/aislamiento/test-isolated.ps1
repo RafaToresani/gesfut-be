@@ -287,6 +287,11 @@ try {
         # Clave JWT descartable solo para esta corrida: pisa cualquier SECRET_KEY heredada (nunca se usa la real) y se restaura en finally.
         $jwtKey = New-EphemeralJwtKey
         Set-ProcessEnv 'SECRET_KEY' $jwtKey
+# Placeholders sin default de application.properties: valores FICTICIOS fijos (pisan los heredados, nunca credenciales reales; el SMTP no tiene destino real).
+Set-ProcessEnv 'FE_URL' 'http://localhost:4200'
+Set-ProcessEnv 'EMAIL_PORT' '587'
+Set-ProcessEnv 'EMAIL_USER' 'isolated-test@invalid.example'
+Set-ProcessEnv 'EMAIL_PASS' 'isolated-test-not-a-real-password'
 
         # Las clases con base de regresion propia (@Tag requiere-base-regresion) NUNCA corren aca: no estan validadas por esta corrida.
         $mvnArgs = @('-B', 'test', '-DexcludedGroups=requiere-base-regresion')
