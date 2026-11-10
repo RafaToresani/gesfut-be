@@ -1,13 +1,13 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
+import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.dtos.responses.TeamImportResponse;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.TeamService;
+import com.gesfut.services.impl.AuthServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,25 +21,30 @@ import static org.junit.jupiter.api.Assertions.*;
  * Plan 22/10 #15 (reemplaza el todo o nada del loop 11): el import crea los equipos validos y reporta los que fallan.
  * Cada equipo es atomico: uno que falla no deja el equipo creado ni jugadores sueltos.
  */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
 })
 class TeamBatchAtomicityTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired TeamService teams;
     @Autowired UserRepository users;
+    @Autowired AuthServiceImpl authService;
     final String prefix = "TEST ATOM " + java.util.UUID.randomUUID().toString().substring(0, 8);
+    final String email = "qa.atom." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
 
     @BeforeEach void auth() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
-        UserEntity user = users.findAll().stream().findFirst().orElseThrow();
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        authService.singUp(new RegisterRequest(email, "Qa-" + java.util.UUID.randomUUID(), "QaAtom", "User", true));
+        UserEntity user = users.findByEmail(email).orElseThrow();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
     }
     @AfterEach void clean() {
         jdbc.update("DELETE p FROM players p JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
         jdbc.update("DELETE FROM teams WHERE name LIKE ?", prefix + "%");
+        String like = "qa.atom.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
         SecurityContextHolder.clearContext();
     }
     Set<PlayerRequest> players(boolean captain) {

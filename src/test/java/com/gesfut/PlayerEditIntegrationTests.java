@@ -1,13 +1,13 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
+import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.dtos.requests.PlayerEditRequest;
 import com.gesfut.dtos.requests.PlayerRequest;
 import com.gesfut.dtos.requests.TeamRequest;
 import com.gesfut.models.user.UserEntity;
 import com.gesfut.repositories.UserRepository;
 import com.gesfut.services.TeamService;
+import com.gesfut.services.impl.AuthServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,21 +21,22 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Editar jugador: solo el duenio, mismas validaciones que el alta, conserva el jugador (y su historial). */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
 })
 class PlayerEditIntegrationTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired TeamService teams;
     @Autowired UserRepository users;
+    @Autowired AuthServiceImpl auth;
     final String prefix = "TEST EDIT " + java.util.UUID.randomUUID().toString().substring(0, 8);
+    final String email = "qa.edit." + java.util.UUID.randomUUID().toString().substring(0, 8) + "@example.test";
     long juan, pedro;
 
     @BeforeEach void setUp() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
-        UserEntity user = users.findAll().stream().findFirst().orElseThrow();
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        auth.singUp(new RegisterRequest(email, "Qa-" + java.util.UUID.randomUUID(), "QaEdit", "User", true));
+        UserEntity user = users.findByEmail(email).orElseThrow();
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
         teams.createTeam(new TeamRequest(prefix + " A", "#000000", new LinkedHashSet<>(List.of(
                 new PlayerRequest("Juan", "Perez", true, false, 10, "30123456"),
@@ -46,6 +47,10 @@ class PlayerEditIntegrationTests {
     @AfterEach void clean() {
         jdbc.update("DELETE p FROM players p JOIN teams t ON t.id=p.team_id WHERE t.name LIKE ?", prefix + "%");
         jdbc.update("DELETE FROM teams WHERE name LIKE ?", prefix + "%");
+        String like = "qa.edit.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
         SecurityContextHolder.clearContext();
     }
 

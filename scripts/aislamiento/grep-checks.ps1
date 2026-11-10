@@ -49,7 +49,7 @@ $allow = @{
     # cualquier spring.datasource.* en src/test se marca (decisión de Jefe; la inyecta solo el script).
 }
 
-# Excepciones CONOCIDAS y versionadas (decision de Jefe, 10/11): 16 clases de integracion que todavia tienen su propia
+# Excepciones CONOCIDAS y versionadas (decision de Jefe, 10/11): 8 clases de integracion que todavia tienen su propia
 # URL jdbc 3306 de la base de regresion. Estan marcadas con @Tag("requiere-base-regresion"), test-isolated.ps1 las EXCLUYE
 # y NO se consideran validadas por la corrida aislada. Reglas de este chequeo:
 #   - solo se toleran los patrones listados para ese archivo (un uso nuevo de otro tipo FALLA);
@@ -63,11 +63,7 @@ $known = @{
     'java/com/gesfut/FlywayApagadoArranqueTests.java' = @('DriverManagerDataSource','Flyway-manual','jdbc-url','new-JdbcTemplate','spring-config-keys')
     'java/com/gesfut/FlywayMigrationTests.java' = @('DriverManagerDataSource','Flyway-manual','jdbc-url','new-JdbcTemplate','spring-config-keys')
     'java/com/gesfut/InitializeAndDniHttpTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/MailReactivadoYResetTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/MailVerificacionDesactivadaTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/PlayerEditIntegrationTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/ResendVerificationTests.java' = @('jdbc-url','spring-config-keys')
-    'java/com/gesfut/TeamBatchAtomicityTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/TournamentCheckTeamsTests.java' = @('jdbc-url','spring-config-keys')
     'java/com/gesfut/config/security/PublicAccessTests.java' = @('jdbc-url','spring-config-keys')
 }

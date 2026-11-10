@@ -1,11 +1,10 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
 import com.gesfut.config.security.dtos.LoginRequest;
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.services.impl.AuthServiceImpl;
 import com.gesfut.services.impl.EmailService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,9 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /** Deuda temporal (31/10): con gesfut.mail.verificacion.enabled=false (default) el registro queda verificado y no se manda mail. Solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate"
 })
 class MailVerificacionDesactivadaTests {
@@ -30,7 +27,7 @@ class MailVerificacionDesactivadaTests {
     @MockBean EmailService emailService;
 
     @Test void registroQuedaVerificadoSinMailYPuedeLoguearse() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.autoverify." + System.nanoTime() + "@example.test";
         String pass = "Qa-" + java.util.UUID.randomUUID();
         auth.singUp(new RegisterRequest(email, pass, "QaAuto", "Verify", true));
@@ -41,5 +38,12 @@ class MailVerificacionDesactivadaTests {
         auth.resendVerificationEmail(email);
         auth.resendVerificationEmail("nadie-" + System.nanoTime() + "@example.test");
         verify(emailService, never()).sendEmail(any(), any(), any());
+    }
+
+    @AfterEach void limpiar() {
+        String like = "qa.autoverify.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
     }
 }

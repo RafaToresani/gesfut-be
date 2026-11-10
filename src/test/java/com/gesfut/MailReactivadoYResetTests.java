@@ -1,11 +1,10 @@
 package com.gesfut;
 
-import org.junit.jupiter.api.Tag;
-
 import com.gesfut.config.security.dtos.RegisterRequest;
 import com.gesfut.exceptions.ResourceNotFoundException;
 import com.gesfut.services.impl.AuthServiceImpl;
 import com.gesfut.services.impl.EmailService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,9 +24,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** Lote 1 (31/10): mail de verificacion reactivado, reset con SMTP caido y changePassword. Sender mockeado; solo base de prueba. */
-@Tag("requiere-base-regresion")
 @SpringBootTest(properties = {
-    "spring.datasource.url=jdbc:mysql://127.0.0.1:3306/gesfut_codex_regression_20261013",
     "spring.jpa.hibernate.ddl-auto=validate",
     "gesfut.mail.verificacion.enabled=true"
 })
@@ -39,10 +36,17 @@ class MailReactivadoYResetTests {
     @MockBean EmailService emailService;
 
     String nuevaCuenta() {
-        assertEquals("gesfut_codex_regression_20261013", jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("gesfut_isolated_test", jdbc.queryForObject("SELECT DATABASE()", String.class));
         String email = "qa.lote1." + UUID.randomUUID().toString().substring(0, 8) + "@example.test";
         auth.singUp(new RegisterRequest(email, "Qa-" + UUID.randomUUID(), "QaLote", "Uno", true));
         return email;
+    }
+
+    @AfterEach void limpiar() {
+        String like = "qa.lote1.%@example.test";
+        jdbc.update("DELETE FROM players WHERE team_id IN (SELECT t.id FROM teams t JOIN users u ON u.id = t.user_id WHERE u.email LIKE ?)", like);
+        jdbc.update("DELETE FROM teams WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)", like);
+        jdbc.update("DELETE FROM users WHERE email LIKE ?", like);
     }
 
     @Test void conMailActivadoElRegistroQuedaSinVerificarYSeIntentaEnviar() {
